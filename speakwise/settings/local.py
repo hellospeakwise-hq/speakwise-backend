@@ -1,9 +1,10 @@
 """
 Development settings for SpeakWise project.
 """
+import os
 
-from .base import *  # Import base settings  # noqa: E402,F403,F401
-from .base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE  # noqa: E402
+from speakwise.settings.base import *  # Import base settings  # noqa: E402,F403,F401
+from speakwise.settings.base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE  # noqa: E402
 
 try:
     import debug_toolbar  # noqa: F401
@@ -44,10 +45,7 @@ CORS_ALLOW_HEADERS = [
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default":{os.getenv("DATABASE_URL", default="sqlite:///db.sqlite3"),}
 }
 
 # Static files (CSS, JavaScript, Images)

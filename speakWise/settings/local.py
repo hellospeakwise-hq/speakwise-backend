@@ -2,8 +2,8 @@
 Development settings for SpeakWise project.
 """
 
-from .settings_base import *  # Import base settings  # noqa: E402,F403,F401
-from .settings_base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE  # noqa: E402
+from .base import *  # Import base settings  # noqa: E402,F403,F401
+from .base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE  # noqa: E402
 
 try:
     import debug_toolbar  # noqa: F401

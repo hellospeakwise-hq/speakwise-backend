@@ -3,8 +3,8 @@ Production settings for SpeakWise project.
 """
 
 import os
-from .settings_base import *  # Import base settings  # noqa: E402,F403,F401
-from .settings_base import BASE_DIR  # noqa: E402
+from .base import *  # Import base settings  # noqa: E402,F403,F401
+from .base import BASE_DIR  # noqa: E402
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-fallback-key-change-me")

@@ -48,20 +48,20 @@ SpeakWise-Backend is a Django-based backend for the SpeakWise application, desig
 
 > **Note:**  
 > SpeakWise uses three settings environments:
-> - `settings/settings_base.py`
-> - `settings/settings_dev.py`
-> - `settings/settings_prod.py`
+> - `settings/base.py`
+> - `settings/local.py`
+> - `settings/prod.py`
 >
 > To specify which settings to use, you can run:
 >
 > ```bash
-> python3 manage.py runserver --settings=speakWise.settings.settings_dev
+> python3 manage.py runserver --settings=speakWise.settings.local
 > ```
 >
 > Or set the environment variable so you don't have to specify it every time:
 >
 > ```bash
-> export DJANGO_SETTINGS_MODULE=speakWise.settings.settings_dev
+> export DJANGO_SETTINGS_MODULE=speakWise.settings.local
 > ```
 ## Project Structure
 

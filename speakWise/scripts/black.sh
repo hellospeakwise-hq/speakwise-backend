@@ -1,0 +1,1 @@
+black --line-length 117 --exclude '^.*\b(migrations)\b.*$' speakWise

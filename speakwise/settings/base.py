@@ -12,16 +12,19 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+DEBUG = False
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # Application definition
 
-INSTALLED_APPS = [
+DJANGO_APPS = [
+    # default django apps
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -31,11 +34,17 @@ INSTALLED_APPS = [
 ]
 
 # OWN APPS
-INSTALLED_APPS += [
-    # our apps will go in here
+THIRD_PARTY_APPS = [
+    # third party apps
     "drf_spectacular",
     # "corsheaders",
 ]
+
+LOCAL_APPS = [
+    # locally installed apps
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

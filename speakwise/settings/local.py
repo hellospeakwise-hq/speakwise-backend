@@ -1,6 +1,7 @@
 """
 Development settings for SpeakWise project.
 """
+
 import os
 
 from speakwise.settings.base import *  # Import base settings  # noqa: E402,F403,F401
@@ -15,7 +16,6 @@ except ImportError:
 SECRET_KEY = "django-insecure-development-key-change-in-production"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
 
@@ -45,13 +45,13 @@ CORS_ALLOW_HEADERS = [
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    "default":{
+    "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("DB_NAME"),
         "USER": os.environ.get("DB_USER"),
         "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT")
+        "PORT": os.environ.get("DB_PORT"),
     }
 }
 

@@ -10,7 +10,7 @@ from .base import BASE_DIR  # noqa: E402
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-fallback-key-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
@@ -23,8 +23,8 @@ DATABASES = {
         "NAME": os.environ.get("DB_NAME"),
         "USER": os.environ.get("DB_USER"),
         "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
+        "HOST": os.environ.get("DB_HOST"),
+        "PORT": os.environ.get("DB_PORT"),
     }
 }
 
@@ -89,7 +89,9 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": ("{levelname} {asctime} {module} {process:d} " "{thread:d} {message}"),
+            "format": (
+                "{levelname} {asctime} {module} {process:d} {thread:d} {message}"
+            ),
             "style": "{",
         },
     },

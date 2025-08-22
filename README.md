@@ -46,7 +46,7 @@ SpeakWise-Backend is a Django-based backend for the SpeakWise application, desig
 	python manage.py runserver
 	```
 
-> **Note:**  
+> **Note:**
 > SpeakWise uses three settings environments:
 > - `settings/base.py`
 > - `settings/local.py`

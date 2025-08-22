@@ -49,7 +49,7 @@ LOCAL_APPS = [
     "speakers",
     "organizers",
     "attendees",
-
+    "talks",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

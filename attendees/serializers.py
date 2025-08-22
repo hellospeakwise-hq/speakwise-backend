@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from drf_writable_nested.serializers import WritableNestedModelSerializer
-from attendees.models import Attendee, AttendeeSocialLinks
+from attendees.models import AttendeeProfile, AttendeeSocialLinks
 
 
 class AttendeeSocialLinksSerializer(serializers.ModelSerializer):
@@ -23,5 +23,5 @@ class AttendeeSerializer(WritableNestedModelSerializer):
     class Meta:
         """meta options."""
 
-        model = Attendee
+        model = AttendeeProfile
         exclude = ["created_at", "updated_at"]

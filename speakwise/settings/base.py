@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -134,4 +137,6 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "A github version for speakers of Tech Conferences.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # "PATH_PREFIX": "api",
+    "SCHEMA_PATH_PREFIX": "/api",
 }

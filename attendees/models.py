@@ -1,11 +1,12 @@
-"""attendees model."""
+"""s model."""
 
 from django.db import models
 from django.contrib.auth import get_user_model
+from base.models import TimeStampedModel, SocialLinks
 
 
-class Attendee(models.Model):
-    """attendees model."""
+class AttendeeProfile(TimeStampedModel):
+    """s model."""
 
     first_name = models.CharField(max_length=255, null=True)
     last_name = models.CharField(max_length=255, null=True)
@@ -16,8 +17,7 @@ class Attendee(models.Model):
     user = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,
-        related_name="attendee",
-        null=True,
+        related_name="attendee_profile_user",
     )
 
     def __str__(self):
@@ -25,9 +25,9 @@ class Attendee(models.Model):
         return f"{self.first_name} {self.last_name}"
 
 
-class AttendeeSocialLinks(models.Model):
-    """attendee social links model."""
+class AttendeeSocialLinks(SocialLinks):
+    """social links model."""
 
     attendee = models.ForeignKey(
-        Attendee, on_delete=models.CASCADE, related_name="social_links"
+        AttendeeProfile, on_delete=models.CASCADE, related_name="social_links"
     )

@@ -1,3 +1,25 @@
-from django.shortcuts import render
+"""talks views."""
 
-# Create your views here.
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from talks.models import Talks
+from talks.serializers import TalkSerializer
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+
+from drf_spectacular.utils import extend_schema
+
+
+@extend_schema(request=TalkSerializer, responses=TalkSerializer)
+class TalkListCreateView(ListCreateAPIView):
+    """list and create view for talks."""
+
+    queryset = Talks.objects.all()
+    serializer_class = TalkSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+
+class TalkRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
+    """retrieve, update and destroy view for talks."""
+
+    queryset = Talks.objects.all()
+    serializer_class = TalkSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]

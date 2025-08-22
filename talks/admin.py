@@ -1,3 +1,4 @@
-from django.contrib import admin
+"""talks admin."""
+
 
 # Register your models here.

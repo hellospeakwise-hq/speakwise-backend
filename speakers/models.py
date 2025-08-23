@@ -2,7 +2,7 @@
 
 from django.db import models
 from base.models import TimeStampedModel, SocialLinks
-from django.contrib.auth import get_user_model
+from users.models import User
 
 # Speakers file upload directory
 SPEAKERS_UPLOAD_DIR = "speakers/avatars/"
@@ -24,7 +24,7 @@ class SpeakerProfile(TimeStampedModel):
     """speakers model."""
 
     user_account = models.ForeignKey(
-        get_user_model(), on_delete=models.CASCADE, related_name="speakers_profile_user"
+        User, on_delete=models.CASCADE, related_name="speakers_profile_user"
     )
     # TODO: events_spoken = models.ManyToManyField(Event, blank=True, related_name="speakers")
     organization = models.CharField(max_length=255, blank=True)

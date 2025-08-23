@@ -37,6 +37,8 @@ urlpatterns = [
     path("api/", include("organizers.urls", namespace="organizers")),
     path("api/", include("attendees.urls", namespace="attendees")),
     path("api/", include("talks.urls", namespace="talks")),
+    path("api/", include("users.urls", namespace="users")),
+    path("api/", include("authentication.urls", namespace="authentication")),
     path("api/", include("teams.urls", namespace="teams")),
 ]
 if settings.DEBUG:

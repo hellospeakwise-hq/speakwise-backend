@@ -20,7 +20,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = True
-
+AUTH_USER_MODEL = "users.User"
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -41,6 +41,9 @@ THIRD_PARTY_APPS = [
     # third party apps
     "drf_spectacular",
     "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "rest_framework.authtoken",
     # "debug_toolbar",
 ]
 

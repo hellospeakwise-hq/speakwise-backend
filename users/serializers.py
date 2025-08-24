@@ -1,14 +1,12 @@
 """user serializers."""
 
-from rest_framework import serializers
-from users.models import User, UserRole
 from drf_writable_nested.serializers import WritableNestedModelSerializer
+from rest_framework import serializers
 
-# from attendees.models import Attendee
-# from attendees.serializers import AttendeeSerializer
-
-# from organizers.models import Organizers
-# from organizers.serializers import OrganizersSerializer
+from attendees.models import AttendeeProfile
+from organizers.models import OrganizerProfile
+from users.choices import UserRoleChoices
+from users.models import User, UserRole
 
 
 class UserRoleSerializer(serializers.ModelSerializer):
@@ -37,33 +35,25 @@ class UserSerializer(WritableNestedModelSerializer):
         """Create a new user."""
         role_data = validated_data.pop("role")
         password = validated_data.pop("password")
+        user = None
+
         # Look up the UserRole by display value and assign to user
         if role_data and "role" in role_data:
             role_obj, _ = UserRole.objects.get_or_create(role=role_data["role"])
             print("ROLE OBJ: ", role_obj)
             validated_data["role"] = role_obj
-        user = User.objects.create(password=password, **validated_data)
+            user = User.objects.create(password=password, **validated_data)
 
         # Create Attendee profile if role is attendee
-        if role_data and role_data.get("display") == "attendee":
-            ...
-
-        # Create or get attendee with the user's email
-        # attendee, created = Attendee.objects.get_or_create(
-        #     email=user.email,
-        #     defaults={
-        #         "user": user,
-        #         "first_name": user.first_name,
-        #         "last_name": user.last_name,
-        #     },
-        # )
-        # if not created:
-        # If attendee already exists, just associate it with the user
-        # attendee.user = user
-        # attendee.save()
+        if role_data and role_data.get("role") == UserRoleChoices.ATTENDEE.value:
+            # Create or get attendee with the user's email
+            attendee, created = AttendeeProfile.objects.get_or_create(
+                email=user.email,
+                defaults={"user_account": user},
+            )
 
         # Create SpeakerProfile if role is speaker
-        elif role_data and role_data.get("role") == "speaker":
+        elif role_data and role_data.get("role") == UserRoleChoices.SPEAKER.value:
             from speakers.models import SpeakerProfile
 
             # Create speaker profile for the user
@@ -73,14 +63,12 @@ class UserSerializer(WritableNestedModelSerializer):
             )
 
         # Create OrganizerProfile if role is organizer
-        elif role_data and role_data.get("display") == "organizer":
-            ...
-
-        # Create organizer profile for the user
-        # Organizers.objects.create(
-        #     user_id=user,
-        #     organization="",  # Required field, set to empty initially
-        # )
+        elif role_data and role_data.get("role") == UserRoleChoices.ORGANIZER.value:
+            # Create organizer profile for the user
+            OrganizerProfile.objects.create(
+                user_account=user,
+                organization="",  # Required field, set to empty initially
+            )
 
         return user
 

@@ -3,12 +3,12 @@
 
 import os
 import sys
+
 from speakwise.settings import local as settings
 
 
 def main():
     """Run administrative tasks."""
-
     if settings.DEBUG:
         os.environ.setdefault("DJANGO_SETTINGS_MODULE", "speakwise.settings.local")
     else:

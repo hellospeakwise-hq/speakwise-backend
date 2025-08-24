@@ -1,5 +1,4 @@
-"""
-ASGI config for speakwise project.
+"""ASGI config for speakwise project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

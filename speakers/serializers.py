@@ -1,8 +1,9 @@
 """speaker serializers."""
 
-from rest_framework.serializers import ModelSerializer
 from drf_writable_nested.serializers import WritableNestedModelSerializer
-from speakers.models import SpeakerProfile, SpeakerSocialLinks, SpeakerSkillTag
+from rest_framework.serializers import ModelSerializer
+
+from speakers.models import SpeakerProfile, SpeakerSkillTag, SpeakerSocialLinks
 
 
 class SpeakerSocialLinksSerializer(ModelSerializer):

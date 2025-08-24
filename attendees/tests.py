@@ -1,13 +1,20 @@
 """attendees tests."""
 
-from django.test import TestCase
-from attendees.models import AttendeeProfile, AttendeeSocialLinks
-from attendees.serializers import AttendeeSerializer, AttendeeSocialLinksSerializer
 from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from attendees.models import AttendeeProfile, AttendeeSocialLinks
+from attendees.serializers import (
+    AttendeeProfileSerializer,
+    AttendeeSocialLinksSerializer,
+)
 
 
 class AttendeeSerializerTestCase(TestCase):
+    """Attendee serializer test case."""
+
     def setUp(self):
+        """Set up test data."""
         self.user = get_user_model().objects.create_user(
             username="testuser", password="testpassword"
         )
@@ -26,9 +33,10 @@ class AttendeeSerializerTestCase(TestCase):
             link="https://www.linkedin.com/in/testuser",
             attendee=self.attendee,
         )
-        self.serializer = AttendeeSerializer(instance=self.attendee)
+        self.serializer = AttendeeProfileSerializer(instance=self.attendee)
 
     def test_contains_expected_fields(self):
+        """Test that the serializer contains the expected fields."""
         data = self.serializer.data
 
         assert data.keys() == set(
@@ -46,6 +54,7 @@ class AttendeeSerializerTestCase(TestCase):
         )
 
     def test_field_content(self):
+        """Test that the serializer contains the expected field content."""
         data = self.serializer.data
 
         assert data["first_name"] == self.attendee.first_name
@@ -57,6 +66,7 @@ class AttendeeSerializerTestCase(TestCase):
         assert data["user"] == self.user.id
 
     def test_social_links_serializer(self):
+        """Test that the social links serializer works as expected."""
         serializer = AttendeeSocialLinksSerializer(instance=self.social_link)
         data = serializer.data
 

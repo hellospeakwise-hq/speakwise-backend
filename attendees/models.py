@@ -1,8 +1,9 @@
 """s model."""
 
-from django.db import models
 from django.contrib.auth import get_user_model
-from base.models import TimeStampedModel, SocialLinks
+from django.db import models
+
+from base.models import SocialLinks, TimeStampedModel
 
 
 class AttendeeProfile(TimeStampedModel):
@@ -14,7 +15,7 @@ class AttendeeProfile(TimeStampedModel):
     notification_preference = models.CharField(max_length=255, null=True)
     organization = models.CharField(max_length=255, null=True)
     is_verified = models.BooleanField(default=False)
-    user = models.ForeignKey(
+    user_account = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,
         related_name="attendee_profile_user",

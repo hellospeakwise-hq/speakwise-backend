@@ -1,7 +1,8 @@
 """speakers models."""
 
 from django.db import models
-from base.models import TimeStampedModel, SocialLinks
+
+from base.models import SocialLinks, TimeStampedModel
 from users.models import User
 
 # Speakers file upload directory

@@ -1,12 +1,14 @@
 """users models."""
 
-from django.db import models
+import uuid
+
 from django.contrib.auth.models import AbstractUser
+from django.db import models
 from django.utils.translation import gettext_lazy as _
+
 from base.models import TimeStampedModel
 from users.choices import UserRoleChoices
 from users.managers import UserManager
-import uuid
 
 
 class User(AbstractUser):

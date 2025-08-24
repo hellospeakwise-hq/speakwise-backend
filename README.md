@@ -21,7 +21,7 @@ SpeakWise-Backend is a Django-based backend for the SpeakWise application, desig
 
 1. Clone the repository:
 	```bash
-	git clone https://github.com/yourusername/SpeakWise-Backend.git
+	git clone https://github.com/Synthetic-CortexLabs/SpeakWise-Backend.git
 	cd SpeakWise-Backend
 	```
 

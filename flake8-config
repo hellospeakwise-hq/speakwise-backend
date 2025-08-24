@@ -17,5 +17,5 @@ ignore =
     E203,
     # Black will do this: when here, it complains about docstring because it sees all the different lines as one
     E501,
-
+    # Allow star imports from specified modules
     F405

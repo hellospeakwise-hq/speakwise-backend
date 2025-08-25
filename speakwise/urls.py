@@ -35,7 +35,8 @@ urlpatterns = [
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/", include("speakers.urls", namespace="speakers")),
     path("api/", include("organizers.urls", namespace="organizers")),
-]
+    path("api/", include("attendees.urls", namespace="attendees")),
+
 
 if settings.DEBUG:
     import debug_toolbar

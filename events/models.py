@@ -48,18 +48,12 @@ class Event(TimeStampedModel):
 
     # Add organizer relationship
     organizer = models.ForeignKey(
-        "organizers.Organizers",
+        "organizers.OrganizerProfile",
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="organized_events",
         help_text="The organizer who created this event",
-    )
-
-    document = models.FileField(
-        upload_to="documents/",
-        blank=True,
-        null=True
     )
 
     def __str__(self):

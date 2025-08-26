@@ -41,7 +41,7 @@ class TagSerializer(serializers.ModelSerializer):
         exclude = ["created_at", "updated_at"]
 
 
-class EventSerializer(serializers.ModelSerializer):
+class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
     event_image = serializers.ImageField(required=False, allow_null=True)
@@ -128,7 +128,7 @@ class EventSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
 
-class SessionSerializer(serializers.ModelSerializer):
+class SessionSerializer(WritableNestedModelSerializer):
     """Serializer for the Session model."""
 
     speaker_details = serializers.SerializerMethodField()

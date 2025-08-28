@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 
+load_dotenv()
 
 load_dotenv()
 
@@ -49,7 +50,7 @@ LOCAL_APPS = [
     "speakers",
     "organizers",
     "attendees",
-
+    "talks",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

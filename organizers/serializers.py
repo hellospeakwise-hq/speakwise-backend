@@ -11,6 +11,7 @@ class OrganizerSocialLinksSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Meta options."""
+
         model = OrganizerSocialLinks
         exclude = ["created_at", "updated_at", "organizer"]
 
@@ -22,5 +23,6 @@ class OrganizerProfileSerializer(WritableNestedModelSerializer):
 
     class Meta:
         """Meta options."""
+
         model = OrganizerProfile
         exclude = ["created_at", "updated_at"]

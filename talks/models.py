@@ -1,4 +1,4 @@
-""" "talks models."""
+"""talks models."""
 
 from django.db import models
 
@@ -22,5 +22,5 @@ class Talks(TimeStampedModel):
     # )
 
     def __str__(self):
-        """str."""
+        """Str."""
         return self.title

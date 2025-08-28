@@ -1,10 +1,11 @@
-""" "talks tests."""
+"""talks tests."""
 
+from django.contrib.auth.models import User
 from django.test import TestCase
+
+from speakers.models import SpeakerProfile
 from talks.models import Talks
 from talks.serializers import TalkSerializer
-from speakers.models import SpeakerProfile
-from django.contrib.auth.models import User
 
 
 class TestTalkSerializer(TestCase):
@@ -12,7 +13,6 @@ class TestTalkSerializer(TestCase):
 
     def setUp(self):
         """Set up test data."""
-
         self.user = User.objects.create_user(username="testuser", password="testpass")
         self.speaker_profile = SpeakerProfile.objects.create(user_account=self.user)
         self.talk = Talks.objects.create(
@@ -26,7 +26,6 @@ class TestTalkSerializer(TestCase):
 
     def test_talks_model(self):
         """Test that the Talks model instance is created correctly."""
-
         assert self.talk.title == "Sample Talk"
         assert self.talk.description == "This is a sample talk description."
         assert self.talk.duration == 60

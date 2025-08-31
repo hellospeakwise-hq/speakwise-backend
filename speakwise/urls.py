@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/", include("organizers.urls", namespace="organizers")),
     path("api/", include("attendees.urls", namespace="attendees")),
     path("api/", include("talks.urls", namespace="talks")),
+    path("api/", include("teams.urls", namespace="teams")),
 ]
 if settings.DEBUG:
     import debug_toolbar

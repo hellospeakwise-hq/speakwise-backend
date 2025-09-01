@@ -8,6 +8,8 @@ from attendees.serializers import (
     AttendeeProfileSerializer,
     AttendeeSocialLinksSerializer,
 )
+from users.choices import UserRoleChoices
+from users.models import UserRole
 
 
 class AttendeeSerializerTestCase(TestCase):
@@ -15,8 +17,11 @@ class AttendeeSerializerTestCase(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.user = get_user_model().objects.create_user(
-            username="testuser", password="testpassword"
+        self.user = get_user_model().objects.create(
+            username="testuser",
+            password="testpassword",
+            email="test@mail.com",
+            role=UserRole.objects.create(role=UserRoleChoices.ATTENDEE.value),
         )
 
         self.attendee = AttendeeProfile.objects.create(
@@ -25,7 +30,7 @@ class AttendeeSerializerTestCase(TestCase):
             email="attendee@mail.com",
             notification_preference="email",
             organization="TestOrg",
-            user=self.user,
+            user_account=self.user,
             is_verified=True,
         )
         self.social_link = AttendeeSocialLinks.objects.create(
@@ -39,7 +44,7 @@ class AttendeeSerializerTestCase(TestCase):
         """Test that the serializer contains the expected fields."""
         data = self.serializer.data
 
-        assert data.keys() == set(
+        assert data.keys() == (
             {
                 "id",
                 "first_name",
@@ -48,7 +53,7 @@ class AttendeeSerializerTestCase(TestCase):
                 "notification_preference",
                 "organization",
                 "is_verified",
-                "user",
+                "user_account",
                 "social_links",
             }
         )
@@ -63,7 +68,7 @@ class AttendeeSerializerTestCase(TestCase):
         assert data["notification_preference"] == self.attendee.notification_preference
         assert data["organization"] == self.attendee.organization
         assert data["is_verified"] == self.attendee.is_verified
-        assert data["user"] == self.user.id
+        assert data["user_account"] == self.user.id
 
     def test_social_links_serializer(self):
         """Test that the social links serializer works as expected."""

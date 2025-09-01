@@ -6,8 +6,6 @@ from rest_framework.permissions import IsAuthenticated
 
 from .serializers import OrganizerProfileSerializer
 
-from drf_spectacular.utils import extend_schema
-
 
 @extend_schema(
     request=OrganizerProfileSerializer,

@@ -31,6 +31,14 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
+    def get_full_name(self):
+        """Return the full name of the user."""
+        return self.username
+
+    def get_role(self):
+        """Get user role."""
+        return self.role
+
 
 class UserRole(TimeStampedModel):
     """User role model."""

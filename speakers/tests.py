@@ -1,20 +1,24 @@
 """speakers app tests."""
 
-from django.test import TestCase
-from speakers.models import SpeakerProfile, SpeakerSocialLinks, SpeakerSkillTag
-from speakers.serializers import SpeakerProfileSerializer
 from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from speakers.models import SpeakerProfile, SpeakerSkillTag, SpeakerSocialLinks
+from speakers.serializers import SpeakerProfileSerializer
+from users.choices import UserRoleChoices
+from users.models import UserRole
 
 
 class TestSpeakerProfile(TestCase):
     """test speaker profile models, views and serializers."""
 
     def setUp(self):
-        """set up test data."""
-        self.user = get_user_model().objects.create_user(
+        """Set up test data."""
+        self.user = get_user_model().objects.create(
             username="testuser",
             email="user@mail.com",
             password="testpass123",
+            role=UserRole.objects.create(role=UserRoleChoices.SPEAKER.value),
         )
         self.skill_tag = SpeakerSkillTag.objects.create(
             name="Django", description="Web framework", duration=5
@@ -35,7 +39,7 @@ class TestSpeakerProfile(TestCase):
         )
 
     def test_speaker_profile_creation(self):
-        """test speaker profile creation."""
+        """Test speaker profile creation."""
         assert self.speaker_profile.user_account.username == "testuser"
         assert self.speaker_profile.organization == "Test Org"
         assert self.speaker_profile.country == "Test Country"
@@ -48,7 +52,7 @@ class TestSpeakerProfile(TestCase):
         )
 
     def test_speaker_profile_serializer(self):
-        """test speaker profile serializer."""
+        """Test speaker profile serializer."""
         serializer = SpeakerProfileSerializer(instance=self.speaker_profile)
         data = serializer.data
         assert data["user_account"] == self.user.id
@@ -61,13 +65,13 @@ class TestSpeakerProfile(TestCase):
         assert data["social_links"][0]["link"] == "https://twitter.com/testuser"
 
     def test_speaker_skill_tag_creation(self):
-        """test speaker skill tag creation."""
+        """Test speaker skill tag creation."""
         assert self.skill_tag.name == "Django"
         assert self.skill_tag.description == "Web framework"
         assert self.skill_tag.duration == 5
 
     def test_speaker_social_links_creation(self):
-        """test speaker social links creation."""
+        """Test speaker social links creation."""
         assert self.speaker_social_link.name == "Twitter"
         assert self.speaker_social_link.link == "https://twitter.com/testuser"
         assert self.speaker_social_link.speaker == self.speaker_profile

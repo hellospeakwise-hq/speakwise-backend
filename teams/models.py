@@ -9,20 +9,21 @@ TEAM_UPLOAD_DIR = "team/avatars/"
 
 class TeamSocial(SocialLinks):
     """Team member social links model."""
-    
+
     team_member = models.ForeignKey(
-        'TeamMember',
-        related_name='social_links',
+        "TeamMember",
+        related_name="social_links",
         on_delete=models.CASCADE,
-        help_text="Team member this social link belongs to"
+        help_text="Team member this social link belongs to",
     )
-    
+
     class Meta:
         """Meta class for team social model configuration."""
+
         db_table = "team_social"
         verbose_name = "Team Social Link"
         verbose_name_plural = "Team Social Links"
-    
+
     def __str__(self):
         """Returns the social link name and team member."""
         return f"{self.name} - {self.team_member.name}"

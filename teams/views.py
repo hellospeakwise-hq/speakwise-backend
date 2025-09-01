@@ -14,7 +14,9 @@ class TeamMemberListView(generics.ListAPIView):
 
     def get_queryset(self):
         """Get queryset with optimizations for better performance."""
-        return TeamMember.objects.prefetch_related('social_links').filter(is_active=True)
+        return TeamMember.objects.prefetch_related("social_links").filter(
+            is_active=True
+        )
 
     @extend_schema(
         summary="List Team Members",

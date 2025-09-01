@@ -18,7 +18,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TeamMember
-        fields = ["id", "name", "role", "short_bio", "avatar", "avatar_url", "display_order", "social_links"]
+        exclude = ["is_active", "created_at", "updated_at"]
 
     def get_avatar_url(self, obj):
         """Get the full URL for the avatar image."""

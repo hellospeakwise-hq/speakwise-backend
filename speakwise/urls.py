@@ -1,8 +1,8 @@
-"""
-URL configuration for speakwise project.
+"""URL configuration for speakwise project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
+
 Examples:
 Function views
     1. Add an import:  from my_app import views
@@ -38,7 +38,6 @@ urlpatterns = [
     path("api/", include("attendees.urls", namespace="attendees")),
     path("api/", include("talks.urls", namespace="talks")),
     path("api/", include("users.urls", namespace="users")),
-    path("api/", include("authentication.urls", namespace="authentication")),
     path("api/", include("teams.urls", namespace="teams")),
 ]
 if settings.DEBUG:

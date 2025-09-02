@@ -1,10 +1,10 @@
 """Teams app tests."""
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
-from rest_framework.test import APITestCase
 from rest_framework import status
-from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import APITestCase
 
 from teams.models import TeamMember, TeamSocial
 from teams.serializers import TeamMemberSerializer, TeamSocialSerializer

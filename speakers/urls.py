@@ -1,6 +1,7 @@
 """speakers urls."""
 
 from django.urls import path
+
 from speakers import views
 
 app_name = "speakers"

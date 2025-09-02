@@ -1,9 +1,10 @@
-""" "talks models."""
+"""talks models."""
 
 from django.db import models
+
 from base.models import TimeStampedModel
-from talks.choices import TalkCategoryChoices
 from speakers.models import SpeakerProfile
+from talks.choices import TalkCategoryChoices
 
 
 class Talks(TimeStampedModel):
@@ -21,4 +22,5 @@ class Talks(TimeStampedModel):
     # )
 
     def __str__(self):
+        """Str."""
         return self.title

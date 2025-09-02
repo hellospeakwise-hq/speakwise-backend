@@ -1,8 +1,8 @@
 """teams models."""
 
 from django.db import models
-from base.models import TimeStampedModel, SocialLinks
 
+from base.models import SocialLinks, TimeStampedModel
 
 TEAM_UPLOAD_DIR = "team/avatars/"
 

@@ -1,8 +1,7 @@
-"""
-Production settings for SpeakWise project.
-"""
+"""Production settings for SpeakWise project."""
 
 import os
+
 from .base import *  # Import base settings  # noqa: E402,F403,F401
 from .base import BASE_DIR  # noqa: E402
 

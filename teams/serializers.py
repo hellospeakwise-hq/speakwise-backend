@@ -1,11 +1,16 @@
-from teams.models import TeamMember, TeamSocial
+"""team serializers."""
+
 from rest_framework import serializers
+
+from teams.models import TeamMember, TeamSocial
 
 
 class TeamSocialSerializer(serializers.ModelSerializer):
     """Serializer for the TeamSocial model."""
 
     class Meta:
+        """meta options."""
+
         model = TeamSocial
         fields = ["name", "link"]
 
@@ -17,6 +22,8 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     social_links = TeamSocialSerializer(many=True, read_only=True)
 
     class Meta:
+        """meta options."""
+
         model = TeamMember
         exclude = ["is_active", "created_at", "updated_at"]
 

@@ -1,8 +1,9 @@
 """speakers app views."""
 
+from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import AllowAny
-from drf_spectacular.utils import extend_schema
+
 from speakers.models import SpeakerProfile
 from speakers.serializers import SpeakerProfileSerializer, SpeakerSocialLinksSerializer
 

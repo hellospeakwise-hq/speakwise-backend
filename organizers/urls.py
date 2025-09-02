@@ -1,6 +1,7 @@
 """organizers urls."""
 
 from django.urls import path
+
 from organizers import views
 
 app_name = "organizers"

@@ -1,10 +1,9 @@
 """Organizer models."""
 
+from django.contrib.auth import get_user_model
 from django.db import models
 
-from base.models import TimeStampedModel, SocialLinks
-from django.contrib.auth import get_user_model
-
+from base.models import SocialLinks, TimeStampedModel
 
 # Organizers file upload directory
 ORGANIZERS_UPLOAD_DIR = "organizers/avatars/"

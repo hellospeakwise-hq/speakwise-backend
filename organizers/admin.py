@@ -1,1 +1,1 @@
-# Register your models here.
+"""organizers admin."""

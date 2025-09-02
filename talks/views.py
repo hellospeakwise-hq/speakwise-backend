@@ -1,11 +1,11 @@
 """talks views."""
 
+from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from talks.models import Talks
-from talks.serializers import TalkSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from drf_spectacular.utils import extend_schema
+from talks.models import Talks
+from talks.serializers import TalkSerializer
 
 
 @extend_schema(request=TalkSerializer, responses=TalkSerializer)

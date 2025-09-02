@@ -1,16 +1,14 @@
-"""
-Development settings for SpeakWise project.
-"""
+"""Development settings for SpeakWise project."""
 
+import contextlib
 import os
 
 from speakwise.settings.base import *  # Import base settings  # noqa: E402,F403,F401
 from speakwise.settings.base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE  # noqa: E402
 
-try:
+with contextlib.suppress(ImportError):
     import debug_toolbar  # noqa: F401
-except ImportError:
-    pass
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-development-key-change-in-production"

@@ -8,8 +8,7 @@ app_name = "events"
 
 urlpatterns = [
     # Events
-    path("events/list/", views.EventListAPIView.as_view(), name="event-list"),
-    path("events/create/", views.EventCreateAPIView.as_view(), name="event-create"),
+    path("events/", views.EventListCreateAPIView.as_view(), name="event-list-create"),
     path(
         "events/<int:pk>/",
         views.EventRetrieveUpdateDestroyAPIView.as_view(),

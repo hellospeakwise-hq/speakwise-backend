@@ -59,7 +59,7 @@ class TestEvent(TestCase):
         data = {"title": "Test Event 1", "description": "This is a test event"}
         # Use DRF test client format for auth header
         request = self.client.post(
-            "/api/events/create/",
+            "/api/events/",
             data=data,
             headers={"authorization": f"Bearer {self.token}"},
         )

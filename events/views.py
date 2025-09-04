@@ -2,8 +2,6 @@
 
 from drf_spectacular.utils import extend_schema
 from rest_framework.generics import (
-    CreateAPIView,
-    ListAPIView,
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
 )
@@ -20,24 +18,27 @@ from .utils import IsAdminOrOrganizer
 
 
 @extend_schema(responses={200: EventSerializer})
-class EventListAPIView(ListAPIView):
+class EventListCreateAPIView(ListCreateAPIView):
     """View for retrieving, updating, and deleting events."""
 
     serializer_class = EventSerializer
-    permission_classes = (AllowAny,)
-    queryset = Event.objects.all()
-
-
-@extend_schema(responses={200: EventSerializer})
-class EventCreateAPIView(CreateAPIView):
-    """View for retrieving, updating, and deleting events."""
-
-    serializer_class = EventSerializer
-    permission_classes = (IsAdminOrOrganizer,)
 
     def get_queryset(self):
         """Return the user's events."""
-        return Event.objects.filter(organizer=self.request.user.organizer_profile_user)
+        if self.request.method == "POST":
+            return Event.objects.filter(
+                organizer=self.request.user.organizer_profile_user
+            )
+        if self.request.method == "GET":
+            return Event.objects.all()
+
+    def get_permissions(self):
+        """Get permissions."""
+        if self.request.method == "POST":
+            permission_classes = (IsAdminOrOrganizer,)
+        else:
+            permission_classes = (AllowAny,)
+        return [permission() for permission in permission_classes]
 
 
 @extend_schema(responses={200: EventSerializer})

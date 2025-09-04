@@ -39,6 +39,30 @@ class User(AbstractUser):
         """Get user role."""
         return self.role
 
+    def check_user_role(self, role: str) -> bool:
+        """Check user role."""
+        return self.role.role == role
+
+    def is_admin(self) -> bool:
+        """Check if user is admin."""
+        return self.role.role == UserRoleChoices.ADMIN.value
+
+    def is_organizer(self) -> bool:
+        """Check if user is an organizer."""
+        return self.role.role == UserRoleChoices.ORGANIZER.value
+
+    def is_attendance(self) -> bool:
+        """Check if user is an attendance."""
+        return self.role.role == UserRoleChoices.ATTENDEE.value
+
+    def is_speaker(self) -> bool:
+        """Check if user is a speaker."""
+        return self.role.role == UserRoleChoices.SPEAKER.value
+
+    def is_organizer_admin(self) -> bool:
+        """Check if user is an organizer admin."""
+        return self.is_admin() or self.is_organizer()
+
 
 class UserRole(TimeStampedModel):
     """User role model."""

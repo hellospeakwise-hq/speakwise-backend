@@ -26,7 +26,6 @@ class TestUserModel(TestCase):
         assert self.user.is_organizer_admin() is True
         assert self.user.is_organizer() is True
 
-
     def test_user_creation(self):
         """Test user creation."""
         assert self.user.username == "testuser"

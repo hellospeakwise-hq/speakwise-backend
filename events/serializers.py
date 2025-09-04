@@ -5,7 +5,8 @@ import base64
 from django.core.files.base import ContentFile
 from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
-from events.models import Event, Location, Country, Session, Tag
+
+from events.models import Country, Event, Location, Session, Tag
 from speakers.serializers import SpeakerProfileSerializer
 
 
@@ -53,8 +54,6 @@ class EventSerializer(WritableNestedModelSerializer):
     name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
     date_range = serializers.SerializerMethodField()  # New field for start/end dates
-    attendees = serializers.SerializerMethodField()
-    speakers = serializers.SerializerMethodField()
 
     class Meta:
         """Meta class for the EventSerializer."""
@@ -116,16 +115,28 @@ class EventSerializer(WritableNestedModelSerializer):
 
     def to_internal_value(self, data):
         """Handle base64 image encoding."""
-        if data.get("event_image"):
-            # Handle base64 image
-            if ";base64," in data["event_image"]:
-                img_format, imgstr = data["event_image"].split(";base64,")
-                ext = img_format.split("/")[-1]
-                data["event_image"] = ContentFile(
-                    base64.b64decode(imgstr),
-                    name=f"temp.{ext}",
-                )
+        if data.get("event_image") and ";base64," in data["event_image"]:
+            img_format, imgstr = data["event_image"].split(";base64,")
+            ext = img_format.split("/")[-1]
+            data["event_image"] = ContentFile(
+                base64.b64decode(imgstr),
+                name=f"temp.{ext}",
+            )
         return super().to_internal_value(data)
+
+    def get_attendees(self, obj):
+        """Return attendees for this event. No model linked yet, so empty list."""
+        return []
+
+    def get_speakers(self, obj):
+        """Return unique speaker profiles from the event's sessions."""
+        speakers = []
+        seen = set()
+        for s in obj.sessions.select_related("speaker").all():
+            if s.speaker and s.speaker.id not in seen:
+                seen.add(s.speaker.id)
+                speakers.append(s.speaker)
+        return SpeakerProfileSerializer(speakers, many=True).data
 
 
 class SessionSerializer(WritableNestedModelSerializer):

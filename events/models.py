@@ -1,7 +1,10 @@
-from django.db import models
-from base.models import TimeStampedModel
+"""Event models."""
+
 from django.db import models
 from django.utils import timezone
+
+from base.models import TimeStampedModel
+from organizers.models import OrganizerProfile
 
 EVENT_IMAGE_UPLOAD = "event_images/"
 
@@ -48,7 +51,7 @@ class Event(TimeStampedModel):
 
     # Add organizer relationship
     organizer = models.ForeignKey(
-        "organizers.OrganizerProfile",
+        OrganizerProfile,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -87,6 +90,8 @@ class Country(TimeStampedModel):
     code = models.CharField(max_length=255, null=True)
 
     class Meta:
+        """Meta options for the Country model."""
+
         verbose_name_plural = "Countries"
 
     def __str__(self):
@@ -127,4 +132,5 @@ class Session(TimeStampedModel):
     )
 
     def __str__(self):
+        """Return a string representation of the model."""
         return self.name

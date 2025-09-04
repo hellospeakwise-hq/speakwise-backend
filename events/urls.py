@@ -1,5 +1,5 @@
-from django.conf import settings
-from django.conf.urls.static import static
+"""events urls."""
+
 from django.urls import path
 
 from events import views
@@ -8,7 +8,8 @@ app_name = "events"
 
 urlpatterns = [
     # Events
-    path("events/", views.EventListCreateAPIView.as_view(), name="event-list-create"),
+    path("events/list/", views.EventListAPIView.as_view(), name="event-list"),
+    path("events/create/", views.EventCreateAPIView.as_view(), name="event-create"),
     path(
         "events/<int:pk>/",
         views.EventRetrieveUpdateDestroyAPIView.as_view(),

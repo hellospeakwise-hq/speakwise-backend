@@ -23,7 +23,7 @@ class TestUserModel(TestCase):
         assert self.user.is_attendance() is False
         assert self.user.is_speaker() is False
         assert self.user.is_admin() is False
-        assert self.user.is_organizer_admin() is True
+        assert self.user.is_organizer_or_admin() is True
         assert self.user.is_organizer() is True
 
     def test_user_creation(self):

@@ -57,6 +57,7 @@ class Attendance(TimeStampedModel):
     email = models.EmailField(null=True)
     username = models.CharField(max_length=255, null=True)
     is_verified = models.BooleanField(default=False)
+    is_given_feedback = models.BooleanField(default=False)
 
     class Meta:
         """Meta class."""
@@ -70,5 +71,15 @@ class Attendance(TimeStampedModel):
     def mark_as_verified(self):
         """Mark the attendance as verified."""
         self.is_verified = True
+        self.save()
+        return True
+
+    def is_user(self):
+        """Check if the user is the attendee."""
+        return self.attendee.user_account == self.user_account
+
+    def mark_as_given_feedback(self):
+        """Mark the attendance as given feedback."""
+        self.is_given_feedback = True
         self.save()
         return True

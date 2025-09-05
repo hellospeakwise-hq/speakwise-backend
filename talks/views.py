@@ -1,11 +1,8 @@
 """talks views."""
 
-from drf_spectacular.utils import extend_schema
 from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from talks.filters import TalksFilter
@@ -19,7 +16,9 @@ class TalkListCreateView(ListCreateAPIView):
 
     queryset = Talks.objects.all()
     serializer_class = TalkSerializer
-    # permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = TalksFilter
 
 
 class TalkRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
@@ -28,5 +27,3 @@ class TalkRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset = Talks.objects.all()
     serializer_class = TalkSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_class = TalksFilter

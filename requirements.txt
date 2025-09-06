@@ -36,3 +36,4 @@ tomli==2.2.1
 typing_extensions==4.14.1
 uritemplate==4.2.0
 uv==0.8.12
+django-filter

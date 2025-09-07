@@ -8,11 +8,8 @@ from rest_framework.generics import (
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
-from events.models import Event, Session
-from events.serializers import (
-    EventSerializer,
-    SessionSerializer,
-)
+from events.models import Event
+from events.serializers import EventSerializer
 
 from .utils import IsAdminOrOrganizer
 
@@ -47,24 +44,6 @@ class EventRetrieveUpdateDestroyAPIView(APIView):
 
     serializer_class = EventSerializer
     permission_classes = (IsAuthenticated,)
-
-
-@extend_schema(request=SessionSerializer, responses={200: SessionSerializer})
-class SessionListCreateAPIView(ListCreateAPIView):
-    """View for listing and creating sessions."""
-
-    queryset = Session.objects.all()
-    serializer_class = SessionSerializer
-    permission_classes = (AllowAny,)
-
-
-@extend_schema(responses={200: SessionSerializer})
-class SessionRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
-    """View for retrieving, updating, and deleting sessions."""
-
-    queryset = Session.objects.all()
-    serializer_class = SessionSerializer
-    permission_classes = (AllowAny,)
 
 
 @extend_schema(responses={200: EventSerializer})

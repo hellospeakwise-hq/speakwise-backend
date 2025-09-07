@@ -6,7 +6,7 @@ from django.core.files.base import ContentFile
 from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
-from events.models import Country, Event, Location, Session, Tag
+from events.models import Country, Event, Location, Tag
 from speakers.serializers import SpeakerProfileSerializer
 
 
@@ -139,27 +139,6 @@ class EventSerializer(WritableNestedModelSerializer):
         return SpeakerProfileSerializer(speakers, many=True).data
 
 
-class SessionSerializer(WritableNestedModelSerializer):
-    """Serializer for the Session model."""
-
-    speaker_details = serializers.SerializerMethodField()
-    location = LocationSerializer(required=False)
-
-    class Meta:
-        """Meta class for the SessionSerializer."""
-
-        model = Session
-        exclude = ("created_at", "updated_at")
-
-    def get_speaker_details(self, obj):
-        """Get detailed information about the session's speaker."""
-        if obj.speaker:
-            from speakers.serializers import SpeakerProfileSerializer
-
-            return SpeakerProfileSerializer(obj.speaker).data
-        return None
-
-
 class EventWithGuestSpeakersSerializer(EventSerializer):
     """Extended Event serializer that includes full speaker profile data."""
 
@@ -170,8 +149,3 @@ class EventWithGuestSpeakersSerializer(EventSerializer):
         """Get detailed speaker profiles for this event."""
         speakers = obj.speakers.all()
         return SpeakerProfileSerializer(speakers, many=True).data
-
-    def get_event_sessions(self, obj):
-        """Get sessions for this event with speaker details."""
-        sessions = obj.sessions.all()
-        return SessionSerializer(sessions, many=True).data

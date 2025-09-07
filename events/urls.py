@@ -14,12 +14,6 @@ urlpatterns = [
         views.EventRetrieveUpdateDestroyAPIView.as_view(),
         name="event-retrieve-update-destroy",
     ),
-    # Sessions
-    path(
-        "events/sessions/",
-        views.SessionListCreateAPIView.as_view(),
-        name="session-list-create",
-    ),
     # Event detail with guest speakers (extended serializer)
     path(
         "events/detail/<int:pk>/",

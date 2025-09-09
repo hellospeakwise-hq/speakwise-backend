@@ -1,6 +1,7 @@
 # SpeakWise-Backend
 
-SpeakWise-Backend is a Django-based backend for the SpeakWise application, designed to provide robust APIs and backend services.
+SpeakWise-Backend is a Django-based backend for the SpeakWise application, designed to provide robust APIs and backend
+services.
 
 ## Features
 
@@ -20,31 +21,31 @@ SpeakWise-Backend is a Django-based backend for the SpeakWise application, desig
 ### Setup
 
 1. Clone the repository:
-	```bash
-	git clone https://github.com/Synthetic-CortexLabs/SpeakWise-Backend.git
-	cd SpeakWise-Backend
-	```
+   ```bash
+   git clone https://github.com/Synthetic-CortexLabs/SpeakWise-Backend.git
+   cd SpeakWise-Backend
+   ```
 
 2. Create and activate a virtual environment:
-	```bash
-	python3 -m venv env
-	source env/bin/activate
-	```
+   ```bash
+   python3 -m venv env
+   source env/bin/activate
+   ```
 
 3. Install dependencies:
-	```bash
-	pip install -r requirements.txt
-	```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 4. Run migrations:
-	```bash
-	python manage.py migrate
-	```
+   ```bash
+   python manage.py migrate
+   ```
 
 5. Start the development server:
-	```bash
-	python manage.py runserver
-	```
+   ```bash
+   python manage.py runserver
+   ```
 
 > **Note:**
 > SpeakWise uses three settings environments:
@@ -63,6 +64,7 @@ SpeakWise-Backend is a Django-based backend for the SpeakWise application, desig
 > ```bash
 > export DJANGO_SETTINGS_MODULE=speakwise.settings.local
 > ```
+
 ## Project Structure
 
 - `speakWise/` - Main Django project
@@ -76,29 +78,39 @@ We welcome contributions! Please follow these steps:
 
 1. Fork the repository.
 2. Create a new branch:
-	```bash
-	git checkout -b feature/your-feature-name
-	```
-3. Make your changes and commit:
-	```bash
-	git add .
-	git commit -m "Describe your changes"
-	```
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. Make your changes and pre-commit before you commit your changes:
+
+> _please make sure to install pre-commit with `uv pip install pre-commit` or `pip install pre-commit` if you are not
+using `uv` as a package manager.
+> You can also install `uv` with `pip install uv` read more
+about `uv` [here](https://docs.astral.sh/uv/getting-started/installation/)_
+
+   ```bash
+   git add .
+   pre-commit run --all-files
+   git commit -m "Describe your changes"
+   ```
+
 4. Run formatting and linting:
-	```bash
-	bash scripts/black.sh
-	bash scripts/flake8.sh
-	```
+   ```bash
+   bash scripts/black.sh
+   bash scripts/flake8.sh
+   ```
+
 5. Push to your fork:
-	```bash
-	git push origin feature/your-feature-name
-	```
+   ```bash
+   git push origin feature/your-feature-name
+   ```
 6. Open a Pull Request on GitHub.
 
 ### Code Style
 
 - Use [Black](https://black.readthedocs.io/) for formatting.
 - Use [Flake8](https://flake8.pycqa.org/) for linting.
+- Use [pre-commit](https://pre-commit.com/) for running git hooks
 
 ## License
 

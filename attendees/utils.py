@@ -5,10 +5,9 @@ import re
 import tempfile
 
 import pandas
-from django_q.tasks import async_task
 from email_validator import EmailNotValidError, validate_email
 
-from organizers.models import Attendance
+from attendees.models import Attendance
 
 
 class FileHandler:
@@ -18,11 +17,13 @@ class FileHandler:
         """Save extracted emails, save unto a database."""
         for email, name in zip(email_list, name_list, strict=False):
             try:
-                validate_email(email)
+                validate_email(email, check_deliverability=True, strict=True)
                 try:
                     Attendance.objects.get(email=email, event=event)
                 except Attendance.DoesNotExist:
-                    Attendance.objects.create(email=email, event=event, username=name)
+                    return Attendance.objects.create(
+                        email=email, event=event, username=name
+                    )
             except EmailNotValidError as err:
                 raise ValueError("Email is not valid: ", str(email)) from err
 
@@ -138,14 +139,8 @@ class FileHandler:
             try:
                 if "temp_file_path" in locals() and os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
-            except Exception:
-                pass
+            except FileNotFoundError as err:
+                raise ValueError("file does not exist.") from err
             raise
 
         return self._extract_attendee_profiles(temp_file_path, event=event)
-
-
-def extract_attendee_profiles_task(uploaded_file, event=None):
-    """Extract attendee profiles from uploaded file."""
-    file_handler = FileHandler()
-    async_task(file_handler.clean_file(uploaded_file, event=event))

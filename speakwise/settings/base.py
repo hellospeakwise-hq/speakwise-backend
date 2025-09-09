@@ -149,3 +149,21 @@ SPECTACULAR_SETTINGS = {
     # "PATH_PREFIX": "api",
     "SCHEMA_PATH_PREFIX": "/api",
 }
+
+# django-q configuration
+Q_CLUSTER = {
+    "name": "myproject",
+    "workers": 8,
+    "recycle": 500,
+    "timeout": 60,
+    "compress": True,
+    "cpu_affinity": 1,
+    "save_limit": 250,
+    "queue_limit": 500,
+    "label": "Django Q",
+    "redis": {
+        "host": "127.0.0.1",
+        "port": 6379,
+        "db": 0,
+    },
+}

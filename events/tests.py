@@ -1,7 +1,6 @@
 """evetns tests."""
 
 from django.test import TestCase
-from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -84,7 +83,9 @@ class TestEventFilter(TestCase):
             password="testpassword",
             role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
-        self.organizer1 = OrganizerProfile.objects.create(user_account=self.organizer1_user)
+        self.organizer1 = OrganizerProfile.objects.create(
+            user_account=self.organizer1_user
+        )
 
         self.organizer2_user = User.objects.create(
             username="jane_organizer",
@@ -92,26 +93,22 @@ class TestEventFilter(TestCase):
             password="testpassword",
             role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
-        self.organizer2 = OrganizerProfile.objects.create(user_account=self.organizer2_user)
+        self.organizer2 = OrganizerProfile.objects.create(
+            user_account=self.organizer2_user
+        )
 
         # Create countries and locations
         self.usa = Country.objects.create(name="United States", code="US")
         self.ghana = Country.objects.create(name="Ghana", code="GH")
 
         self.auditorium_usa = Location.objects.create(
-            venue="Grand Auditorium",
-            city="New York",
-            country=self.usa
+            venue="Grand Auditorium", city="New York", country=self.usa
         )
         self.conference_center_usa = Location.objects.create(
-            venue="Tech Conference Center",
-            city="San Francisco",
-            country=self.usa
+            venue="Tech Conference Center", city="San Francisco", country=self.usa
         )
         self.auditorium_ghana = Location.objects.create(
-            venue="National Theater",
-            city="Accra",
-            country=self.ghana
+            venue="National Theater", city="Accra", country=self.ghana
         )
 
         # Create test events
@@ -119,135 +116,132 @@ class TestEventFilter(TestCase):
             title="Tech Conference 2024",
             description="Annual tech conference",
             organizer=self.organizer1,
-            location=self.auditorium_usa
+            location=self.auditorium_usa,
         )
         self.workshop_event = Event.objects.create(
             title="Python Workshop",
             description="Learn Python programming",
             organizer=self.organizer2,
-            location=self.conference_center_usa
+            location=self.conference_center_usa,
         )
         self.meetup_event = Event.objects.create(
             title="Developer Meetup",
             description="Local developer meetup",
             organizer=self.organizer1,
-            location=self.auditorium_ghana
+            location=self.auditorium_ghana,
         )
 
     def test_title_filter_exact_match(self):
         """Test filtering events by exact title match."""
-        filter_set = EventFilter(data={'title': 'Tech Conference 2024'})
+        filter_set = EventFilter(data={"title": "Tech Conference 2024"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.conference_event in filtered_queryset
 
     def test_title_filter_partial_match(self):
         """Test filtering events by partial title match (case insensitive)."""
-        filter_set = EventFilter(data={'title': 'conference'})
+        filter_set = EventFilter(data={"title": "conference"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.conference_event in filtered_queryset
 
     def test_title_filter_case_insensitive(self):
         """Test that title filter is case insensitive."""
-        filter_set = EventFilter(data={'title': 'PYTHON'})
+        filter_set = EventFilter(data={"title": "PYTHON"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.workshop_event in filtered_queryset
 
     def test_title_filter_no_match(self):
         """Test title filter with no matches."""
-        filter_set = EventFilter(data={'title': 'nonexistent'})
+        filter_set = EventFilter(data={"title": "nonexistent"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 0
 
     def test_organizer_filter_exact_username(self):
         """Test filtering events by organizer username."""
-        filter_set = EventFilter(data={'organizer': 'john_organizer'})
+        filter_set = EventFilter(data={"organizer": "john_organizer"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 2
         assert self.conference_event in filtered_queryset
         assert self.meetup_event in filtered_queryset
 
     def test_organizer_filter_partial_username(self):
         """Test filtering events by partial organizer username."""
-        filter_set = EventFilter(data={'organizer': 'jane'})
+        filter_set = EventFilter(data={"organizer": "jane"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.workshop_event in filtered_queryset
 
     def test_organizer_filter_case_insensitive(self):
         """Test that organizer filter is case insensitive."""
-        filter_set = EventFilter(data={'organizer': 'JOHN'})
+        filter_set = EventFilter(data={"organizer": "JOHN"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 2
         assert self.conference_event in filtered_queryset
         assert self.meetup_event in filtered_queryset
 
     def test_country_filter_exact_name(self):
         """Test filtering events by country name."""
-        filter_set = EventFilter(data={'country': 'United States'})
+        filter_set = EventFilter(data={"country": "United States"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 2
         assert self.conference_event in filtered_queryset
         assert self.workshop_event in filtered_queryset
 
     def test_country_filter_partial_name(self):
         """Test filtering events by partial country name."""
-        filter_set = EventFilter(data={'country': 'Ghana'})
+        filter_set = EventFilter(data={"country": "Ghana"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.meetup_event in filtered_queryset
 
     def test_country_filter_case_insensitive(self):
         """Test that country filter is case insensitive."""
-        filter_set = EventFilter(data={'country': 'ghana'})
+        filter_set = EventFilter(data={"country": "ghana"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.meetup_event in filtered_queryset
 
     def test_venue_filter_exact_name(self):
         """Test filtering events by venue name."""
-        filter_set = EventFilter(data={'venue': 'Grand Auditorium'})
+        filter_set = EventFilter(data={"venue": "Grand Auditorium"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.conference_event in filtered_queryset
 
     def test_venue_filter_partial_name(self):
         """Test filtering events by partial venue name."""
-        filter_set = EventFilter(data={'venue': 'auditorium'})
+        filter_set = EventFilter(data={"venue": "auditorium"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.conference_event in filtered_queryset
 
     def test_venue_filter_case_insensitive(self):
         """Test that venue filter is case insensitive."""
-        filter_set = EventFilter(data={'venue': 'THEATER'})
+        filter_set = EventFilter(data={"venue": "THEATER"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.meetup_event in filtered_queryset
 
     def test_multiple_filters_combined(self):
         """Test combining multiple filters."""
-        filter_set = EventFilter(data={
-            'organizer': 'john',
-            'country': 'United States'
-        })
+        filter_set = EventFilter(data={"organizer": "john", "country": "United States"})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 1
         assert self.conference_event in filtered_queryset
 
@@ -255,19 +249,21 @@ class TestEventFilter(TestCase):
         """Test that no filters returns all events."""
         filter_set = EventFilter(data={})
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 3
 
     def test_invalid_filter_returns_empty_queryset(self):
         """Test that invalid filter values return empty queryset."""
-        filter_set = EventFilter(data={
-            'organizer': 'nonexistent_user',
-            'country': 'nonexistent_country',
-            'venue': 'nonexistent_venue',
-            'title': 'nonexistent_title'
-        })
+        filter_set = EventFilter(
+            data={
+                "organizer": "nonexistent_user",
+                "country": "nonexistent_country",
+                "venue": "nonexistent_venue",
+                "title": "nonexistent_title",
+            }
+        )
         filtered_queryset = filter_set.qs
-        
+
         assert filtered_queryset.count() == 0
 
 
@@ -288,68 +284,64 @@ class TestEventFilterAPIView(APITestCase):
         # Create test data similar to unit tests
         self.usa = Country.objects.create(name="United States", code="US")
         self.location = Location.objects.create(
-            venue="API Test Venue",
-            city="Test City",
-            country=self.usa
+            venue="API Test Venue", city="Test City", country=self.usa
         )
 
         self.test_event = Event.objects.create(
             title="API Test Conference",
             description="Test event for API",
             organizer=self.organizer,
-            location=self.location
+            location=self.location,
         )
 
     def test_api_title_filter(self):
         """Test title filtering through API endpoint."""
-        url = '/api/events/'
-        response = self.client.get(url, {'title': 'API Test'})
-        
+        url = "/api/events/"
+        response = self.client.get(url, {"title": "API Test"})
+
         assert response.status_code == 200
         assert len(response.data) == 1
-        assert response.data[0]['title'] == 'API Test Conference'
+        assert response.data[0]["title"] == "API Test Conference"
 
     def test_api_organizer_filter(self):
         """Test organizer filtering through API endpoint."""
-        url = '/api/events/'
-        response = self.client.get(url, {'organizer': 'api_user'})
-        
+        url = "/api/events/"
+        response = self.client.get(url, {"organizer": "api_user"})
+
         assert response.status_code == 200
         assert len(response.data) == 1
-        assert response.data[0]['organizer'] == self.organizer.id
+        assert response.data[0]["organizer"] == self.organizer.id
 
     def test_api_country_filter(self):
         """Test country filtering through API endpoint."""
-        url = '/api/events/'
-        response = self.client.get(url, {'country': 'United States'})
-        
+        url = "/api/events/"
+        response = self.client.get(url, {"country": "United States"})
+
         assert response.status_code == 200
         assert len(response.data) == 1
 
     def test_api_venue_filter(self):
         """Test venue filtering through API endpoint."""
-        url = '/api/events/'
-        response = self.client.get(url, {'venue': 'API Test Venue'})
-        
+        url = "/api/events/"
+        response = self.client.get(url, {"venue": "API Test Venue"})
+
         assert response.status_code == 200
         assert len(response.data) == 1
 
     def test_api_no_results_filter(self):
         """Test API filter that returns no results."""
-        url = '/api/events/'
-        response = self.client.get(url, {'title': 'nonexistent'})
-        
+        url = "/api/events/"
+        response = self.client.get(url, {"title": "nonexistent"})
+
         assert response.status_code == 200
         assert len(response.data) == 0
 
     def test_api_multiple_filters(self):
         """Test combining multiple filters via API."""
-        url = '/api/events/'
-        response = self.client.get(url, {
-            'title': 'API',
-            'organizer': 'api_user',
-            'country': 'United States'
-        })
-        
+        url = "/api/events/"
+        response = self.client.get(
+            url, {"title": "API", "organizer": "api_user", "country": "United States"}
+        )
+
         assert response.status_code == 200
         assert len(response.data) == 1

@@ -1,5 +1,6 @@
 """Events views."""
 
+from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema
 from rest_framework.generics import (
     ListCreateAPIView,
@@ -8,6 +9,7 @@ from rest_framework.generics import (
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
+from events.filters import EventFilter
 from events.models import Event
 from events.serializers import EventSerializer
 
@@ -19,6 +21,8 @@ class EventListCreateAPIView(ListCreateAPIView):
     """View for retrieving, updating, and deleting events."""
 
     serializer_class = EventSerializer
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = EventFilter
 
     def get_queryset(self):
         """Return the user's events."""

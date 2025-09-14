@@ -13,6 +13,10 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
+from rest_framework.decorators import api_view
+from django.shortcuts import redirect
+from requests_oauthlib import OAuth2Session
 
 from attendees.models import AttendeeProfile
 from attendees.serializers import AttendeeProfileSerializer
@@ -24,6 +28,86 @@ from users.choices import UserRoleChoices
 from users.exceptions import AuthenticationError
 from users.models import User
 from users.serializers import UserSerializer
+
+
+
+# OAuth2Session for GitHub
+github = OAuth2Session(
+    settings.GITHUB_CLIENT_ID,
+    redirect_uri=settings.OAUTH2_REDIRECT_URI,
+    scope=["public_repo", "read:user", "user:email"],
+)
+
+# OAuth2Session for Google
+google = OAuth2Session(
+    settings.GOOGLE_CLIENT_ID,
+    redirect_uri=settings.OAUTH2_REDIRECT_URI,
+    scope=["openid", "email", "profile"],
+)
+
+# OAuth endpoints
+@api_view(["GET"])
+def github_login(request):
+    authorization_url, state = github.authorization_url("https://github.com/login/oauth/authorize")
+    request.session["oauth_state"] = state
+    return redirect(authorization_url)
+
+@api_view(["GET"])
+
+def github_callback(request):
+    code = request.GET.get("code")
+    role = request.GET.get("role")  # Optional role param
+    github.fetch_token(
+        "https://github.com/login/oauth/access_token",
+        client_secret=settings.GITHUB_CLIENT_SECRET,
+        code=code,
+    )
+    user_info = github.get("https://api.github.com/user").json()
+    email = user_info.get("email")
+    username = user_info.get("login")
+    # Find or create user
+    user, created = User.objects.get_or_create(email=email, defaults={"username": username})
+    # Assign role and create profile if specified
+    if role == UserRoleChoices.SPEAKER.value:
+        SpeakerProfile.objects.get_or_create(user_account=user)
+    elif role == UserRoleChoices.ORGANIZER.value:
+        OrganizerProfile.objects.get_or_create(user_account=user)
+    # TODO: Add JWT token response if needed
+    return Response({"user": user_info, "role": role})
+
+
+@api_view(["GET"])
+def google_login(request):
+    authorization_url, state = google.authorization_url(
+        "https://accounts.google.com/o/oauth2/auth",
+        access_type="offline",
+        prompt="select_account"
+    )
+    request.session["oauth_state"] = state
+    return redirect(authorization_url)
+
+
+@api_view(["GET"])
+def google_callback(request):
+    code = request.GET.get("code")
+    role = request.GET.get("role")  # Optional role param
+    google.fetch_token(
+        "https://oauth2.googleapis.com/token",
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+        code=code,
+    )
+    user_info = google.get("https://www.googleapis.com/oauth2/v1/userinfo").json()
+    email = user_info.get("email")
+    username = user_info.get("name")
+    # Find or create user
+    user, created = User.objects.get_or_create(email=email, defaults={"username": username})
+    # Assign role and create profile if specified
+    if role == UserRoleChoices.SPEAKER.value:
+        SpeakerProfile.objects.get_or_create(user_account=user)
+    elif role == UserRoleChoices.ORGANIZER.value:
+        OrganizerProfile.objects.get_or_create(user_account=user)
+    # TODO: Add JWT token response if needed
+    return Response({"user": user_info, "role": role})
 
 
 @extend_schema(responses=UserSerializer)

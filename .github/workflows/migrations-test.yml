@@ -1,0 +1,64 @@
+name: Integration Tests
+
+env:
+  DATABASE_URL: postgres://postgres:postgres@localhost:5432/speakwise_test
+
+on:
+  push:
+    branches: ['main']
+    paths-ignore:
+      - '**/*.md'
+  pull_request:
+    branches: ['main']
+    paths-ignore:
+      - '**/*.md'
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        # expose port 5432 on localhost
+        ports:
+          - 5432:5432
+        # initialize the DB with a user/database/password
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: speakwise_test
+        # wait until Postgres is accepting connections
+        options: >-
+          --health-cmd "pg_isready -U postgres -d speakwise_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions
+        with:
+          python-version: ${{ matrix.python-version }}
+          run-poetry-install: true
+          create-venv-at-path: .venv
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Dependencies
+        run: pip install uv && uv pip install -r requirements.txt
+
+      - name: Run DB Migrations
+        working-directory: .
+        run: uv python manage.py migrate_all
+
+#      - name: Run Django Tests
+#        working-directory: .
+#        run: poetry run pytest tests

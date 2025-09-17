@@ -44,14 +44,20 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
           pip install -r requirements.txt
-          pip install psycopg2
-
-      - name: Verify Postgres Connection
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d speakwise_test -c '\l'
+          pip install psycopg2-binary
 
       - name: Run DB Migrations
         working-directory: .
+        env:
+          DJANGO_SETTINGS_MODULE: speakwise.settings
+          DJANGO_DB_HOST: localhost
+          DJANGO_DB_PORT: 5432
+          DJANGO_DB_NAME: speakwise_test
+          DJANGO_DB_USER: postgres
+          DJANGO_DB_PASSWORD: postgres
         run: |
-          python manage.py migrate
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python manage.py migrate --noinput

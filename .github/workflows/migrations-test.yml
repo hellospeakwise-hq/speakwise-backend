@@ -45,7 +45,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
-          pip install psycopg
+          pip install psycopg2
 
       - name: Verify Postgres Connection
         run: |

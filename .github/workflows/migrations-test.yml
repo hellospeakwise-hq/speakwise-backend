@@ -1,17 +1,17 @@
-name: Integration Tests
+name: Django Migrations Test
 
 on:
   push:
-    branches: ['main']
+    branches: [main]
     paths-ignore:
       - '**/*.md'
   pull_request:
-    branches: ['main']
+    branches: [main]
     paths-ignore:
       - '**/*.md'
 
 jobs:
-  pytest:
+  migrations:
     runs-on: ubuntu-latest
 
     services:
@@ -27,12 +27,7 @@ jobs:
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
-
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.12.0']
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -40,25 +35,32 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.12'
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
           pip install -r requirements.txt
           pip install psycopg2-binary
 
-      - name: Run DB Migrations
-        working-directory: .
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432; then
+              echo "Postgres is ready"
+              break
+            fi
+            echo "Waiting for postgres..."
+            sleep 1
+          done
+
+      - name: Run migrations
         env:
           DJANGO_SETTINGS_MODULE: speakwise.settings.local
-          ENGINE: django.db.backends.postgresql,
-          DJANGO_DB_HOST: localhost
-          DJANGO_DB_PORT: 5432
-          DJANGO_DB_NAME: speakwise_test
-          DJANGO_DB_USER: postgres
-          DJANGO_DB_PASSWORD: postgres
+          DB_NAME: speakwise_test
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_HOST: localhost
+          DB_PORT: 5432
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
           python manage.py migrate --noinput
+

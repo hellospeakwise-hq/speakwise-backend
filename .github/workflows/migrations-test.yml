@@ -49,14 +49,11 @@ jobs:
 
       - name: Install Dependencies
         run:
-            pip install uv
-            uv venv
-            source .venv/bin/activate
-            uv pip install -r requirements.txt
+            pip install -r requirements.txt
 
       - name: Run DB Migrations
         working-directory: .
-        run: uv python manage.py migrate_all
+        run:  python manage.py migrate
 
 #      - name: Run Django Tests
 #        working-directory: .

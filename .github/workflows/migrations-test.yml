@@ -53,6 +53,7 @@ jobs:
         working-directory: .
         env:
           DJANGO_SETTINGS_MODULE: speakwise.settings.local
+          ENGINE: django.db.backends.postgresql,
           DJANGO_DB_HOST: localhost
           DJANGO_DB_PORT: 5432
           DJANGO_DB_NAME: speakwise_test

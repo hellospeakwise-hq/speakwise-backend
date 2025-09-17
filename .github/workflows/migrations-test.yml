@@ -63,4 +63,3 @@ jobs:
           DB_PORT: 5432
         run: |
           python manage.py migrate --noinput
-

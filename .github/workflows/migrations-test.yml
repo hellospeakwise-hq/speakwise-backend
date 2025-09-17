@@ -52,7 +52,6 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d speakwise_test -c '\l'
 
       - name: Run DB Migrations
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/speakwise_test
+        working-directory: .
         run: |
-          python manage.py migrate --noinput
+          python manage.py migrate

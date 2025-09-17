@@ -52,7 +52,7 @@ jobs:
       - name: Run DB Migrations
         working-directory: .
         env:
-          DJANGO_SETTINGS_MODULE: speakwise.settings
+          DJANGO_SETTINGS_MODULE: speakwise.settings.local
           DJANGO_DB_HOST: localhost
           DJANGO_DB_PORT: 5432
           DJANGO_DB_NAME: speakwise_test

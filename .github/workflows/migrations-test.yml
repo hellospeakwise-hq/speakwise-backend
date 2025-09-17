@@ -23,7 +23,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: speakwise_test
         options: >-
-          --health-cmd "pg_isready -U postgres -d speakwise_test"
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -42,19 +42,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install Dependencies
-        run: pip install -r requirements.txt
-
-      - name: Wait for PostgreSQL
         run: |
-          while ! nc -z localhost 5432; do
-            sleep 1
-          done
+          sudo apt-get install -y netcat-openbsd
+          pip install -r requirements.txt
 
       - name: Run DB Migrations
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/speakwise_test
-        run: python manage.py migrate
-
-#      - name: Run Django Tests
-#        working-directory: .
-#        run: poetry run pytest tests
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: speakwise_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        run: |
+          python manage.py migrate --noinput

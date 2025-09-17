@@ -1,8 +1,5 @@
 name: Integration Tests
 
-env:
-  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/speakwise_test
-
 on:
   push:
     branches: ['main']
@@ -19,28 +16,25 @@ jobs:
     services:
       postgres:
         image: postgres:15
-        # expose port 5432 on localhost
         ports:
           - 5432:5432
-        # initialize the DB with a user/database/password
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: speakwise_test
-        # wait until Postgres is accepting connections
         options: >-
           --health-cmd "pg_isready -U postgres -d speakwise_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.12.0']
+
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout Code Repository
-        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -48,12 +42,18 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install Dependencies
-        run:
-            pip install -r requirements.txt
+        run: pip install -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          while ! nc -z localhost 5432; do
+            sleep 1
+          done
 
       - name: Run DB Migrations
-        working-directory: .
-        run:  python manage.py migrate
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/speakwise_test
+        run: python manage.py migrate
 
 #      - name: Run Django Tests
 #        working-directory: .

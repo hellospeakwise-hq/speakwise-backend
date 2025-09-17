@@ -39,11 +39,6 @@ jobs:
         python-version: ['3.12.0']
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions
-        with:
-          python-version: ${{ matrix.python-version }}
-          run-poetry-install: true
-          create-venv-at-path: .venv
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 

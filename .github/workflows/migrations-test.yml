@@ -1,7 +1,7 @@
 name: Integration Tests
 
 env:
-  DATABASE_URL: postgres://postgres:postgres@localhost:5432/speakwise_test
+  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/speakwise_test
 
 on:
   push:

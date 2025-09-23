@@ -9,8 +9,8 @@ from rest_framework.generics import (
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
-from events.filters import EventFilter
 from base.permissions import IsAdminOrOrganizer
+from events.filters import EventFilter
 from events.models import Event
 from events.serializers import EventSerializer
 

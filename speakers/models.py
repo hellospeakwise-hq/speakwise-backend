@@ -20,6 +20,10 @@ class SpeakerSkillTag(TimeStampedModel):
     )
     duration = models.PositiveIntegerField(null=True, help_text="years of experience")
 
+    def __str__(self):
+        """String representation of the speaker skill."""
+        return self.name
+
 
 class SpeakerProfile(TimeStampedModel):
     """speakers model."""
@@ -37,6 +41,10 @@ class SpeakerProfile(TimeStampedModel):
         SpeakerSkillTag, blank=True, related_name="speakers_profile_skill_tags"
     )
 
+    def __str__(self):
+        """String representation of the speaker profile."""
+        return self.user_account
+
 
 class SpeakerSocialLinks(SocialLinks):
     """speaker social link model."""
@@ -44,3 +52,7 @@ class SpeakerSocialLinks(SocialLinks):
     speaker = models.ForeignKey(
         SpeakerProfile, on_delete=models.CASCADE, related_name="social_links"
     )
+
+    def __str__(self):
+        """String rep of speakwise social."""
+        return self.name

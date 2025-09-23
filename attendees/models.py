@@ -32,3 +32,7 @@ class AttendeeSocialLinks(SocialLinks):
     attendee = models.ForeignKey(
         AttendeeProfile, on_delete=models.CASCADE, related_name="social_links"
     )
+
+    def __str__(self):
+        """Str method."""
+        return self.name

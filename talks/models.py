@@ -20,6 +20,10 @@ class Session(TimeStampedModel):
         "Talks", on_delete=models.CASCADE, related_name="talk_sessions"
     )
 
+    def __str__(self):
+        """String rep of speakwise social."""
+        return self.talk
+
 
 class Talks(TimeStampedModel):
     """Talks model."""

@@ -45,3 +45,7 @@ class OrganizerSocialLinks(SocialLinks):
     organizer = models.ForeignKey(
         OrganizerProfile, on_delete=models.CASCADE, related_name="social_links"
     )
+
+    def __str__(self):
+        """String representation of the Organizer Social Links."""
+        return self.name

@@ -10,10 +10,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from events.filters import EventFilter
+from base.permissions import IsAdminOrOrganizer
 from events.models import Event
 from events.serializers import EventSerializer
-
-from .utils import IsAdminOrOrganizer
 
 
 @extend_schema(responses={200: EventSerializer})
@@ -28,7 +27,7 @@ class EventListCreateAPIView(ListCreateAPIView):
         """Return the user's events."""
         if self.request.method == "POST":
             return Event.objects.filter(
-                organizer=self.request.user.organizer_profile_user
+                organizer=self.request.user.organizer_user_profile
             )
         if self.request.method == "GET":
             return Event.objects.all()

@@ -11,9 +11,15 @@ from attendees.models import Attendance
 
 
 class FileHandler:
-    """handle the extraction of emails from uploaded attendance list."""
+    """file handler class."""
 
-    def _save_extracted_attendee_profile(self, email_list, name_list, event=None):
+    def __str__(self):
+        """Return string representation of file."""
+        return (
+            "Handle the extraction of emails from uploaded csv/excel attendance list."
+        )
+
+    def _save_extracted_attendee_profile(self, email_list, name_list, event):
         """Save extracted emails, save unto a database."""
         for email, name in zip(email_list, name_list, strict=False):
             try:
@@ -21,11 +27,10 @@ class FileHandler:
                 try:
                     Attendance.objects.get(email=email, event=event)
                 except Attendance.DoesNotExist:
-                    return Attendance.objects.create(
-                        email=email, event=event, username=name
-                    )
+                    Attendance.objects.create(email=email, event=event, username=name)
             except EmailNotValidError as err:
                 raise ValueError("Email is not valid: ", str(email)) from err
+        return Attendance.objects.filter(event=event)
 
     def _extract_attendee_profiles(self, uploaded_file, event=None):
         """Extract emails from csv or excel file."""
@@ -94,7 +99,7 @@ class FileHandler:
             _name_list = _name_series.tolist()
         else:
             _name_list = [""] * len(_email_list)
-
+        print("EMAIL LIST: ", _email_list)
         return self._save_extracted_attendee_profile(
             _email_list, _name_list, event=event
         )

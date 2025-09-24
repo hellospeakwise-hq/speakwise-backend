@@ -1,4 +1,8 @@
 """attendees admin."""
 
+from django.contrib import admin
 
-# Register your models here.
+from attendees.models import AttendeeProfile, AttendeeSocialLinks
+
+admin.site.register(AttendeeProfile)
+admin.site.register(AttendeeSocialLinks)

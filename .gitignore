@@ -82,3 +82,7 @@ celerybeat.pid
 # sqlite databases
 *.sqlite3
 *.sqlite
+
+# ignore media files
+/speakwise/media/event_images/*
+/speakwise/media/team/avatars/*

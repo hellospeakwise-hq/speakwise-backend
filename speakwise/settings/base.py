@@ -9,6 +9,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -149,3 +150,5 @@ SPECTACULAR_SETTINGS = {
     # "PATH_PREFIX": "api",
     "SCHEMA_PATH_PREFIX": "/api",
 }
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")

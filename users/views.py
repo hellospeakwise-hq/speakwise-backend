@@ -4,7 +4,10 @@ import json
 from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
+from django.conf import settings
 from django.contrib.auth import logout
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.mail import send_mail
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
@@ -23,7 +26,11 @@ from speakers.serializers import SpeakerProfileSerializer
 from users.choices import UserRoleChoices
 from users.exceptions import AuthenticationError
 from users.models import User
-from users.serializers import UserSerializer
+from users.serializers import (
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    UserSerializer,
+)
 
 
 @extend_schema(responses=UserSerializer)
@@ -128,3 +135,59 @@ class UserLoginView(LoginBaseClass):
             return {}
         user_data = json.loads(JSONRenderer().render(serializer.data))
         return user_data
+
+
+@extend_schema(responses=PasswordResetRequestSerializer)
+class PasswordResetRequestView(APIView):
+    """Password request view for users."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Request password reset for email."""
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+            user = User.objects.get(email=email)
+
+            # Generate token
+            token_generator = PasswordResetTokenGenerator()
+            token = token_generator.make_token(user)
+
+            # Create reset
+            reset_url = f"{settings.FRONTEND_URL}/reset-password/token={token}/"
+
+            subject = "Password Reset Request"
+            message = f"Hi {user.username},\n\nClick the link below to reset your password:\n{reset_url}\n\nIf you did not request this, please ignore this email."
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+
+            return Response(
+                {"detail": "Password reset email sent successfully."},
+                status=status.HTTP_200_OK,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(responses=PasswordResetConfirmSerializer)
+class PasswordResetConfirmView(APIView):
+    """Password request confirm view."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Confirm password reset."""
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.context["user"]  # User set in serializer's validate
+            user.set_password(serializer.validated_data["new_password"])
+            user.save()
+            return Response(
+                {"detail": "Password reset successfully."}, status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

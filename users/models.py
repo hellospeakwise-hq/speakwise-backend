@@ -31,6 +31,15 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
+    def __str__(self):
+        """String rep of social."""
+        return self.username
+
+    # @property
+    # def set_username(self):
+    #     '''set username.'''
+    #     return ( self.username = self.first_name + " " + self.last_name)
+
     def get_full_name(self):
         """Return the full name of the user."""
         return self.username

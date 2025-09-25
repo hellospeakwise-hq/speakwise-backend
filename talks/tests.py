@@ -44,7 +44,15 @@ class TestTalkSerializer(TestCase):
         data = self.serializer.data
         self.assertEqual(
             set(data.keys()),
-            {"id", "title", "description", "speaker", "duration", "category"},
+            {
+                "id",
+                "title",
+                "description",
+                "speaker",
+                "duration",
+                "category",
+                "presentation_files",
+            },
         )
 
     def test_field_content(self):

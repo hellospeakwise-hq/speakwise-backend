@@ -39,7 +39,7 @@ class Talks(TimeStampedModel):
         upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
     )
 
-    # TODO: event = models.ForeignKey(
+    # TODO:  event = models.ForeignKey(
     #     "events.Event", on_delete=models.CASCADE, related_name="talk_event"
     # )
 

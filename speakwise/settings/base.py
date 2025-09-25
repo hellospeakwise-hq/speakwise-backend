@@ -157,3 +157,4 @@ SPECTACULAR_SETTINGS = {
 }
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+SITE_NAME = "SpeakWise"

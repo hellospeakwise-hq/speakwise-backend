@@ -4,10 +4,7 @@ import json
 from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
-from django.conf import settings
 from django.contrib.auth import logout
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.core.mail import send_mail
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
@@ -31,6 +28,7 @@ from users.serializers import (
     PasswordResetRequestSerializer,
     UserSerializer,
 )
+from users.services import EmailService
 
 
 @extend_schema(responses=UserSerializer)
@@ -150,22 +148,7 @@ class PasswordResetRequestView(APIView):
             email = serializer.validated_data["email"]
             user = User.objects.get(email=email)
 
-            # Generate token
-            token_generator = PasswordResetTokenGenerator()
-            token = token_generator.make_token(user)
-
-            # Create reset
-            reset_url = f"{settings.FRONTEND_URL}/reset-password/token={token}/"
-
-            subject = "Password Reset Request"
-            message = f"Hi {user.username},\n\nClick the link below to reset your password:\n{reset_url}\n\nIf you did not request this, please ignore this email."
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
+            EmailService.send_password_reset_email(user, request)
 
             return Response(
                 {"detail": "Password reset email sent successfully."},

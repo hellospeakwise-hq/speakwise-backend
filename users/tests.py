@@ -75,7 +75,7 @@ class TestPasswordReset(TestCase):
         )
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
-        self.assertEqual(email.subject, "Password Reset Request")
+        self.assertEqual(email.subject, "Password Reset Request - SpeakWise")
         self.assertEqual(email.to, ["test@mail.com"])
         assert f"{settings.FRONTEND_URL}/reset-password/" in email.body
 

@@ -82,6 +82,10 @@ class Location(TimeStampedModel):
         related_name="location_country",
     )
 
+    def __str__(self):
+        """Return a string representation of the model."""
+        return self.venue
+
 
 class Country(TimeStampedModel):
     """A model for countries in the SpeakWise application."""

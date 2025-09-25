@@ -17,10 +17,13 @@ class User(AbstractUser):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False, db_index=True
     )
+    fist_name = models.CharField(max_length=255, help_text="Fist name", null=True)
+    last_name = models.CharField(max_length=255, help_text="Last name", null=True)
     username = models.CharField(
         _("username"), max_length=150, unique=True, db_index=True
     )
     email = models.EmailField(_("email address"), unique=True, db_index=True)
+    nationality = models.CharField(max_length=255, help_text="Nationality", null=True)
     role = models.ForeignKey(
         "UserRole",
         on_delete=models.CASCADE,
@@ -30,6 +33,16 @@ class User(AbstractUser):
     objects = UserManager()
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
+
+    def __str__(self):
+        """String representation."""
+        return self.username
+
+    @classmethod
+    def set_username(self):
+        """Set username."""
+        self.username = self.first_name + " " + self.last_name
+        return self.username
 
     def get_full_name(self):
         """Return the full name of the user."""

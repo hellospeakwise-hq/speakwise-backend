@@ -14,4 +14,14 @@ urlpatterns = [
     path("users/auth/github-callback/", views.github_callback, name="github-callback"),
     path("users/auth/google-login/", views.google_login, name="google-login"),
     path("users/auth/google-callback/", views.google_callback, name="google-callback"),
+    path(
+        "users/auth/password-reset/",
+        views.PasswordResetRequestView.as_view(),
+        name="password_reset_request",
+    ),
+    path(
+        "users/auth/password-reset/confirm",
+        views.PasswordResetConfirmView.as_view(),
+        name="password_reset_confirm",
+    ),
 ]

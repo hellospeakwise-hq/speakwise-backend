@@ -155,3 +155,6 @@ SPECTACULAR_SETTINGS = {
     # "PATH_PREFIX": "api",
     "SCHEMA_PATH_PREFIX": "/api",
 }
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+SITE_NAME = "SpeakWise"

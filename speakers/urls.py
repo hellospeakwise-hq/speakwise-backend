@@ -17,4 +17,5 @@ urlpatterns = [
         views.SpeakerProfileRetrieveUpdateDestroyView.as_view(),
         name="speakers_retrieve_update_delete",
     ),
+    path('speakers/request-speaker/', views.RequestSpeakerView.as_view(), name='request_speaker'),
 ]

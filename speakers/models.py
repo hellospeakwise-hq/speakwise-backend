@@ -1,8 +1,8 @@
 """speakers models."""
-
 from django.db import models
 
 from base.models import SocialLinks, TimeStampedModel
+from speakers.choices import EventTypeChoices, SpeakerRequestStatus
 from users.models import User
 
 # Speakers file upload directory
@@ -56,3 +56,21 @@ class SpeakerSocialLinks(SocialLinks):
     def __str__(self):
         """String rep of speakwise social."""
         return self.name
+
+
+class RequestSpeaker(TimeStampedModel):
+    """request speaker model."""
+
+    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.DO_NOTHING, related_name="request_speaker")
+    event_type = models.CharField(max_length=255, blank=True, choices=EventTypeChoices.choices)
+    other_field = models.CharField(max_length=255, blank=True, null=True)
+    expected_audience_size = models.PositiveIntegerField(
+        null=True, help_text="expected audience size"
+    )
+    suggested_topic = models.CharField(max_length=255, blank=True, null=True)
+    status = models.CharField(max_length=255, choices=SpeakerRequestStatus.choices, default=SpeakerRequestStatus.PENDING.value)
+
+
+    def __str__(self):
+        """string representation of the speaker."""
+        return self.speaker.name

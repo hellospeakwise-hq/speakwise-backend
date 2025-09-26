@@ -1,12 +1,16 @@
 """speakers models."""
+<<<<<<< HEAD
 
 import uuid
 from itertools import count
 
+=======
+>>>>>>> 0af1bdf (work in progress)
 from django.db import models
 from django.utils.text import slugify
 
 from base.models import SocialLinks, TimeStampedModel
+from speakers.choices import EventTypeChoices, SpeakerRequestStatus
 from users.models import User
 
 # Speakers file upload directory
@@ -148,6 +152,7 @@ class SpeakerSocialLinks(SocialLinks):
         """String rep of speakwise social."""
         return self.name
 
+<<<<<<< HEAD
     class Meta:
         """meta options."""
 
@@ -252,3 +257,22 @@ class Notification(TimeStampedModel):
     def __str__(self):
         """String representation of a notification."""
         return f"{self.title} → {self.recipient.username}"
+=======
+
+class RequestSpeaker(TimeStampedModel):
+    """request speaker model."""
+
+    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.DO_NOTHING, related_name="request_speaker")
+    event_type = models.CharField(max_length=255, blank=True, choices=EventTypeChoices.choices)
+    other_field = models.CharField(max_length=255, blank=True, null=True)
+    expected_audience_size = models.PositiveIntegerField(
+        null=True, help_text="expected audience size"
+    )
+    suggested_topic = models.CharField(max_length=255, blank=True, null=True)
+    status = models.CharField(max_length=255, choices=SpeakerRequestStatus.choices, default=SpeakerRequestStatus.PENDING.value)
+
+
+    def __str__(self):
+        """string representation of the speaker."""
+        return self.speaker.name
+>>>>>>> 0af1bdf (work in progress)

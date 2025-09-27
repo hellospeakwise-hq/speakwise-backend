@@ -6,9 +6,14 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
-from speakers.models import SpeakerProfile, RequestSpeaker
-from speakers.serializers import SpeakerProfileSerializer, SpeakerSocialLinksSerializer, RequestSpeakerSerializer
+
+from base.permissions import IsOrganizer
+from speakers.models import RequestSpeaker, SpeakerProfile
+from speakers.serializers import (
+    RequestSpeakerSerializer,
+    SpeakerProfileSerializer,
+    SpeakerSocialLinksSerializer,
+)
 
 
 @extend_schema(
@@ -35,18 +40,22 @@ class SpeakerProfileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 
 class RequestSpeakerView(APIView):
     """request speaker view."""
-    @extend_schema(
-        responses=RequestSpeakerSerializer(many=True) )
+
+    permission_classes = [IsOrganizer]
+
+    @extend_schema(responses=RequestSpeakerSerializer(many=True))
     def get(self, request):
-        """requested speakers."""
-        serializer = SpeakerSocialLinksSerializer(RequestSpeaker.objects.all(), many=True)
+        """Requested speakers."""
+        # request should be filtered based on organizer.
+        serializer = SpeakerSocialLinksSerializer(
+            RequestSpeaker.objects.filter(organizer__user_account=self.request.user),
+            many=True,
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-    @extend_schema(
-        request=RequestSpeakerSerializer,responses=RequestSpeakerSerializer )
+    @extend_schema(request=RequestSpeakerSerializer, responses=RequestSpeakerSerializer)
     def post(self, request):
-        """request speaker."""
+        """Request speaker."""
         serializer = SpeakerSocialLinksSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()

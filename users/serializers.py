@@ -35,6 +35,7 @@ class UserSerializer(WritableNestedModelSerializer):
             "last_name",
             "email",
             "role",
+            "nationality",
             "username",
             "password",
         ]

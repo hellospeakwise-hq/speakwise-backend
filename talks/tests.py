@@ -17,6 +17,8 @@ class TestTalkSerializer(TestCase):
         """Set up test data."""
         self.user = User.objects.create(
             username="testuser",
+            first_name="Test",
+            last_name="User",
             email="testuser@mail.com",
             password="testpass",
             role=UserRole.objects.create(role=UserRoleChoices.SPEAKER.value),
@@ -65,6 +67,7 @@ class TestTalkSerializer(TestCase):
                 "category",
                 "presentation_files",
                 "event",
+                "speaker_name",
             },
         )
 

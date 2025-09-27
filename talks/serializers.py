@@ -18,6 +18,8 @@ class SessionSerializer(serializers.ModelSerializer):
 class TalkSerializer(serializers.ModelSerializer):
     """Serializer for Talk model."""
 
+    speaker_name = serializers.SerializerMethodField()
+
     session = SessionSerializer(required=False, many=False)
 
     class Meta:
@@ -25,3 +27,11 @@ class TalkSerializer(serializers.ModelSerializer):
 
         model = Talks
         exclude = ("created_at", "updated_at")
+
+    def get_speaker_name(self, obj):
+        """Get speaker name."""
+        return (
+            obj.speaker.user_account.first_name
+            + " "
+            + obj.speaker.user_account.last_name
+        )

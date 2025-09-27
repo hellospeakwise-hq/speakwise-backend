@@ -3,7 +3,12 @@
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
-from speakers.models import SpeakerProfile, SpeakerSkillTag, SpeakerSocialLinks, RequestSpeaker
+from speakers.models import (
+    RequestSpeaker,
+    SpeakerProfile,
+    SpeakerSkillTag,
+    SpeakerSocialLinks,
+)
 
 
 class SpeakerSocialLinksSerializer(ModelSerializer):
@@ -53,5 +58,6 @@ class RequestSpeakerSerializer(ModelSerializer):
 
     class Meta:
         """meta options."""
+
         model = RequestSpeaker
         exclude = ["created_at", "updated_at"]

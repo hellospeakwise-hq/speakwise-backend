@@ -32,7 +32,7 @@ class User(AbstractUser):
 
     objects = UserManager()
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username"]
+    REQUIRED_FIELDS = ["username", "password"]
 
     def __str__(self):
         """String representation."""
@@ -81,3 +81,7 @@ class UserRole(TimeStampedModel):
     """User role model."""
 
     role = models.CharField(max_length=20, choices=UserRoleChoices.choices)
+
+    def __str__(self):
+        """String representation."""
+        return self.role

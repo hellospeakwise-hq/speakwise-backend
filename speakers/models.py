@@ -43,7 +43,7 @@ class SpeakerProfile(TimeStampedModel):
 
     def __str__(self):
         """String representation of the speaker profile."""
-        return self.user_account
+        return self.user_account.username
 
 
 class SpeakerSocialLinks(SocialLinks):

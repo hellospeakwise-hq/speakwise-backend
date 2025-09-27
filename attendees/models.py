@@ -5,6 +5,8 @@ from django.db import models
 
 from base.models import SocialLinks, TimeStampedModel
 
+# from events.models import Event
+
 
 class AttendeeProfile(TimeStampedModel):
     """s model."""
@@ -25,6 +27,10 @@ class AttendeeProfile(TimeStampedModel):
         """Str method."""
         return f"{self.first_name} {self.last_name}"
 
+    def events_attended(self):
+        """Return the number of events attended by the attendee."""
+        # TODO: events_attended = Events.objects.filter(attendees__attendee=self)
+
 
 class AttendeeSocialLinks(SocialLinks):
     """social links model."""
@@ -36,3 +42,44 @@ class AttendeeSocialLinks(SocialLinks):
     def __str__(self):
         """Str method."""
         return self.name
+
+
+class Attendance(TimeStampedModel):
+    """Attendance model."""
+
+    attendee = models.ForeignKey(
+        AttendeeProfile, on_delete=models.CASCADE, related_name="attendances", null=True
+    )
+    event = models.ForeignKey(
+        "events.Event", on_delete=models.CASCADE, related_name="attendees"
+    )
+    check_in_time = models.DateTimeField(auto_now_add=True)
+    email = models.EmailField(null=True)
+    username = models.CharField(max_length=255, null=True)
+    is_verified = models.BooleanField(default=False)
+    is_given_feedback = models.BooleanField(default=False)
+
+    class Meta:
+        """Meta class."""
+
+        unique_together = ("attendee", "event")
+
+    def __str__(self):
+        """Str method."""
+        return f"{self.attendee} attended {self.event}"
+
+    def mark_as_verified(self):
+        """Mark the attendance as verified."""
+        self.is_verified = True
+        self.save()
+        return True
+
+    def is_user(self):
+        """Check if the user is the attendee."""
+        return self.attendee.user_account == self.user_account
+
+    def mark_as_given_feedback(self):
+        """Mark the attendance as given feedback."""
+        self.is_given_feedback = True
+        self.save()
+        return True

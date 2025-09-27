@@ -17,4 +17,9 @@ urlpatterns = [
         views.OrganizerProfileRetrieveUpdateDestroyView.as_view(),
         name="organizers_retrieve_update_delete",
     ),
+    path(
+        "organizers/create-attendance/",
+        views.FileUploadViewCreatView.as_view(),
+        name="create_attendance",
+    ),
 ]

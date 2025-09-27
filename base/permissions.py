@@ -1,4 +1,4 @@
-"""events utilities."""
+"""custom permissions."""
 
 from rest_framework.permissions import BasePermission
 

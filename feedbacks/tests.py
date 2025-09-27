@@ -5,6 +5,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from events.models import Country, Event, Location
 from feedbacks.models import Feedback
 from speakers.models import SpeakerProfile
 from talks.models import Session, Talks
@@ -17,7 +18,7 @@ class TestFeedback(TestCase):
     def setUp(self):
         """Set up test data."""
         # Create a user for attendee
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create(
             username="testattendee",
             email="attendee@mail.com",
             password="testpass123",
@@ -39,6 +40,17 @@ class TestFeedback(TestCase):
             talk=Talks.objects.create(
                 title="Test Talk",
                 description="A talk for testing",
+                event=Event.objects.create(
+                    title="Sample Event 8",
+                    description="This is a sample event.",
+                    location=Location.objects.create(
+                        venue="Sample Venue 16",
+                        address="123 Sample St",
+                        city="Sample City",
+                        state="Sample State",
+                        country=Country.objects.create(name="Sample Country"),
+                    ),
+                ),
                 speaker=SpeakerProfile.objects.create(
                     user_account=self.user,
                 ),
@@ -105,7 +117,7 @@ class TestFeedbackAPI(APITestCase):
     def setUp(self):
         """Set up test data."""
         # Create user and authenticate
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create(
             username="testuser",
             email="user@example.com",
             password="password123",
@@ -128,6 +140,17 @@ class TestFeedbackAPI(APITestCase):
             talk=Talks.objects.create(
                 title="Test Talk",
                 description="A talk for testing",
+                event=Event.objects.create(
+                    title="Sample Event 7",
+                    description="This is a sample event.",
+                    location=Location.objects.create(
+                        venue="Sample Venue 1",
+                        address="123 Sample St",
+                        city="Sample City",
+                        state="Sample State",
+                        country=Country.objects.create(name="Sample Country"),
+                    ),
+                ),
                 speaker=SpeakerProfile.objects.create(
                     user_account=self.user,
                 ),
@@ -142,6 +165,17 @@ class TestFeedbackAPI(APITestCase):
             talk=Talks.objects.create(
                 title="Test Talk 2",
                 description="Another talk for testing",
+                event=Event.objects.create(
+                    title="Sample Event 4",
+                    description="This is a sample event.",
+                    location=Location.objects.create(
+                        venue="Sample Venue",
+                        address="123 Sample St",
+                        city="Sample City",
+                        state="Sample State",
+                        country=Country.objects.create(name="Sample Country"),
+                    ),
+                ),
                 speaker=SpeakerProfile.objects.create(
                     user_account=self.user,
                 ),
@@ -198,26 +232,6 @@ class TestFeedbackAPI(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["comments"], "Test feedback")
-
-    def test_update_feedback(self):
-        """Test updating feedback."""
-        url = f"/api/feedbacks/{self.feedback.id}/"
-        data = {
-            "attendee": self.attendee.id,
-            "overall_rating": 5,
-            "engagement": 5,
-            "clarity": 5,
-            "content_depth": 5,
-            "speaker_knowledge": 5,
-            "practical_relevance": 5,
-            "comments": "Updated feedback",
-            "is_anonymous": False,
-            "session": self.session.id,
-        }
-        response = self.client.put(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.feedback.refresh_from_db()
-        self.assertEqual(self.feedback.comments, "Updated feedback")
 
     def test_delete_feedback(self):
         """Test deleting feedback."""

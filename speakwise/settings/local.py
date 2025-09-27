@@ -1,7 +1,6 @@
 """Development settings for SpeakWise project."""
 
 import contextlib
-import os
 
 from speakwise.settings.base import *  # Import base settings  # noqa: E402,F403,F401
 from speakwise.settings.base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE  # noqa: E402
@@ -44,12 +43,8 @@ CORS_ALLOW_HEADERS = [
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
-        "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 

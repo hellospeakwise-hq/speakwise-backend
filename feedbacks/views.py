@@ -16,8 +16,6 @@ from .serializers import FeedbackCreateSerializer, FeedbackSerializer
 class FeedbackListCreateView(generics.ListCreateAPIView):
     """List and create feedback."""
 
-    permission_classes = [IsAuthenticated]
-
     def get_serializer_class(self):
         """Use different serializers for create vs list/retrieve."""
         if self.request.method == "POST":
@@ -34,7 +32,9 @@ class FeedbackListCreateView(generics.ListCreateAPIView):
     responses=FeedbackSerializer,
     tags=["Feedbacks"],
 )
-class FeedbackRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class FeedbackRetrieveUpdateDestroyView(
+    generics.RetrieveAPIView, generics.DestroyAPIView
+):
     """Retrieve, update and destroy feedback."""
 
     serializer_class = FeedbackSerializer

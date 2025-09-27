@@ -30,7 +30,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     """speaker profile serializers."""
 
     social_links = SpeakerSocialLinksSerializer(many=True, required=False)
-    skill_tags = SpeakerSkillTagSerializer(many=True, required=False)
+    skill_tag = SpeakerSkillTagSerializer(many=True, required=False)
 
     class Meta:
         """meta options."""

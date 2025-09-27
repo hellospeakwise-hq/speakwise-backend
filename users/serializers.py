@@ -29,7 +29,15 @@ class UserSerializer(WritableNestedModelSerializer):
         """Meta class."""
 
         model = User
-        fields = "__all__"
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "username",
+            "password",
+        ]
         extra_kwargs = {"password": {"write_only": True}, "id": {"read_only": True}}
 
     def create(self, validated_data):

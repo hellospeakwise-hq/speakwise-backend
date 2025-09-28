@@ -18,8 +18,13 @@ urlpatterns = [
         name="speakers_retrieve_update_delete",
     ),
     path(
-        "speakers/request-speaker/",
-        views.RequestSpeakerView.as_view(),
-        name="request_speaker",
+        "speaker/requests/",
+        views.SpeakerRequestsListview.as_view(),
+        name="speaker_requests_list",
+    ),
+    path(
+        "speaker/requests/<int:pk>/",
+        views.SpeakerRequestsListview.as_view(),
+        name="speaker_request_update",
     ),
 ]

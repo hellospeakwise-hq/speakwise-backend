@@ -53,7 +53,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         )
 
 
-class RequestSpeakerSerializer(ModelSerializer):
+class SpeakerRequestSerializer(ModelSerializer):
     """request speaker serializer."""
 
     class Meta:

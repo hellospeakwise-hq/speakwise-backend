@@ -23,3 +23,14 @@ class IsOrganizer(BasePermission):
         if not user or not user.is_authenticated:
             return False
         return getattr(user, "is_organizer", lambda: False)()
+
+
+class IsSpeaker(BasePermission):
+    """custom speaker permission class."""
+
+    def has_permission(self, request, view):
+        """Has permission."""
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        return getattr(user, "is_speaker", lambda: False)()

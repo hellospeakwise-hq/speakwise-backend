@@ -1,17 +1,21 @@
 """speakers app views."""
 
+from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import (
+    ListAPIView,
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from base.permissions import IsOrganizer
+from base.permissions import IsSpeaker
 from speakers.models import RequestSpeaker, SpeakerProfile
 from speakers.serializers import (
-    RequestSpeakerSerializer,
     SpeakerProfileSerializer,
+    SpeakerRequestSerializer,
     SpeakerSocialLinksSerializer,
 )
 
@@ -37,27 +41,34 @@ class SpeakerProfileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset = SpeakerProfile.objects.all()
     serializer_class = SpeakerProfileSerializer
 
+# use retrieve update on this view and to avoid unnecessary code.
+class SpeakerRequestsListview(ListAPIView):
+    """list speaker requests view."""
 
-class RequestSpeakerView(APIView):
-    """request speaker view."""
+    permission_classes = [IsSpeaker]
 
-    permission_classes = [IsOrganizer]
+    def get_object(self, pk=None):
+        """Get request speaker objects."""
+        try:
+            return RequestSpeaker.objects.get(pk=pk)
+        except RequestSpeaker.DoesNotExist() as err:
+            raise Http404 from err
 
-    @extend_schema(responses=RequestSpeakerSerializer(many=True))
+    @extend_schema(
+        responses=SpeakerRequestSerializer(many=True), tags=["Speaker Requests"]
+    )
     def get(self, request):
-        """Requested speakers."""
-        # request should be filtered based on organizer.
-        serializer = SpeakerSocialLinksSerializer(
-            RequestSpeaker.objects.filter(organizer__user_account=self.request.user),
-            many=True,
-        )
+        """List speaker requests."""
+        requests = RequestSpeaker.objects.filter(
+            organizer__user_account=self.request.user
+        ).order_by("-created_at")
+        serializer = SpeakerSocialLinksSerializer(requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(request=RequestSpeakerSerializer, responses=RequestSpeakerSerializer)
-    def post(self, request):
-        """Request speaker."""
-        serializer = SpeakerSocialLinksSerializer(data=request.data)
+    @extend_schema(responses=SpeakerRequestSerializer(), tags=["Speaker Requests"])
+    def patch(self, request, pk=None):
+        """List speaker requests."""
+        requests = self.get_object(pk=pk)
+        serializer = SpeakerSocialLinksSerializer(requests, request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        # send speaker an email
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -56,7 +56,7 @@ services.
 > To specify which settings to use, you can run:
 >
 > ```bash
-> python3 manage.py runserver --settings=speakwise.settings.local
+> python3 manage.py runserver 
 > ```
 >
 > Or set the environment variable so you don't have to specify it every time:

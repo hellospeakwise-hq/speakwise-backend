@@ -1,8 +1,7 @@
 # Pull Request
 
 ## Description
-
-Please include a summary of the change and which issue is fixed. Also describe your changes in detail.
+> Please include a summary of the change and which issue is fixed. Also describe your changes in detail.
 
 ## Type of change
 
@@ -21,13 +20,14 @@ Please include a summary of the change and which issue is fixed. Also describe y
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
+- [ ] Pre-commit runs successfully locally
 
 ## Related Issues
 
-Fixes # (issue)
+> Fixes # (issue)
 
 ## Screenshots (if applicable)
 
 ## Additional Notes
 
-Add any other context or information here.
+> Add any other context or information here.

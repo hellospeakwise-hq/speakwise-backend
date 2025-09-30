@@ -13,17 +13,19 @@ with contextlib.suppress(ImportError):
 SECRET_KEY = "django-insecure-development-key-change-in-production"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-
+DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Your Next.js app
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://www.speak-wise.live",
+    "https://speak-wise.live",
 ]
 
 # Or for development, you can allow all origins (less secure):
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -38,15 +40,36 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
 ]
+
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# REST Framework settings
+
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME"),
+        "USER": os.environ.get("DB_USER"),
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
+        "HOST": os.environ.get("DB_HOST"),
+        "PORT": os.environ.get("DB_PORT"),
     }
 }
+
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "/static/"

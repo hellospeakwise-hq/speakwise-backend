@@ -20,9 +20,8 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://www.speak-wise.live/",
-    "www.speak-wise.live",
-    "https://speak-wise.live/",
+    "https://www.speak-wise.live",
+    "https://speak-wise.live",
 ]
 
 # Or for development, you can allow all origins (less secure):

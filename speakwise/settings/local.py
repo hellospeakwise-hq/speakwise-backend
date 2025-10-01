@@ -1,13 +1,7 @@
 """Development settings for SpeakWise project."""
 
-import contextlib
-
 from speakwise.settings.base import *  # Import base settings  # noqa: E402,F403,F401
-from speakwise.settings.base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE  # noqa: E402
-
-with contextlib.suppress(ImportError):
-    import debug_toolbar  # noqa: F401
-
+from speakwise.settings.base import BASE_DIR  # noqa: E402
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-development-key-change-in-production"
@@ -88,14 +82,6 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     }
 }
-
-# Debug toolbar settings
-try:
-    INSTALLED_APPS += ["debug_toolbar"]
-    MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
-    INTERNAL_IPS = ["127.0.0.1"]
-except ImportError:
-    pass
 
 # Logging
 LOGGING = {

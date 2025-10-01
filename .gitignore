@@ -68,10 +68,6 @@ coverage.xml
 celerybeat-schedule
 celerybeat.pid
 
-# Static and Media #
-/staticfiles/
-/static/
-/media/
 
 # Local development settings #
 .env.local

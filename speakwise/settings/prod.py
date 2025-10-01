@@ -11,7 +11,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-fallback-key-change-m
 # SECURITY WARNING: don't run with debug turned on in production!
 
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["10.114.0.2"]
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -19,14 +19,13 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
-        "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
+        "NAME": "speakwiseDB",
+        "USER": "speakwiseAdin",
+        "PASSWORD": "speakwise2000",
+        "HOST": "localhost",
+        "PORT": "",
     }
 }
-
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "/static/"

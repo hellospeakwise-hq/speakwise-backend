@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/", include("events.urls", namespace="events")),
     path("api/", include("feedbacks.urls", namespace="feedbacks")),
     path("api/", include("organizations.urls", namespace="organizations")),
+    path("api/", include("speakerrequests.urls", namespace="speakerrequests")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

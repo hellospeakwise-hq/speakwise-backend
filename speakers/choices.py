@@ -15,9 +15,3 @@ class EventTypeChoices(models.TextChoices):
     OTHER = "other", _("Other")
 
 
-class SpeakerRequestStatus(models.TextChoices):
-    """speaker request saturation choices."""
-
-    ACCEPTED = "accepted", _("Accepted")
-    REJECTED = "rejected", _("Rejected")
-    PENDING = "pending", _("Pending")

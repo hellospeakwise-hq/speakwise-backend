@@ -1,0 +1,17 @@
+"""speaker request model."""
+from django.db import models
+from base.models import  TimeStampedModel
+from organizers.models import OrganizerProfile
+class SpeakerRequest(TimeStampedModel):
+    """speaker request model."""
+
+    organizer = models.ForeignKey(OrganizerProfile, on_delete=models.DO_NOTHING)
+    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.DO_NOTHING)
+    event = models.ForeignKey("events.Event", on_delete=models.DO_NOTHING)
+    status = models.CharField(max_length=10, choices="")
+    message = models.TextField(null=False)
+
+
+    def __str__(self):
+        """str."""
+        return f"{self.speaker.name} request"

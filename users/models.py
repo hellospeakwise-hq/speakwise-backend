@@ -38,12 +38,6 @@ class User(AbstractUser):
         """String representation."""
         return self.username
 
-    @classmethod
-    def set_username(self):
-        """Set username."""
-        self.username = self.first_name + " " + self.last_name
-        return self.username
-
     def get_full_name(self):
         """Return the full name of the user."""
         return self.username

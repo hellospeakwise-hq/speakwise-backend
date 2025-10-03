@@ -11,7 +11,7 @@ jobs:
 
     migrate:
         needs: precommit
-        uses: .github/workflows/migrations-test.yml
+        uses: ./.github/workflows/migrations-test.yml
         secrets: inherit
 
 

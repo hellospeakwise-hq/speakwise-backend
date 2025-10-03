@@ -28,12 +28,7 @@ class TestFeedback(TestCase):
         # Create attendee profile with minimal setup
         from attendees.models import AttendeeProfile
 
-        self.attendee = AttendeeProfile.objects.create(
-            user_account=self.user,
-            email="attendee@mail.com",
-            first_name="Test",
-            last_name="Attendee",
-        )
+        self.attendee = AttendeeProfile.objects.create(user_account=self.user)
 
         self.session = Session.objects.create(
             type="workshop",
@@ -130,9 +125,6 @@ class TestFeedbackAPI(APITestCase):
 
         self.attendee = AttendeeProfile.objects.create(
             user_account=self.user,
-            email="user@example.com",
-            first_name="API",
-            last_name="User",
         )
 
         self.session = Session.objects.create(

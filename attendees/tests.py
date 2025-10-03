@@ -25,9 +25,6 @@ class AttendeeSerializerTestCase(TestCase):
         )
 
         self.attendee = AttendeeProfile.objects.create(
-            first_name="John",
-            last_name="Doe",
-            email="attendee@mail.com",
             notification_preference="email",
             organization="TestOrg",
             user_account=self.user,
@@ -47,9 +44,6 @@ class AttendeeSerializerTestCase(TestCase):
         assert data.keys() == (
             {
                 "id",
-                "first_name",
-                "last_name",
-                "email",
                 "notification_preference",
                 "organization",
                 "is_verified",
@@ -62,9 +56,6 @@ class AttendeeSerializerTestCase(TestCase):
         """Test that the serializer contains the expected field content."""
         data = self.serializer.data
 
-        assert data["first_name"] == self.attendee.first_name
-        assert data["last_name"] == self.attendee.last_name
-        assert data["email"] == self.attendee.email
         assert data["notification_preference"] == self.attendee.notification_preference
         assert data["organization"] == self.attendee.organization
         assert data["is_verified"] == self.attendee.is_verified

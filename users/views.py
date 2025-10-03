@@ -1,6 +1,5 @@
 """users views."""
 
-import json
 from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
@@ -9,17 +8,10 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
-from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from attendees.models import AttendeeProfile
-from attendees.serializers import AttendeeProfileSerializer
-from organizers.models import OrganizerProfile
-from organizers.serializers import OrganizerProfileSerializer
-from speakers.models import SpeakerProfile
-from speakers.serializers import SpeakerProfileSerializer
 from users.choices import UserRoleChoices
 from users.exceptions import AuthenticationError
 from users.models import User
@@ -117,22 +109,7 @@ class UserLoginView(LoginBaseClass):
 
     def get_extra_payload(self) -> dict:
         """Return the speaker data."""
-        if self.user.role.role == UserRoleChoices.SPEAKER.value:
-            serializer = SpeakerProfileSerializer(
-                SpeakerProfile.objects.get(user_account=self.user)
-            )
-        elif self.user.role.role == UserRoleChoices.ATTENDEE.value:
-            serializer = AttendeeProfileSerializer(
-                AttendeeProfile.objects.get(user_account=self.user)
-            )
-        elif self.user.role.role == UserRoleChoices.ORGANIZER.value:
-            serializer = OrganizerProfileSerializer(
-                OrganizerProfile.objects.get(user_account=self.user)
-            )
-        else:
-            return {}
-        user_data = json.loads(JSONRenderer().render(serializer.data))
-        return user_data
+        return UserSerializer(self.user).data
 
 
 @extend_schema(responses=PasswordResetRequestSerializer)

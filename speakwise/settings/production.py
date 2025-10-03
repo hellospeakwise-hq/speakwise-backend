@@ -11,7 +11,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-fallback-key-change-m
 # SECURITY WARNING: don't run with debug turned on in production!
 
 
-ALLOWED_HOSTS = ["10.114.0.2"]
+ALLOWED_HOSTS = ["10.114.0.2", "apis.speak-wise.live"]
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -39,6 +39,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # Add CORS settings for your Next.js frontend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Development
+    "https://www.speak-wise.live",
     # "https://speakwise.vercel.app",  # Production
 ]
 

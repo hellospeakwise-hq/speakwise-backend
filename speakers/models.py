@@ -3,8 +3,6 @@ from django.db import models
 from django.utils.text import slugify
 
 from base.models import SocialLinks, TimeStampedModel
-from organizers.models import OrganizerProfile
-from speakers.choices import EventTypeChoices
 from users.models import User
 
 # Speakers file upload directory

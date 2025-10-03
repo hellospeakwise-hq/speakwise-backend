@@ -13,5 +13,3 @@ class EventTypeChoices(models.TextChoices):
     MEETUP = "meetup", _("Meetup")
     COOPERATE_EVENT = "cooperate event", _("Cooperate event")
     OTHER = "other", _("Other")
-
-

@@ -4,7 +4,6 @@ from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
 from speakers.models import (
-    RequestSpeaker,
     SpeakerProfile,
     SpeakerSkillTag,
     SpeakerSocialLinks,
@@ -51,13 +50,3 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
             if obj.user_account.first_name and obj.user_account.last_name
             else obj.user_account.username
         )
-
-
-class SpeakerRequestSerializer(ModelSerializer):
-    """request speaker serializer."""
-
-    class Meta:
-        """meta options."""
-
-        model = RequestSpeaker
-        exclude = ["created_at", "updated_at"]

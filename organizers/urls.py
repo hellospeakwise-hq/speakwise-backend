@@ -22,9 +22,5 @@ urlpatterns = [
         views.FileUploadViewCreatView.as_view(),
         name="create_attendance",
     ),
-    path(
-        "speakers/request-speaker/",
-        views.RequestSpeakerView.as_view(),
-        name="request_speaker_list",
-    ),
+
 ]

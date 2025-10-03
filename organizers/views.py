@@ -10,9 +10,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from attendees.models import Attendance
-from base.permissions import IsAdminOrOrganizer, IsOrganizer
+from base.permissions import IsAdminOrOrganizer
 from base.utils import FileHandler
-from speakers.serializers import  SpeakerSocialLinksSerializer
 
 from .serializers import AttendanceSerializer, OrganizerProfileSerializer
 

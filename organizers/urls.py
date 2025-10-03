@@ -22,5 +22,4 @@ urlpatterns = [
         views.FileUploadViewCreatView.as_view(),
         name="create_attendance",
     ),
-
 ]

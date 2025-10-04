@@ -70,6 +70,40 @@ class User(AbstractUser):
         """Check if user is an organizer admin."""
         return self.is_admin() or self.is_organizer()
 
+    def is_organization_admin(self, organization=None):
+        """Check if user is an admin of any organization or a specific organization."""
+        if organization:
+            return self.organization_memberships.filter(
+                organization=organization, role="admin", is_active=True
+            ).exists()
+        return self.organization_memberships.filter(
+            role="admin", is_active=True
+        ).exists()
+
+    def is_organization_member(self, organization=None):
+        """Check if user is a member of any organization or a specific organization."""
+        if organization:
+            return self.organization_memberships.filter(
+                organization=organization, is_active=True
+            ).exists()
+        return self.organization_memberships.filter(is_active=True).exists()
+
+    def get_organizations_as_admin(self):
+        """Get all organizations where user is an admin."""
+        return [
+            membership.organization
+            for membership in self.organization_memberships.filter(
+                role="admin", is_active=True
+            )
+        ]
+
+    def get_organizations_as_member(self):
+        """Get all organizations where user is a member."""
+        return [
+            membership.organization
+            for membership in self.organization_memberships.filter(is_active=True)
+        ]
+
 
 class UserRole(TimeStampedModel):
     """User role model."""

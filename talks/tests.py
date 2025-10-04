@@ -3,6 +3,7 @@
 from django.test import TestCase
 
 from events.models import Country, Event, Location
+from organizations.models import Organization
 from speakers.models import SpeakerProfile
 from talks.models import Talks
 from talks.serializers import TalkSerializer
@@ -24,6 +25,11 @@ class TestTalkSerializer(TestCase):
             role=UserRole.objects.create(role=UserRoleChoices.SPEAKER.value),
         )
         self.speaker_profile = SpeakerProfile.objects.create(user_account=self.user)
+        self.organization = Organization.objects.create(
+            name="Test Organization",
+            email="test@test.com",
+            created_by=self.user,
+        )
         self.talk = Talks.objects.create(
             title="Sample Talk",
             description="This is a sample talk description.",
@@ -40,6 +46,7 @@ class TestTalkSerializer(TestCase):
                     state="Sample State",
                     country=Country.objects.create(name="Sample Country"),
                 ),
+                organization=self.organization,
             ),
         )
         self.serializer = TalkSerializer(instance=self.talk)

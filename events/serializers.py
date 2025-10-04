@@ -7,6 +7,7 @@ from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
 from events.models import Country, Event, Location, Tag
+from organizations.models import Organization
 from speakers.serializers import SpeakerProfileSerializer
 
 
@@ -50,6 +51,12 @@ class EventSerializer(WritableNestedModelSerializer):
     website = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
+    organization_name = serializers.CharField(
+        source="organization.name", read_only=True
+    )
+    # User permissions
+    can_user_manage = serializers.SerializerMethodField()
+
     # Frontend-specific computed fields
     name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
@@ -60,6 +67,41 @@ class EventSerializer(WritableNestedModelSerializer):
 
         model = Event
         exclude = ["created_at", "updated_at"]
+
+    def get_can_user_manage(self, obj):
+        """Check if current user can manage this event."""
+        request = self.context.get("request")
+        if (
+            not request
+            or not hasattr(request, "user")
+            or not request.user.is_authenticated
+        ):
+            return False
+        return obj.can_user_manage(request.user)
+
+    def create(self, validated_data):
+        """Create event with proper organization/organizer assignment."""
+        organization = validated_data.pop("organization", None)
+
+        # Validate organization permissions
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            try:
+                organization = Organization.objects.get(id=organization.id)
+                # Check if user can create events for this organization
+                if not organization.organization_memberships.filter(
+                    user=request.user, is_active=True, can_manage_events=True
+                ).exists():
+                    raise serializers.ValidationError(
+                        "You don't have permission to create events for this organization."
+                    )
+                validated_data["organization"] = organization
+            except Organization.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"detail": "Organization not found."}
+                ) from None
+
+        return super().create(validated_data)
 
     def get_date(self, obj):
         """Format date range for frontend display - keeping for backward compatibility."""

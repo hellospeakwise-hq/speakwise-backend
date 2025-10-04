@@ -7,6 +7,7 @@ from rest_framework.test import APITestCase
 
 from events.models import Country, Event, Location
 from feedbacks.models import Feedback
+from organizations.models import Organization
 from speakers.models import SpeakerProfile
 from talks.models import Session, Talks
 from users.models import UserRole
@@ -29,6 +30,11 @@ class TestFeedback(TestCase):
         from attendees.models import AttendeeProfile
 
         self.attendee = AttendeeProfile.objects.create(user_account=self.user)
+        self.organization = Organization.objects.create(
+            name="Test Organization",
+            email="test@organization.com",
+            created_by=self.user,
+        )
 
         self.session = Session.objects.create(
             type="workshop",
@@ -45,6 +51,7 @@ class TestFeedback(TestCase):
                         state="Sample State",
                         country=Country.objects.create(name="Sample Country"),
                     ),
+                    organization=self.organization,
                 ),
                 speaker=SpeakerProfile.objects.create(
                     user_account=self.user,
@@ -119,7 +126,11 @@ class TestFeedbackAPI(APITestCase):
             role=UserRole.objects.create(role="attendee"),
         )
         self.client.force_authenticate(user=self.user)
-
+        self.organization = Organization.objects.create(
+            name="Test Organization",
+            email="test@organization.com",
+            created_by=self.user,
+        )
         # Create attendee profile
         from attendees.models import AttendeeProfile
 
@@ -142,6 +153,7 @@ class TestFeedbackAPI(APITestCase):
                         state="Sample State",
                         country=Country.objects.create(name="Sample Country"),
                     ),
+                    organization=self.organization,
                 ),
                 speaker=SpeakerProfile.objects.create(
                     user_account=self.user,
@@ -167,6 +179,7 @@ class TestFeedbackAPI(APITestCase):
                         state="Sample State",
                         country=Country.objects.create(name="Sample Country"),
                     ),
+                    organization=self.organization,
                 ),
                 speaker=SpeakerProfile.objects.create(
                     user_account=self.user,

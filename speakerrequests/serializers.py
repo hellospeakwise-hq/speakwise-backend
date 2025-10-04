@@ -13,3 +13,4 @@ class SpeakerRequestSerializer(serializers.ModelSerializer):
 
         model = SpeakerRequest
         exclude = ["created_at", "updated_at"]
+        read_only_fields = ["organizer"]

@@ -7,12 +7,13 @@ from rest_framework_simplejwt.tokens import AccessToken
 from events.filters import EventFilter
 from events.models import Country, Event, Location
 from events.serializers import CountrySerializer, EventSerializer, LocationSerializer
+from organizations.models import Organization
 from organizers.models import OrganizerProfile
 from users.choices import UserRoleChoices
 from users.models import User, UserRole
 
 
-class TestEvent(TestCase):
+class TestEvent(APITestCase):
     """test events models and serializers."""
 
     def setUp(self):
@@ -25,13 +26,26 @@ class TestEvent(TestCase):
         )
         self.country = Country.objects.create(name="Ghana")
         self.location = Location.objects.create(country=self.country)
-        self.organizer = OrganizerProfile.objects.create(user_account=self.user)
+        self.organization = Organization.objects.create(
+            name="Test Organization",
+            email="test@nds.com",
+            created_by=self.user,
+        )
+        # Add user as organization member with event management permission
+        from organizations.models import OrganizationMembership, OrganizationRole
 
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.user,
+            role=OrganizationRole.ADMIN,
+            added_by=self.user,
+            can_manage_events=True,
+        )
         self.event = Event.objects.create(
             title="Test Event",
             description="This is a test event",
             location=self.location,
-            organizer=self.organizer,
+            organization=self.organization,
         )
         self.token = str(AccessToken.for_user(self.user))
 
@@ -58,7 +72,12 @@ class TestEvent(TestCase):
     def test_event_create_api_view(self):
         """Test event create api view."""
         # Ensure all required fields are provided for event creation
-        data = {"title": "Test Event 1", "description": "This is a test event"}
+        data = {
+            "title": "Test Event 1",
+            "description": "This is a test event",
+            "organization": self.organization.id,
+            "location": self.location.id,
+        }
         # Use DRF test client format for auth header
         request = self.client.post(
             "/api/events/",
@@ -83,9 +102,6 @@ class TestEventFilter(TestCase):
             password="testpassword",
             role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
-        self.organizer1 = OrganizerProfile.objects.create(
-            user_account=self.organizer1_user
-        )
 
         self.organizer2_user = User.objects.create(
             username="jane_organizer",
@@ -93,10 +109,6 @@ class TestEventFilter(TestCase):
             password="testpassword",
             role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
-        self.organizer2 = OrganizerProfile.objects.create(
-            user_account=self.organizer2_user
-        )
-
         # Create countries and locations
         self.usa = Country.objects.create(name="United States", code="US")
         self.ghana = Country.objects.create(name="Ghana", code="GH")
@@ -111,23 +123,41 @@ class TestEventFilter(TestCase):
             venue="National Theater", city="Accra", country=self.ghana
         )
 
+        self.organization = Organization.objects.create(
+            name="Test Organization",
+            email="test@organization.com",
+            created_by=self.organizer1_user,
+        )
+
+        self.organization2 = Organization.objects.create(
+            name="Another Organization",
+            email="another@organization.com",
+            created_by=self.organizer2_user,
+        )
+
+        self.organization3 = Organization.objects.create(
+            name="Third Organization",
+            email="third@organization.com",
+            created_by=self.organizer2_user,
+        )
+
         # Create test events
         self.conference_event = Event.objects.create(
             title="Tech Conference 2024",
             description="Annual tech conference",
-            organizer=self.organizer1,
+            organization=self.organization,
             location=self.auditorium_usa,
         )
         self.workshop_event = Event.objects.create(
             title="Python Workshop",
             description="Learn Python programming",
-            organizer=self.organizer2,
+            organization=self.organization2,
             location=self.conference_center_usa,
         )
         self.meetup_event = Event.objects.create(
             title="Developer Meetup",
             description="Local developer meetup",
-            organizer=self.organizer1,
+            organization=self.organization3,
             location=self.auditorium_ghana,
         )
 
@@ -163,17 +193,16 @@ class TestEventFilter(TestCase):
         assert filtered_queryset.count() == 0
 
     def test_organizer_filter_exact_username(self):
-        """Test filtering events by organizer username."""
-        filter_set = EventFilter(data={"organizer": "john_organizer"})
+        """Test filtering events by organization name   ."""
+        filter_set = EventFilter(data={"organization": "Test Organization"})
         filtered_queryset = filter_set.qs
 
-        assert filtered_queryset.count() == 2
+        assert filtered_queryset.count() == 1
         assert self.conference_event in filtered_queryset
-        assert self.meetup_event in filtered_queryset
 
     def test_organizer_filter_partial_username(self):
         """Test filtering events by partial organizer username."""
-        filter_set = EventFilter(data={"organizer": "jane"})
+        filter_set = EventFilter(data={"organization": "Another"})
         filtered_queryset = filter_set.qs
 
         assert filtered_queryset.count() == 1
@@ -181,12 +210,11 @@ class TestEventFilter(TestCase):
 
     def test_organizer_filter_case_insensitive(self):
         """Test that organizer filter is case insensitive."""
-        filter_set = EventFilter(data={"organizer": "JOHN"})
+        filter_set = EventFilter(data={"organization": "test"})
         filtered_queryset = filter_set.qs
 
-        assert filtered_queryset.count() == 2
+        assert filtered_queryset.count() == 1
         assert self.conference_event in filtered_queryset
-        assert self.meetup_event in filtered_queryset
 
     def test_country_filter_exact_name(self):
         """Test filtering events by country name."""
@@ -239,7 +267,9 @@ class TestEventFilter(TestCase):
 
     def test_multiple_filters_combined(self):
         """Test combining multiple filters."""
-        filter_set = EventFilter(data={"organizer": "john", "country": "United States"})
+        filter_set = EventFilter(
+            data={"organization": "Test Organization", "country": "United States"}
+        )
         filtered_queryset = filter_set.qs
 
         assert filtered_queryset.count() == 1
@@ -256,7 +286,7 @@ class TestEventFilter(TestCase):
         """Test that invalid filter values return empty queryset."""
         filter_set = EventFilter(
             data={
-                "organizer": "nonexistent_user",
+                "organization": "nonexistent_user",
                 "country": "nonexistent_country",
                 "venue": "nonexistent_venue",
                 "title": "nonexistent_title",
@@ -279,6 +309,12 @@ class TestEventFilterAPIView(APITestCase):
             password="testpassword",
             role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
+
+        self.organization = Organization.objects.create(
+            name="Test Organization",
+            email="test@organization.com",
+            created_by=self.user,
+        )
         self.organizer = OrganizerProfile.objects.create(user_account=self.user)
 
         # Create test data similar to unit tests
@@ -290,7 +326,7 @@ class TestEventFilterAPIView(APITestCase):
         self.test_event = Event.objects.create(
             title="API Test Conference",
             description="Test event for API",
-            organizer=self.organizer,
+            organization=self.organization,
             location=self.location,
         )
 
@@ -306,11 +342,10 @@ class TestEventFilterAPIView(APITestCase):
     def test_api_organizer_filter(self):
         """Test organizer filtering through API endpoint."""
         url = "/api/events/"
-        response = self.client.get(url, {"organizer": "api_user"})
+        response = self.client.get(url, {"organization": "Test Organization"})
 
         assert response.status_code == 200
         assert len(response.data) == 1
-        assert response.data[0]["organizer"] == self.organizer.id
 
     def test_api_country_filter(self):
         """Test country filtering through API endpoint."""
@@ -340,7 +375,12 @@ class TestEventFilterAPIView(APITestCase):
         """Test combining multiple filters via API."""
         url = "/api/events/"
         response = self.client.get(
-            url, {"title": "API", "organizer": "api_user", "country": "United States"}
+            url,
+            {
+                "title": "API",
+                "organization": "Test Organization",
+                "country": "United States",
+            },
         )
 
         assert response.status_code == 200

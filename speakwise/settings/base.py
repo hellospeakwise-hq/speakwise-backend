@@ -54,6 +54,7 @@ LOCAL_APPS = [
     "events",
     "speakers",
     "organizers",
+    "organizations",
     "attendees",
     "talks",
     "teams",

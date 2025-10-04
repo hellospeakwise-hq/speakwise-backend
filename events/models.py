@@ -4,7 +4,7 @@ from django.db import models
 from django.utils import timezone
 
 from base.models import TimeStampedModel
-from organizers.models import OrganizerProfile
+from organizations.models import Organization
 
 EVENT_IMAGE_UPLOAD = "event_images/"
 
@@ -49,19 +49,47 @@ class Event(TimeStampedModel):
     is_active = models.BooleanField(default=False)
     tags = models.ManyToManyField(Tag, related_name="events", blank=True)
 
-    # Add organizer relationship
-    organizer = models.ForeignKey(
-        OrganizerProfile,
+    # Organization relationship
+    organization = models.ForeignKey(
+        Organization,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="organized_events",
-        help_text="The organizer who created this event",
+        related_name="events",
+        help_text="The organization that owns this event",
     )
+
+    class Meta:
+        """Meta options for the Event model."""
+
+        constraints = [
+            models.CheckConstraint(
+                check=(models.Q(organization__isnull=False)),
+                name="event_must_have_organization",
+            )
+        ]
 
     def __str__(self):
         """Return a string representation of the model."""
         return self.title
+
+    def get_organizing_entity(self):
+        """Get the organizing entity (organization or individual organizer)."""
+        return self.organization
+
+    def can_user_manage(self, user):
+        """Check if a user can manage this event."""
+        # If event belongs to organization
+        return self.organization.organization_memberships.filter(
+            user=user.id, is_active=True, can_manage_events=True
+        ).exists()
+
+    def get_authorized_organizers(self):
+        """Get all users who can manage this event."""
+        return self.organization.members.filter(
+            organization_memberships__is_active=True,
+            organization_memberships__can_manage_events=True,
+        )
 
 
 class Location(TimeStampedModel):

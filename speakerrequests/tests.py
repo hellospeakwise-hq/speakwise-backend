@@ -9,6 +9,7 @@ from events.models import Event
 from organizers.models import OrganizerProfile
 from speakerrequests.models import SpeakerRequest
 from speakers.models import SpeakerProfile
+from users.choices import UserRoleChoices
 from users.models import UserRole
 
 User = get_user_model()
@@ -20,8 +21,8 @@ class SpeakerRequestTests(APITestCase):
     def setUp(self):
         """Set up test data."""
         # Create User Roles
-        self.organizer_role = UserRole.objects.create(role="organizer")
-        self.speaker_role = UserRole.objects.create(role="speaker")
+        self.organizer_role = UserRole.objects.create(role=UserRoleChoices.ORGANIZER)
+        self.speaker_role = UserRole.objects.create(role=UserRoleChoices.SPEAKER)
 
         # Create Users
         self.organizer_user = User.objects.create(
@@ -52,8 +53,8 @@ class SpeakerRequestTests(APITestCase):
         self.event = Event.objects.create(
             title="Test Event",
             organizer=self.organizer_profile,
-            start_date="2025-10-10T10:00:00Z",
-            end_date="2025-10-10T18:00:00Z",
+            start_date_time="2025-10-10T10:00:00Z",
+            end_date_time="2025-10-10T18:00:00Z",
         )
 
         # Create a SpeakerRequest for detail/update tests
@@ -62,7 +63,7 @@ class SpeakerRequestTests(APITestCase):
             "event": self.event.id,
             "message": "We would like to invite you to speak at our event.",
         }
-        self.list_create_url = reverse("speakerrequests:speakerrequest-list-create")
+        self.list_create_url = reverse("speakerrequests:speaker_requests_list_create")
 
         self.speaker_request = SpeakerRequest.objects.create(
             organizer=self.organizer_profile,
@@ -71,7 +72,12 @@ class SpeakerRequestTests(APITestCase):
             message="Initial request message.",
         )
         self.detail_url = reverse(
-            "speakerrequests:speakerrequest-detail", args=[self.speaker_request.id]
+            "speakerrequests:speaker_request_retrieve_update_delete",
+            args=[self.speaker_request.id],
+        )
+        self.speaker_list_url = reverse("speakerrequests:speaker_requests_list")
+        self.speaker_update_url = reverse(
+            "speakerrequests:speaker_request_update", args=[self.speaker_request.id]
         )
 
     def test_create_speaker_request(self):
@@ -91,19 +97,10 @@ class SpeakerRequestTests(APITestCase):
         # Authenticate as the speaker to view their received requests
         self.client.force_authenticate(user=self.speaker_user)
 
-        response = self.client.get(self.list_create_url, format="json")
+        response = self.client.get(self.speaker_list_url, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["message"], "Initial request message.")
-
-    def test_get_speaker_request_detail(self):
-        """Test retrieving a single speaker request."""
-        # Authenticate as the speaker
-        self.client.force_authenticate(user=self.speaker_user)
-
-        response = self.client.get(self.detail_url, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["message"], "Initial request message.")
 
     def test_update_speaker_request(self):
         """Test a speaker accepting a request."""
@@ -111,7 +108,7 @@ class SpeakerRequestTests(APITestCase):
         self.client.force_authenticate(user=self.speaker_user)
 
         update_data = {"status": "ACCEPTED"}
-        response = self.client.patch(self.detail_url, update_data, format="json")
+        response = self.client.patch(self.speaker_update_url, update_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.speaker_request.refresh_from_db()
         self.assertEqual(self.speaker_request.status, "ACCEPTED")

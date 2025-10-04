@@ -4,7 +4,7 @@ from django.urls import path
 
 from speakerrequests import views
 
-app_name = "speakerrequest"
+app_name = "speakerrequests"
 
 urlpatterns = [
     path(
@@ -18,8 +18,13 @@ urlpatterns = [
         name="speaker_request_retrieve_update_delete",
     ),
     path(
-        "speaker-requests/speaker/<int:pk>/",
+        "speaker/requests/",
         views.SpeakerRequestsListView.as_view(),
-        name="speaker_request_speaker",
+        name="speaker_requests_list",
+    ),
+    path(
+        "speaker/requests/<int:pk>/",
+        views.SpeakerRequestsListView.as_view(),
+        name="speaker_request_update",
     ),
 ]

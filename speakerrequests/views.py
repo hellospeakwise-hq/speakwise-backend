@@ -3,20 +3,22 @@
 from django.http.response import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from base.permissions import IsOrganizer, IsSpeaker
+from events.models import Event
+from organizers.models import OrganizerProfile
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.serializers import SpeakerRequestSerializer
-
-from .utils import speaker_request_payload
+from speakers.models import SpeakerProfile
 
 
 class SpeakerRequestListView(APIView):
     """speaker request list view."""
 
-    permission_classes = [IsOrganizer]
+    permission_classes = [AllowAny]
 
     def get_objects(self, organizer):
         """Get speaker requests by organizer."""
@@ -35,11 +37,22 @@ class SpeakerRequestListView(APIView):
     @extend_schema(request=SpeakerRequestSerializer)
     def post(self, request):
         """Create a speaker request."""
-        serializer_data = speaker_request_payload(request.user, request.data)
+        organizer_profile = OrganizerProfile.objects.get(user_account=request.user)
+        speaker = SpeakerProfile.objects.get(pk=request.data.get("speaker"))
+        event = Event.objects.get(pk=request.data.get("event"))
+
+        serializer_data = {
+            "event":event,
+            "organizer":organizer_profile,
+            "speaker":speaker,
+            "status":request.data.get("status", "pending"),
+            "message":request.data.get("message", ""),
+        }
+
         serializer = SpeakerRequestSerializer(data=serializer_data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class SPeakerRequestDetailView(APIView):

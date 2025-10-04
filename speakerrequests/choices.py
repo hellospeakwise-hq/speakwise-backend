@@ -1,12 +1,11 @@
-"""speaker request model choices."""
+"""speaker request choices."""
 
 from django.db import models
-from django.utils.translation import gettext_lazy as _
 
 
-class SpeakerRequestStatus(models.TextChoices):
-    """speaker request saturation choices."""
+class RequestStatusChoices(models.TextChoices):
+    """speaker request status choices."""
 
-    ACCEPTED = "accepted", _("Accepted")
-    DECLINED = "declined", _("Declined")
-    PENDING = "pending", _("Pending")
+    PENDING = "PENDING", "Pending"
+    ACCEPTED = "ACCEPTED", "Accepted"
+    REJECTED = "REJECTED", "Rejected"

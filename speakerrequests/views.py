@@ -1,4 +1,5 @@
 """speaker request views."""
+import uuid
 
 from django.http.response import Http404
 from drf_spectacular.utils import extend_schema
@@ -7,7 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsOrganizer, IsSpeaker
+from base.permissions import IsOrganizer, IsSpeaker, IsAdminOrOrganizer
 from events.models import Event
 from organizers.models import OrganizerProfile
 from speakerrequests.models import SpeakerRequest
@@ -18,7 +19,7 @@ from speakers.models import SpeakerProfile
 class SpeakerRequestListView(APIView):
     """speaker request list view."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminOrOrganizer]
 
     def get_objects(self, organizer):
         """Get speaker requests by organizer."""
@@ -37,8 +38,10 @@ class SpeakerRequestListView(APIView):
     @extend_schema(request=SpeakerRequestSerializer)
     def post(self, request):
         """Create a speaker request."""
+        print("Speaker Type: ", type(request.data.get("speaker")))
         organizer_profile = OrganizerProfile.objects.get(user_account=request.user)
-        speaker = SpeakerProfile.objects.get(pk=request.data.get("speaker"))
+        speaker = SpeakerProfile.objects.get(id=uuid.UUID(request.data.get("speaker")))
+
         event = Event.objects.get(pk=request.data.get("event"))
 
         serializer_data = {

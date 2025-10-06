@@ -1,19 +1,21 @@
 """speaker request views."""
-import uuid
 
 from django.http.response import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsOrganizer, IsSpeaker, IsAdminOrOrganizer
-from events.models import Event
+from base.permissions import IsAdminOrOrganizer, IsOrganizer, IsSpeaker
 from organizers.models import OrganizerProfile
+from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.serializers import SpeakerRequestSerializer
-from speakers.models import SpeakerProfile
+from speakerrequests.utils import (
+    send_request_accepted_email,
+    send_speaker_request_declined_email,
+    send_speaker_request_email,
+)
 
 
 class SpeakerRequestListView(APIView):
@@ -38,23 +40,26 @@ class SpeakerRequestListView(APIView):
     @extend_schema(request=SpeakerRequestSerializer)
     def post(self, request):
         """Create a speaker request."""
-        print("Speaker Type: ", type(request.data.get("speaker")))
-        organizer_profile = OrganizerProfile.objects.get(user_account=request.user)
-        speaker = SpeakerProfile.objects.get(id=uuid.UUID(request.data.get("speaker")))
-
-        event = Event.objects.get(pk=request.data.get("event"))
-
+        organizer_profile = OrganizerProfile.objects.get(user_account=request.user).pk
+        print("ORGANIZER PROFILE", organizer_profile)
         serializer_data = {
-            "event":event,
-            "organizer":organizer_profile,
-            "speaker":speaker,
-            "status":request.data.get("status", "pending"),
-            "message":request.data.get("message", ""),
+            "event": request.data.get("event"),
+            "organizer": organizer_profile,
+            "speaker": request.data.get("speaker"),
+            "status": request.data.get("status", RequestStatusChoices.PENDING.value),
+            "message": request.data.get("message", ""),
         }
 
         serializer = SpeakerRequestSerializer(data=serializer_data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # send email notification to speaker
+        send_speaker_request_email(
+            speaker_email=serializer.instance.speaker.user_account.email,
+            event_name=serializer.instance.event.title,
+            organizer_name=serializer.instance.organizer.user_account.username,
+            message=serializer.instance.message,
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -109,21 +114,52 @@ class SpeakerRequestsListView(APIView):
             raise Http404 from err
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
-    def get(self, request):
+    def get(self, request, pk=None):
         """Get speaker requests."""
         speaker_requests = self.get_objects(request.user)
         serializer = SpeakerRequestSerializer(speaker_requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+class SpeakerRequestAcceptView(APIView):
+    """accept or decline a speaker request."""
+
+    permission_classes = [IsSpeaker]
+
+    def get_object(self, pk, user):
+        """Get object by pk and ensure it belongs to the speaker."""
+        try:
+            return SpeakerRequest.objects.get(pk=pk, speaker__user_account=user)
+        except SpeakerRequest.DoesNotExist as err:
+            raise Http404 from err
+
     @extend_schema(request=SpeakerRequestSerializer, responses=SpeakerRequestSerializer)
     def patch(self, request, pk=None):
         """Update a speaker request."""
-        speaker_request = SpeakerRequest.objects.get(
-            pk=pk, speaker__user_account=request.user
-        )
+        speaker_request = self.get_object(pk, request.user)
+        current_status = speaker_request.status
+        if current_status != RequestStatusChoices.PENDING.value:
+            return Response(
+                {"detail": "You can only update requests that are in PENDING status."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = SpeakerRequestSerializer(
             speaker_request, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # send email notification to speaker if request is accepted or declined
+        (
+            send_request_accepted_email(
+                speaker_email=serializer.instance.speaker.user_account.email,
+                event_name=serializer.instance.event.title,
+                speaker_name=serializer.instance.speaker.user_account.email,
+            )
+            if serializer.instance.status == RequestStatusChoices.ACCEPTED.value
+            else send_speaker_request_declined_email(
+                speaker_email=serializer.instance.speaker.user_account.email,
+                event_name=serializer.instance.event.title,
+                speaker_name=serializer.instance.speaker.user_account.email,
+            )
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)

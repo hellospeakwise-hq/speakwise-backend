@@ -6,6 +6,6 @@ from django.db import models
 class RequestStatusChoices(models.TextChoices):
     """speaker request status choices."""
 
-    PENDING = "PENDING", "Pending"
-    ACCEPTED = "ACCEPTED", "Accepted"
-    REJECTED = "REJECTED", "Rejected"
+    PENDING = "pending", "Pending"
+    ACCEPTED = "accepted", "Accepted"
+    REJECTED = "rejected", "Rejected"

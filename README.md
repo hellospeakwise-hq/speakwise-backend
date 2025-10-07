@@ -61,11 +61,11 @@ services.
 >
 > To specify which settings to use, you can run:
 >
-### To use Sqlite DB
+### For Local
 ```bash
 python3 manage.py runserver --settings=speakwise.settings.local
 ```
-### To use Postgres DB
+### For Prod(Production)
 ```bash
 python3 manage.py runserver --settings=speakwise.settings.prod
 ```

@@ -22,7 +22,7 @@ services.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Synthetic-CortexLabs/SpeakWise-Backend.git
+   git clone https://github.com/hellospeakwise-hq/speakwise-backend.git
    cd SpeakWise-Backend
    ```
 
@@ -37,12 +37,18 @@ services.
    pip install -r requirements.txt
    ```
 
-4. Run migrations:
+4. Configure Environment
+   ```bash
+   cp .env.example .env  # Create your environment file
+   # Edit .env with your preferred settings
+   ```
+
+5. Run migrations:
    ```bash
    python manage.py migrate
    ```
 
-5. Start the development server:
+6. Start the development server:
    ```bash
    python manage.py runserver
    ```
@@ -55,9 +61,14 @@ services.
 >
 > To specify which settings to use, you can run:
 >
-> ```bash
-> python3 manage.py runserver --settings=speakwise.settings.local
-> ```
+### For Local
+```bash
+python3 manage.py runserver --settings=speakwise.settings.local
+```
+### For Prod(Production)
+```bash
+python3 manage.py runserver --settings=speakwise.settings.prod
+```
 >
 > Or set the environment variable so you don't have to specify it every time:
 >
@@ -96,8 +107,8 @@ about `uv` [here](https://docs.astral.sh/uv/getting-started/installation/)_
 
 4. Run formatting and linting:
    ```bash
-   bash scripts/black.sh
-   bash scripts/flake8.sh
+   ./speakwise/scripts/black.sh
+   ./speakwise/scripts/flake8.sh
    ```
 
 5. Push to your fork:

@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/", include("teams.urls", namespace="teams")),
     path("api/", include("events.urls", namespace="events")),
     path("api/", include("feedbacks.urls", namespace="feedbacks")),
+    path("api/", include("speakerrequests.urls", namespace="speakerrequests")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

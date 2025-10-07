@@ -59,6 +59,7 @@ LOCAL_APPS = [
     "teams",
     "users",
     "feedbacks",
+    "speakerrequests",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

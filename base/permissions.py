@@ -3,12 +3,33 @@
 from rest_framework.permissions import BasePermission
 
 
-class IsAdminOrOrganizer(BasePermission):
-    """custom admin or organizer permission class."""
+class IsOrganizer(BasePermission):
+    """custom organizer permission."""
 
     def has_permission(self, request, view):
-        """Has permission."""
-        user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return False
-        return getattr(user, "is_organizer_or_admin", lambda: False)()
+        """Check if user is organizer."""
+        return bool(
+            request.user and request.user.is_authenticated and request.user.is_organizer
+        )
+
+
+class IsAdminOrOrganizer(BasePermission):
+    """custom admin or organizer permission."""
+
+    def has_permission(self, request, view):
+        """Check if user is admin or organizer."""
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_organizer_or_admin)
+        )
+
+
+class IsSpeaker(BasePermission):
+    """custom speaker permission."""
+
+    def has_permission(self, request, view):
+        """Check if user is speaker."""
+        return bool(
+            request.user and request.user.is_authenticated and request.user.is_speaker
+        )

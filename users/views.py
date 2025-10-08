@@ -12,8 +12,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from users.choices import UserRoleChoices
-from users.exceptions import AuthenticationError
 from users.models import User
 from users.serializers import (
     PasswordResetConfirmSerializer,
@@ -99,12 +97,6 @@ class UserLoginView(LoginBaseClass):
     def login(self):
         """Login the speaker."""
         self.user = self.serializer.validated_data["user"]
-        if not self.user.role or self.user.role.role not in [
-            UserRoleChoices.SPEAKER.value,
-            UserRoleChoices.ATTENDEE.value,
-            UserRoleChoices.ORGANIZER.value,
-        ]:
-            raise AuthenticationError
         return self.user
 
     def get_extra_payload(self) -> dict:

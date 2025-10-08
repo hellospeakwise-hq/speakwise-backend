@@ -2,11 +2,11 @@ name: Django Migrations Test
 
 on:
   push:
-    branches: [main]
+    branches: [main, development]
     paths-ignore:
       - '**/*.md'
   pull_request:
-    branches: [main]
+    branches: [main, development]
     paths-ignore:
       - '**/*.md'
   workflow_call:

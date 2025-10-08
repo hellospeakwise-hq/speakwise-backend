@@ -8,11 +8,10 @@ from events.filters import EventFilter
 from events.models import Country, Event, Location
 from events.serializers import CountrySerializer, EventSerializer, LocationSerializer
 from organizers.models import OrganizerProfile
-from users.choices import UserRoleChoices
-from users.models import User, UserRole
+from users.models import User
 
 
-class TestEvent(TestCase):
+class TestEvent(APITestCase):
     """test events models and serializers."""
 
     def setUp(self):
@@ -21,7 +20,9 @@ class TestEvent(TestCase):
             username="testuser",
             email="test@mail.com",
             password="testpassword",
-            role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
+            first_name="test",
+            last_name="test",
+            nationality="test",
         )
         self.country = Country.objects.create(name="Ghana")
         self.location = Location.objects.create(country=self.country)
@@ -61,9 +62,7 @@ class TestEvent(TestCase):
         data = {"title": "Test Event 1", "description": "This is a test event"}
         # Use DRF test client format for auth header
         request = self.client.post(
-            "/api/events/",
-            data=data,
-            headers={"authorization": f"Bearer {self.token}"},
+            "/api/events/", data=data, headers={"authorization": f"Bearer {self.token}"}
         )
 
         assert request.status_code == 201
@@ -81,7 +80,6 @@ class TestEventFilter(TestCase):
             username="john_organizer",
             email="john@mail.com",
             password="testpassword",
-            role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
         self.organizer1 = OrganizerProfile.objects.create(
             user_account=self.organizer1_user
@@ -91,7 +89,6 @@ class TestEventFilter(TestCase):
             username="jane_organizer",
             email="jane@mail.com",
             password="testpassword",
-            role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
         self.organizer2 = OrganizerProfile.objects.create(
             user_account=self.organizer2_user
@@ -277,7 +274,6 @@ class TestEventFilterAPIView(APITestCase):
             username="api_user",
             email="api@mail.com",
             password="testpassword",
-            role=UserRole.objects.create(role=UserRoleChoices.ORGANIZER.value),
         )
         self.organizer = OrganizerProfile.objects.create(user_account=self.user)
 

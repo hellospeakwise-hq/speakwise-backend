@@ -8,8 +8,6 @@ from attendees.serializers import (
     AttendeeProfileSerializer,
     AttendeeSocialLinksSerializer,
 )
-from users.choices import UserRoleChoices
-from users.models import UserRole
 
 
 class AttendeeSerializerTestCase(TestCase):
@@ -21,7 +19,6 @@ class AttendeeSerializerTestCase(TestCase):
             username="testuser",
             password="testpassword",
             email="test@mail.com",
-            role=UserRole.objects.create(role=UserRoleChoices.ATTENDEE.value),
         )
 
         self.attendee = AttendeeProfile.objects.create(

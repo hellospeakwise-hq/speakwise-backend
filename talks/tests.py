@@ -6,8 +6,7 @@ from events.models import Country, Event, Location
 from speakers.models import SpeakerProfile
 from talks.models import Talks
 from talks.serializers import TalkSerializer
-from users.choices import UserRoleChoices
-from users.models import User, UserRole
+from users.models import User
 
 
 class TestTalkSerializer(TestCase):
@@ -21,7 +20,6 @@ class TestTalkSerializer(TestCase):
             last_name="User",
             email="testuser@mail.com",
             password="testpass",
-            role=UserRole.objects.create(role=UserRoleChoices.SPEAKER.value),
         )
         self.speaker_profile = SpeakerProfile.objects.create(user_account=self.user)
         self.talk = Talks.objects.create(

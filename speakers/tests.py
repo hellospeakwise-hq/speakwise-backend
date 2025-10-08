@@ -5,8 +5,6 @@ from django.test import TestCase
 
 from speakers.models import SpeakerProfile, SpeakerSkillTag, SpeakerSocialLinks
 from speakers.serializers import SpeakerProfileSerializer
-from users.choices import UserRoleChoices
-from users.models import UserRole
 
 
 class TestSpeakerProfile(TestCase):
@@ -18,7 +16,6 @@ class TestSpeakerProfile(TestCase):
             username="testuser",
             email="user@mail.com",
             password="testpass123",
-            role=UserRole.objects.create(role=UserRoleChoices.SPEAKER.value),
         )
         self.skill_tag = SpeakerSkillTag.objects.create(
             name="Django", description="Web framework", duration=5

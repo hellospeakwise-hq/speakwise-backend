@@ -9,7 +9,6 @@ from events.models import Country, Event, Location
 from feedbacks.models import Feedback
 from speakers.models import SpeakerProfile
 from talks.models import Session, Talks
-from users.models import UserRole
 
 
 class TestFeedback(TestCase):
@@ -22,7 +21,6 @@ class TestFeedback(TestCase):
             username="testattendee",
             email="attendee@mail.com",
             password="testpass123",
-            role=UserRole.objects.create(role="attendee"),
         )
 
         # Create attendee profile with minimal setup
@@ -116,7 +114,6 @@ class TestFeedbackAPI(APITestCase):
             username="testuser",
             email="user@example.com",
             password="password123",
-            role=UserRole.objects.create(role="attendee"),
         )
         self.client.force_authenticate(user=self.user)
 

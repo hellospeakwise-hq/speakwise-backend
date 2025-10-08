@@ -9,7 +9,6 @@ from rest_framework.generics import (
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
-from base.permissions import IsAdminOrOrganizer
 from events.filters import EventFilter
 from events.models import Event
 from events.serializers import EventSerializer
@@ -26,16 +25,14 @@ class EventListCreateAPIView(ListCreateAPIView):
     def get_queryset(self):
         """Return the user's events."""
         if self.request.method == "POST":
-            return Event.objects.filter(
-                organizer=self.request.user.organizer_user_profile
-            )
+            return Event.objects.all()
         if self.request.method == "GET":
             return Event.objects.all()
 
     def get_permissions(self):
         """Get permissions."""
         if self.request.method == "POST":
-            permission_classes = (IsAdminOrOrganizer,)
+            permission_classes = (IsAuthenticated,)
         else:
             permission_classes = (AllowAny,)
         return [permission() for permission in permission_classes]

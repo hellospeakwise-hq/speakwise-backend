@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from users.models import User, UserRole
+from users.models import User
 
 
 @admin.register(User)
@@ -15,17 +15,7 @@ class UserAdmin(admin.ModelAdmin):
         "first_name",
         "last_name",
         "password",
-        "role",
         "nationality",
     ]
     search_fields = ["nationality", "role", "email"]
-    list_display = ["username", "email", "role"]
-
-
-@admin.register(UserRole)
-class UserRoleAdmin(admin.ModelAdmin):
-    """user role admin."""
-
-    fields = ["role"]
-    search_fields = ["role"]
-    list_display = ["role"]
+    list_display = ["username", "email", "first_name", "last_name", "nationality"]

@@ -15,11 +15,7 @@ class CanReviewTalks(BasePermission):
             return False
 
         # Allow talk reviewers, organizers, and admins
-        return (
-            user.is_talk_reviewer()
-            or user.is_organizer()
-            or user.is_admin()
-        )
+        return user.is_talk_reviewer() or user.is_organizer() or user.is_admin()
 
     def has_object_permission(self, request, view, obj):
         """Check if user can review this specific talk."""
@@ -37,8 +33,7 @@ class CanReviewTalks(BasePermission):
             if speaker_profile:
                 # Check if this speaker has any talks in the same event
                 has_talks_in_event = Talks.objects.filter(
-                    speaker=speaker_profile,
-                    event=talk.event
+                    speaker=speaker_profile, event=talk.event
                 ).exists()
 
                 if has_talks_in_event:

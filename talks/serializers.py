@@ -38,6 +38,7 @@ class TalkSerializer(serializers.ModelSerializer):
             + obj.speaker.user_account.last_name
         )
 
+
 class TalkReviewSerializer(serializers.ModelSerializer):
     """Serializer for reviewing talks with detailed speaker and event info."""
 

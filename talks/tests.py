@@ -5,8 +5,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from organizers.models import OrganizerProfile
 from events.models import Country, Event, Location
+from organizers.models import OrganizerProfile
 from speakers.models import SpeakerProfile
 from talks.models import Talks
 from talks.serializers import TalkSerializer

@@ -29,8 +29,6 @@ class Organization(TimeStampedModel):
         through_fields=("organization", "user"),
         related_name="organizations",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         """Meta class for Organization model."""
@@ -83,8 +81,6 @@ class OrganizationMembership(TimeStampedModel):
     added_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="added_memberships"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         """Meta class for OrganizationMembership model."""

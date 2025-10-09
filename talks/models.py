@@ -38,10 +38,9 @@ class Talks(TimeStampedModel):
     presentation_files = models.FileField(
         upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
     )
-
-    # TODO: event = models.ForeignKey(
-    #     "events.Event", on_delete=models.CASCADE, related_name="talk_event"
-    # )
+    event = models.ForeignKey(
+        "events.Event", on_delete=models.CASCADE, related_name="event_talks", null=True
+    )
 
     def __str__(self):
         """Str."""

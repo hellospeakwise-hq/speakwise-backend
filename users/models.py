@@ -72,6 +72,10 @@ class User(AbstractUser):
         """Check if user is a speaker."""
         return self.role.role == UserRoleChoices.SPEAKER.value
 
+    def is_talk_reviewer(self) -> bool:
+        """Check if user is a talk reviewer."""
+        return self.role.role == UserRoleChoices.TALK_REVIEWER.value
+
     def is_organizer_or_admin(self) -> bool:
         """Check if user is an organizer admin."""
         return self.is_admin() or self.is_organizer()

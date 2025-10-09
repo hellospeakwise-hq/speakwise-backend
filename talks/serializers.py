@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from events.serializers import EventSerializer
+from speakers.serializers import SpeakerProfileSerializer
 from talks.models import Session, Talks
 
 
@@ -25,3 +27,30 @@ class TalkSerializer(serializers.ModelSerializer):
 
         model = Talks
         exclude = ("created_at", "updated_at")
+
+
+class TalkReviewSerializer(serializers.ModelSerializer):
+    """Serializer for reviewing talks with detailed speaker and event info."""
+
+    speaker = SpeakerProfileSerializer(read_only=True)
+    event = EventSerializer(read_only=True)
+    talk_sessions = SessionSerializer(many=True, read_only=True)
+
+    class Meta:
+        """meta options."""
+
+        model = Talks
+        fields = [
+            "id",
+            "title",
+            "description",
+            "speaker",
+            "duration",
+            "category",
+            "presentation_files",
+            "event",
+            "talk_sessions",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

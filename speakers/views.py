@@ -2,7 +2,7 @@
 
 from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from speakers.models import SpeakerProfile
 from speakers.serializers import SpeakerProfileSerializer
@@ -26,3 +26,4 @@ class SpeakerProfileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 
     queryset = SpeakerProfile.objects.all()
     serializer_class = SpeakerProfileSerializer
+    permission_classes = [IsAuthenticated]

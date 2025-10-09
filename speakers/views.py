@@ -5,7 +5,7 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.permissions import AllowAny
 
 from speakers.models import SpeakerProfile
-from speakers.serializers import SpeakerProfileSerializer, SpeakerSocialLinksSerializer
+from speakers.serializers import SpeakerProfileSerializer
 
 
 @extend_schema(
@@ -20,9 +20,7 @@ class SpeakerProfileListCreateView(ListCreateAPIView):
     permission_classes = [AllowAny]
 
 
-@extend_schema(
-    request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer
-)
+@extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
 class SpeakerProfileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     """list create speaker profile view."""
 

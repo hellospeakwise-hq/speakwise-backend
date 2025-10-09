@@ -21,7 +21,7 @@ class SpeakerProfileListCreateView(ListCreateAPIView):
 
 
 @extend_schema(
-    request=SpeakerSocialLinksSerializer, responses=SpeakerSocialLinksSerializer
+    request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer
 )
 class SpeakerProfileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     """list create speaker profile view."""

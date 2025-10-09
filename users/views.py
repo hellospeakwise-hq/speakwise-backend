@@ -1,6 +1,5 @@
 """users views."""
 
-import json
 from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
@@ -9,21 +8,19 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
-from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from attendees.models import AttendeeProfile
-from attendees.serializers import AttendeeProfileSerializer
-from organizers.models import OrganizerProfile
-from organizers.serializers import OrganizerProfileSerializer
-from speakers.models import SpeakerProfile
-from speakers.serializers import SpeakerProfileSerializer
 from users.choices import UserRoleChoices
 from users.exceptions import AuthenticationError
 from users.models import User
-from users.serializers import UserSerializer
+from users.serializers import (
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    UserSerializer,
+)
+from users.services import EmailService
 
 
 @extend_schema(responses=UserSerializer)
@@ -112,19 +109,45 @@ class UserLoginView(LoginBaseClass):
 
     def get_extra_payload(self) -> dict:
         """Return the speaker data."""
-        if self.user.role.role == UserRoleChoices.SPEAKER.value:
-            serializer = SpeakerProfileSerializer(
-                SpeakerProfile.objects.get(user_account=self.user)
+        return UserSerializer(self.user).data
+
+
+@extend_schema(responses=PasswordResetRequestSerializer)
+class PasswordResetRequestView(APIView):
+    """Password request view for users."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Request password reset for email."""
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+            user = User.objects.get(email=email)
+
+            EmailService.send_password_reset_email(user, request)
+
+            return Response(
+                {"detail": "Password reset email sent successfully."},
+                status=status.HTTP_200_OK,
             )
-        elif self.user.role.role == UserRoleChoices.ATTENDEE.value:
-            serializer = AttendeeProfileSerializer(
-                AttendeeProfile.objects.get(user_account=self.user)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(responses=PasswordResetConfirmSerializer)
+class PasswordResetConfirmView(APIView):
+    """Password request confirm view."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Confirm password reset."""
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.context["user"]  # User set in serializer's validate
+            user.set_password(serializer.validated_data["new_password"])
+            user.save()
+            return Response(
+                {"detail": "Password reset successfully."}, status=status.HTTP_200_OK
             )
-        elif self.user.role.role == UserRoleChoices.ORGANIZER.value:
-            serializer = OrganizerProfileSerializer(
-                OrganizerProfile.objects.get(user_account=self.user)
-            )
-        else:
-            return {}
-        user_data = json.loads(JSONRenderer().render(serializer.data))
-        return user_data
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

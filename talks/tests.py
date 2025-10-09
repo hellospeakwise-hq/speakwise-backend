@@ -5,8 +5,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from events.models import Event
 from organizers.models import OrganizerProfile
+from events.models import Country, Event, Location
 from speakers.models import SpeakerProfile
 from talks.models import Talks
 from talks.serializers import TalkSerializer
@@ -21,6 +21,8 @@ class TestTalkSerializer(TestCase):
         """Set up test data."""
         self.user = User.objects.create(
             username="testuser",
+            first_name="Test",
+            last_name="User",
             email="testuser@mail.com",
             password="testpass",
             role=UserRole.objects.create(role=UserRoleChoices.SPEAKER.value),
@@ -32,6 +34,17 @@ class TestTalkSerializer(TestCase):
             speaker=self.speaker_profile,
             duration=60,
             category="frontend",
+            event=Event.objects.create(
+                title="Sample Event",
+                description="This is a sample event.",
+                location=Location.objects.create(
+                    venue="Sample Venue",
+                    address="123 Sample St",
+                    city="Sample City",
+                    state="Sample State",
+                    country=Country.objects.create(name="Sample Country"),
+                ),
+            ),
         )
         self.serializer = TalkSerializer(instance=self.talk)
 
@@ -49,7 +62,17 @@ class TestTalkSerializer(TestCase):
         data = self.serializer.data
         self.assertEqual(
             set(data.keys()),
-            {"id", "title", "description", "speaker", "duration", "category"},
+            {
+                "id",
+                "title",
+                "description",
+                "speaker",
+                "duration",
+                "category",
+                "presentation_files",
+                "event",
+                "speaker_name",
+            },
         )
 
     def test_field_content(self):

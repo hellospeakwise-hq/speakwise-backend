@@ -3,6 +3,7 @@
 from django.db import models
 
 from base.models import TimeStampedModel
+from events.models import Event
 from speakers.models import SpeakerProfile
 from talks.choices import TalkCategoryChoices
 
@@ -38,8 +39,9 @@ class Talks(TimeStampedModel):
     presentation_files = models.FileField(
         upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
     )
+
     event = models.ForeignKey(
-        "events.Event", on_delete=models.CASCADE, related_name="event_talks", null=True
+        Event, on_delete=models.CASCADE, related_name="talk_event"
     )
 
     def __str__(self):

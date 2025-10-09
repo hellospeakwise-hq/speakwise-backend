@@ -32,16 +32,10 @@ class User(AbstractUser):
 
     objects = UserManager()
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username"]
+    REQUIRED_FIELDS = ["username", "password"]
 
     def __str__(self):
         """String representation."""
-        return self.username
-
-    @classmethod
-    def set_username(self):
-        """Set username."""
-        self.username = self.first_name + " " + self.last_name
         return self.username
 
     def get_full_name(self):
@@ -85,3 +79,7 @@ class UserRole(TimeStampedModel):
     """User role model."""
 
     role = models.CharField(max_length=20, choices=UserRoleChoices.choices)
+
+    def __str__(self):
+        """String representation."""
+        return self.role

@@ -15,7 +15,7 @@ class OrganizerProfile(TimeStampedModel):
     user_account = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,
-        related_name="organizer_profile_user",
+        related_name="organizer_user_profile",
     )
     # TODO: events = models.ManyToManyField(Event, blank=True, related_name="organizers")
     organization = models.CharField(max_length=255, blank=True)

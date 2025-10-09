@@ -3,6 +3,8 @@
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
+from attendees.models import Attendance
+
 from .models import OrganizerProfile, OrganizerSocialLinks
 
 
@@ -26,3 +28,13 @@ class OrganizerProfileSerializer(WritableNestedModelSerializer):
 
         model = OrganizerProfile
         exclude = ["created_at", "updated_at"]
+
+
+class AttendanceSerializer(serializers.ModelSerializer):
+    """file upload serializer."""
+
+    class Meta:
+        """meta options."""
+
+        model = Attendance
+        fields = ["id", "username", "email", "event", "is_given_feedback"]

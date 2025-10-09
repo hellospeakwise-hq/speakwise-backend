@@ -45,6 +45,7 @@ THIRD_PARTY_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "rest_framework.authtoken",
     "django_filters",
+    "corsheaders",
     # "debug_toolbar",
 ]
 
@@ -57,6 +58,7 @@ LOCAL_APPS = [
     "talks",
     "teams",
     "users",
+    "feedbacks",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -64,6 +66,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -154,4 +157,25 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     # "PATH_PREFIX": "api",
     "SCHEMA_PATH_PREFIX": "/api",
+}
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+SITE_NAME = "SpeakWise"
+
+# django-q configuration
+Q_CLUSTER = {
+    "name": "myproject",
+    "workers": 8,
+    "recycle": 500,
+    "timeout": 60,
+    "compress": True,
+    "cpu_affinity": 1,
+    "save_limit": 250,
+    "queue_limit": 500,
+    "label": "Django Q",
+    "redis": {
+        "host": "127.0.0.1",
+        "port": 6379,
+        "db": 0,
+    },
 }

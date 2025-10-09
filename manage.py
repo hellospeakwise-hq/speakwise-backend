@@ -4,15 +4,14 @@
 import os
 import sys
 
-from speakwise.settings import local as settings
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def main():
     """Run administrative tasks."""
-    if settings.DEBUG:
-        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "speakwise.settings.local")
-    else:
-        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "speakwise.settings.prod")
+    os.environ.get("DJANGO_SETTINGS_MODULE")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

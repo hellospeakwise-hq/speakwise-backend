@@ -4,14 +4,16 @@ from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
 from django.contrib.auth import logout
+from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from users.filters import UserFilter
 from users.models import User
 from users.serializers import (
     PasswordResetConfirmSerializer,
@@ -143,3 +145,13 @@ class PasswordResetConfirmView(APIView):
                 {"detail": "Password reset successfully."}, status=status.HTTP_200_OK
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ListUsersView(ListAPIView):
+    """List all users."""
+
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    filterset_class = UserFilter
+    filter_backends = [filters.DjangoFilterBackend]
+    permission_classes = [IsAuthenticated]

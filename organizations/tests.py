@@ -7,8 +7,11 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from organizations.choices import OrganizationRole
+from organizations.filters import OrganizationFilter
 from organizations.models import Organization, OrganizationMembership
+from organizations.permissions import IsOrganizationAdminPermission
 from organizations.serializers import (
+    AddMemberSerializer,
     OrganizationMembershipSerializer,
     OrganizationSerializer,
 )
@@ -293,15 +296,21 @@ class OrganizationMembershipSerializerTest(TestCase):
 
     def test_membership_serializer_with_valid_data(self):
         """Test membership serializer with valid data."""
-        serializer = OrganizationMembershipSerializer(data=self.membership_data)
-        self.assertTrue(serializer.is_valid())
-
-        membership = serializer.save()
-        self.assertEqual(
-            membership.organization.id, self.membership_data["organization"]
+        # Create the membership directly rather than through the serializer
+        membership = OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.member,
+            role=OrganizationRole.MEMBER,
+            added_by=self.user,
         )
-        self.assertEqual(membership.user.id, self.membership_data["user"])
-        self.assertEqual(membership.role, self.membership_data["role"])
+
+        # Then use the serializer to serialize it
+        serializer = OrganizationMembershipSerializer(instance=membership)
+        data = serializer.data
+
+        self.assertEqual(data["organization"], self.organization.id)
+        self.assertEqual(data["user"], self.member.id)
+        self.assertEqual(data["role"], OrganizationRole.MEMBER)
 
     def test_membership_serializer_with_nonexistent_organization(self):
         """Test membership creation with non-existent organization."""
@@ -321,20 +330,92 @@ class OrganizationMembershipSerializerTest(TestCase):
 
     def test_membership_serializer_read_only_fields(self):
         """Test read-only fields protection."""
-        data_with_readonly = self.membership_data.copy()
-        data_with_readonly["created_at"] = "2023-01-01T00:00:00Z"
-        data_with_readonly["updated_at"] = "2023-01-01T00:00:00Z"
+        # Create the membership directly
+        membership = OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.member,
+            role=OrganizationRole.MEMBER,
+            added_by=self.user,
+        )
 
-        serializer = OrganizationMembershipSerializer(data=data_with_readonly)
+        # Use data with readonly fields
+        data_with_readonly = {
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-01T00:00:00Z",
+        }
+
+        # Partial update should ignore read_only fields
+        serializer = OrganizationMembershipSerializer(
+            instance=membership, data=data_with_readonly, partial=True
+        )
         self.assertTrue(serializer.is_valid())
-
-        membership = serializer.save()
         self.assertNotEqual(
             membership.created_at.isoformat(), "2023-01-01T00:00:00+00:00"
         )
         self.assertNotEqual(
             membership.updated_at.isoformat(), "2023-01-01T00:00:00+00:00"
         )
+
+
+class AddMemberSerializerTest(TestCase):
+    """Test cases for AddMemberSerializer."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.member = User.objects.create(
+            username="member", email="member@example.com", password="memberpass123"
+        )
+        self.organization = Organization.objects.create(
+            name="Test Organization", email="org@example.com", created_by=self.user
+        )
+        self.data = {
+            "organization": self.organization.id,
+            "user": self.member.id,
+            "role": OrganizationRole.MEMBER,
+        }
+
+    def test_add_member_serializer_with_valid_data(self):
+        """Test adding a member with valid data."""
+        # Make the user an admin of the organization
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.user,
+            role=OrganizationRole.ADMIN,
+            added_by=self.user,
+        )
+
+        context = {"request": type("Request", (), {"user": self.user})}
+        serializer = AddMemberSerializer(data=self.data, context=context)
+
+        self.assertTrue(serializer.is_valid())
+        membership = serializer.save()
+
+        self.assertEqual(membership.organization.id, self.data["organization"])
+        self.assertEqual(membership.user.id, self.data["user"])
+        self.assertEqual(membership.role, self.data["role"])
+        self.assertEqual(membership.added_by, self.user)
+
+    def test_add_member_serializer_without_context(self):
+        """Test serializer behavior without request context."""
+        serializer = AddMemberSerializer(data=self.data)
+        with self.assertRaises(KeyError):
+            serializer.is_valid()
+            serializer.save()
+
+    def test_add_member_serializer_read_only_fields(self):
+        """Test that read-only fields are not affected."""
+        data_with_readonly = self.data.copy()
+        data_with_readonly["added_by"] = 999
+
+        context = {"request": type("Request", (), {"user": self.user})}
+        serializer = AddMemberSerializer(data=data_with_readonly, context=context)
+
+        self.assertTrue(serializer.is_valid())
+        membership = serializer.save()
+        self.assertEqual(membership.added_by, self.user)
 
 
 class OrganizationViewsTest(APITestCase):
@@ -419,3 +500,204 @@ class OrganizationViewsTest(APITestCase):
         }
         response = self.client.post(self.list_create_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_add_organizer_endpoint(self):
+        """Test adding an organizer to an organization."""
+        member = User.objects.create(
+            username="memberuser", email="member@example.com", password="memberpass123"
+        )
+        add_organizer_url = reverse(
+            "organizations:add-organizer", kwargs={"pk": self.organization.pk}
+        )
+        data = {
+            "organization": self.organization.id,
+            "user": member.id,
+            "role": OrganizationRole.MEMBER,
+        }
+
+        response = self.client.post(add_organizer_url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify the membership was created
+        self.assertTrue(
+            OrganizationMembership.objects.filter(
+                organization=self.organization,
+                user=member,
+                role=OrganizationRole.MEMBER,
+            ).exists()
+        )
+
+    def test_add_organizer_unauthorized(self):
+        """Test adding an organizer by a non-admin user."""
+        # Create a new organization and a non-admin user
+        non_admin = User.objects.create(
+            username="nonadmin", email="nonadmin@example.com", password="nonadminpass"
+        )
+
+        # This user is not an admin of the organization
+        self.client.force_authenticate(user=non_admin)
+
+        member = User.objects.create(
+            username="memberuser", email="member@example.com", password="memberpass123"
+        )
+
+        add_organizer_url = reverse(
+            "organizations:add-organizer", kwargs={"pk": self.organization.pk}
+        )
+        data = {
+            "organization": self.organization.id,
+            "user": member.id,
+            "role": OrganizationRole.MEMBER,
+        }
+
+        # First verify the permission class works
+        permission = IsOrganizationAdminPermission()
+        request = type(
+            "Request", (), {"user": non_admin, "method": "POST", "data": data}
+        )
+
+        # Manual check to ensure our permission class would reject this
+        self.assertFalse(permission.has_permission(request, None))
+
+        # Then test the API endpoint
+        response = self.client.post(add_organizer_url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_organization_members(self):
+        """Test listing organization members."""
+        # Create a new member
+        member = User.objects.create(
+            username="memberuser", email="member@example.com", password="memberpass123"
+        )
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=member,
+            role=OrganizationRole.MEMBER,
+            added_by=self.user,
+        )
+
+        list_members_url = reverse(
+            "organizations:list-organization-members",
+            kwargs={"pk": self.organization.pk},
+        )
+        response = self.client.get(list_members_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)  # Admin user and new member
+
+
+class OrganizationPermissionTest(TestCase):
+    """Test cases for Organization permissions."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.admin_user = User.objects.create(
+            username="adminuser", email="admin@example.com", password="adminpass123"
+        )
+        self.regular_user = User.objects.create(
+            username="regularuser",
+            email="regular@example.com",
+            password="regularpass123",
+        )
+
+        self.organization = Organization.objects.create(
+            name="Test Organization",
+            email="org@example.com",
+            created_by=self.admin_user,
+        )
+
+        # Add admin as an admin
+        OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=self.admin_user,
+            role=OrganizationRole.ADMIN,
+            added_by=self.admin_user,
+        )
+
+        # Create a test organization for mocking
+        self.test_org = type(
+            "TestOrg", (), {"is_admin": lambda user: user == self.admin_user}
+        )
+
+        # Create permission instance
+        self.permission = IsOrganizationAdminPermission()
+
+        # Create mock requests
+        self.admin_request = type(
+            "Request", (), {"user": self.admin_user, "method": "PUT"}
+        )
+        self.regular_request = type(
+            "Request", (), {"user": self.regular_user, "method": "PUT"}
+        )
+        self.read_request = type(
+            "Request", (), {"user": self.regular_user, "method": "GET"}
+        )
+
+        # Create mock view
+        self.view = type("View", (), {})
+
+    def test_is_admin_permission(self):
+        """Test admin permission check."""
+        # Admin should have permission for write operations
+        self.assertTrue(
+            self.permission.has_object_permission(
+                self.admin_request, self.view, self.test_org
+            )
+        )
+
+        # Regular user should not have permission for write operations
+        self.assertFalse(
+            self.permission.has_object_permission(
+                self.regular_request, self.view, self.test_org
+            )
+        )
+
+        # Regular user should have permission for read operations
+        self.assertTrue(
+            self.permission.has_object_permission(
+                self.read_request, self.view, self.test_org
+            )
+        )
+
+
+class OrganizationFilterTest(TestCase):
+    """Test cases for OrganizationFilter."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.user1 = User.objects.create(
+            username="user1", email="user1@example.com", password="pass123"
+        )
+        self.user2 = User.objects.create(
+            username="user2", email="user2@example.com", password="pass123"
+        )
+
+        self.org1 = Organization.objects.create(
+            name="Tech Conference", email="tech@example.com", created_by=self.user1
+        )
+
+        self.org2 = Organization.objects.create(
+            name="Business Meeting", email="business@example.com", created_by=self.user2
+        )
+
+        self.org3 = Organization.objects.create(
+            name="Tech Workshop", email="workshop@example.com", created_by=self.user2
+        )
+
+        self.queryset = Organization.objects.all()
+
+    def test_name_filter(self):
+        """Test filtering organizations by name."""
+        filterset = OrganizationFilter({"name": "Tech"}, queryset=self.queryset)
+        self.assertEqual(filterset.qs.count(), 2)
+
+    def test_created_by_filter(self):
+        """Test filtering organizations by creator."""
+        filterset = OrganizationFilter({"created_by": "user2"}, queryset=self.queryset)
+        self.assertEqual(filterset.qs.count(), 2)
+
+    def test_name_by_filter_method(self):
+        """Test the name_by_filter method directly."""
+        filter_instance = OrganizationFilter()
+        result = filter_instance.name_by_filter(self.queryset, "name", "Tech")
+        self.assertEqual(result.count(), 2)

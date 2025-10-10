@@ -17,4 +17,14 @@ urlpatterns = [
         views.OrganizationDetailView.as_view(),
         name="organization-detail",
     ),
+    path(
+        "organizations/<int:pk>/add-organizer/",
+        views.AddOrganizerView.as_view(),
+        name="add-organizer",
+    ),
+    path(
+        "organizations/<int:pk>/members/",
+        views.ListOrganizationMembersView.as_view(),
+        name="list-organization-members",
+    ),
 ]

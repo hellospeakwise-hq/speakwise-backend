@@ -23,7 +23,7 @@ class Session(TimeStampedModel):
 
     def __str__(self):
         """String rep of speakwise social."""
-        return self.talk
+        return self.talk.title
 
 
 class Talks(TimeStampedModel):

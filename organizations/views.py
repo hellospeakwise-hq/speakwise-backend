@@ -61,12 +61,6 @@ class AddOrganizerView(CreateAPIView):
         """Set the added_by field to the current user."""
         serializer.save(added_by=self.request.user)
 
-    def get_serializer_context(self):
-        """Add organization to context."""
-        context = super().get_serializer_context()
-        context["organization_id"] = self.kwargs.get("pk")
-        return context
-
 
 @extend_schema(
     request=OrganizationMembershipSerializer,

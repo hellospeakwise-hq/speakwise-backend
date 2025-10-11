@@ -18,7 +18,7 @@ urlpatterns = [
         name="organization-detail",
     ),
     path(
-        "organizations/<int:pk>/add-organizer/",
+        "organizations/add-organizer/",
         views.AddOrganizerView.as_view(),
         name="add-organizer",
     ),

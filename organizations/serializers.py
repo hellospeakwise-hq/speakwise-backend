@@ -5,7 +5,6 @@ from rest_framework.serializers import ModelSerializer
 
 from organizations.choices import OrganizationRole
 from organizations.models import Organization, OrganizationMembership
-from users.models import User
 from users.serializers import UserSerializer
 
 
@@ -56,22 +55,10 @@ class AddMemberSerializer(ModelSerializer):
         fields = ["organization", "user", "role", "added_by"]
         read_only_fields = ["added_by", "created_at", "updated_at"]
 
-    def create(self, validated_data):
-        """Add a member to the organization."""
-        user = self.context["request"].user
-        validated_data["added_by"] = user
-        membership = super().create(validated_data)
-        return membership
-
     def validate(self, data):
         """Ensure that the user is not already a member of the organization."""
         organization = data.get("organization")
         user = data.get("user")
-
-        # This won't be needed since DRF already validates the existence
-        # with a primary key related field. But kept for clarity.
-        if user and not User.objects.filter(id=user.id).exists():
-            raise serializers.ValidationError({"user": ["User does not exist."]})
 
         if (
             organization

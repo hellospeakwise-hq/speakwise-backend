@@ -54,6 +54,7 @@ class Organization(TimeStampedModel):
         """Check if a user is an admin of the organization."""
         return self.organization_memberships.filter(
             user=user,
+            organization=self,
             role=OrganizationRole.ADMIN,
         ).exists()
 

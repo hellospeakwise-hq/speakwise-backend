@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from users.filters import UserFilter
 from users.models import User
 
 
@@ -120,3 +121,52 @@ class TestPasswordReset(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         assert "Invalid or expired token." in str(response.data)
+
+
+class UserFilterTest(TestCase):
+    """Test cases for UserFilter."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.user1 = User.objects.create(
+            username="johndoe", email="john@example.com", password="password123"
+        )
+        self.user2 = User.objects.create(
+            username="janedoe", email="jane@example.com", password="password123"
+        )
+        self.user3 = User.objects.create(
+            username="bobsmith", email="bob@test.com", password="password123"
+        )
+        self.queryset = User.objects.all()
+
+    def test_username_filter(self):
+        """Test filtering users by username."""
+        filterset = UserFilter({"username": "doe"}, queryset=self.queryset)
+        self.assertEqual(filterset.qs.count(), 2)
+        self.assertNotIn(self.user3, filterset.qs)
+
+    def test_email_filter(self):
+        """Test filtering users by email."""
+        filterset = UserFilter({"email": "example"}, queryset=self.queryset)
+        self.assertEqual(filterset.qs.count(), 2)
+        self.assertNotIn(self.user3, filterset.qs)
+
+    def test_filter_users_method(self):
+        """Test the filter_users method that searches both fields."""
+        filter_instance = UserFilter()
+
+        # Test filtering by username
+        result = filter_instance.filter_users(self.queryset, "username", "jane")
+        self.assertEqual(result.count(), 1)
+
+        # Test filtering by email
+        result = filter_instance.filter_users(self.queryset, "email", "test")
+        self.assertEqual(result.count(), 1)
+
+        # Test filtering with no results
+        result = filter_instance.filter_users(self.queryset, "username", "nonexistent")
+        self.assertEqual(result.count(), 0)
+
+        # Test filtering with empty value
+        result = filter_instance.filter_users(self.queryset, "username", "")
+        self.assertEqual(result.count(), 3)  # Returns all users

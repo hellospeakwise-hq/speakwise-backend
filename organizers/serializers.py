@@ -38,3 +38,10 @@ class AttendanceSerializer(serializers.ModelSerializer):
 
         model = Attendance
         fields = ["id", "username", "email", "event", "is_given_feedback"]
+
+
+class FileUploadSerializer(serializers.Serializer):
+    """file upload serializer."""
+
+    file = serializers.FileField()
+    event = serializers.IntegerField(required=True)

@@ -13,7 +13,11 @@ from attendees.models import Attendance
 from base.permissions import IsAdminOrOrganizer
 from base.utils import FileHandler
 
-from .serializers import AttendanceSerializer, OrganizerProfileSerializer, FileUploadSerializer
+from .serializers import (
+    AttendanceSerializer,
+    FileUploadSerializer,
+    OrganizerProfileSerializer,
+)
 
 
 @extend_schema(
@@ -82,7 +86,9 @@ class FileUploadViewCreatView(APIView):
         FormParser,
     )
 
-    @extend_schema(request=FileUploadSerializer, responses=AttendanceSerializer(many=True))
+    @extend_schema(
+        request=FileUploadSerializer, responses=AttendanceSerializer(many=True)
+    )
     def post(self, request, *args, **kwargs):
         """Process the uploaded file."""
         serializer = FileUploadSerializer(data=request.data)

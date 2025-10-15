@@ -13,7 +13,7 @@ from attendees.models import Attendance
 from base.permissions import IsAdminOrOrganizer
 from base.utils import FileHandler
 
-from .serializers import AttendanceSerializer, OrganizerProfileSerializer
+from .serializers import AttendanceSerializer, OrganizerProfileSerializer, FileUploadSerializer
 
 
 @extend_schema(
@@ -82,11 +82,13 @@ class FileUploadViewCreatView(APIView):
         FormParser,
     )
 
+    @extend_schema(request=FileUploadSerializer, responses=AttendanceSerializer(many=True))
     def post(self, request, *args, **kwargs):
         """Process the uploaded file."""
-        file_obj = request.FILES.get("file")
-        event_id = request.data.get("event")
-        print("EVENT ID: ", event_id)
+        serializer = FileUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        file_obj = serializer.validated_data["file"]
+        event_id = serializer.validated_data["event"]
         if not file_obj:
             return Response(
                 {"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST

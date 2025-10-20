@@ -1,12 +1,10 @@
 """Feedback views using Generic Views."""
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import generics, status
 from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-
 
 from attendees.models import AttendeeProfile
 
@@ -56,9 +54,9 @@ def verify_attendee(request):
     """Verify attendee."""
     attendee_email = request.POST.get("email")
     try:
-        attendee = AttendeeProfile.objects.get(user_account__email=attendee_email)
+        AttendeeProfile.objects.get(user_account__email=attendee_email)
         return Response({"detail": "Found Attendee"}, status=status.HTTP_200_OK)
     except AttendeeProfile.DoesNotExist:
         return Response(
-            {"detal": "Attendee does not exist"}, status=status.HTTP_404_NOT_FOUND
+            {"detail": "Attendee does not exist"}, status=status.HTTP_404_NOT_FOUND
         )

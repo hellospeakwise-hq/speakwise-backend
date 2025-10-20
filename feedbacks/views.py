@@ -3,6 +3,12 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+
+from attendees.models import AttendeeProfile
 
 from .models import Feedback
 from .serializers import FeedbackCreateSerializer, FeedbackSerializer
@@ -45,10 +51,14 @@ class FeedbackRetrieveUpdateDestroyView(
         return Feedback.objects.select_related("attendee").all()
 
 
+@api_view(["POST"])
 def verify_attendee(request):
-    """verify attendee>"""
-    at_email = request.get("email")
+    """Verify attendee."""
+    attendee_email = request.POST.get("email")
     try:
-        return AttendeeProfile.objects.get(email=at_email)
+        attendee = AttendeeProfile.objects.get(user_account__email=attendee_email)
+        return Response({"detail": "Found Attendee"}, status=status.HTTP_200_OK)
     except AttendeeProfile.DoesNotExist:
-        return False
+        return Response(
+            {"detal": "Attendee does not exist"}, status=status.HTTP_404_NOT_FOUND
+        )

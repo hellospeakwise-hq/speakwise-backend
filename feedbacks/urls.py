@@ -17,5 +17,5 @@ urlpatterns = [
         views.FeedbackRetrieveUpdateDestroyView.as_view(),
         name="feedbacks_retrieve_update_delete",
     ),
-    path("verify_attendee/", views.verify_attendee, name="verify_attendee"),
+    path("feedbacks/verify_attendee/", views.verify_attendee, name="verify_attendee"),
 ]

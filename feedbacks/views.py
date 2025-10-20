@@ -43,3 +43,12 @@ class FeedbackRetrieveUpdateDestroyView(
     def get_queryset(self):
         """Optimize query with select_related for attendee."""
         return Feedback.objects.select_related("attendee").all()
+
+
+def verify_attendee(request):
+    """verify attendee>"""
+    at_email = request.get("email")
+    try:
+        return AttendeeProfile.objects.get(email=at_email)
+    except AttendeeProfile.DoesNotExist:
+        return False

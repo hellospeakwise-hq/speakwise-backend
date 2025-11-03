@@ -1,7 +1,10 @@
 """Serializers for the feedback app."""
 
+from email.policy import default
+from os import write
 from rest_framework import serializers
 
+from attendees.models import Attendance
 from feedbacks.models import Feedback
 
 
@@ -13,48 +16,29 @@ class FeedbackSerializer(serializers.ModelSerializer):
 
         model = Feedback
         exclude = ["created_at", "updated_at"]
-
-    def to_representation(self, instance):
-        """Override to handle anonymous feedback display."""
-        representation = super().to_representation(instance)
-
-        # If feedback is anonymous, hide attendee information
-        if instance.is_anonymous:
-            representation["attendee"] = None
-
-        return representation
-
-
-class FeedbackCreateSerializer(serializers.ModelSerializer):
-    """Serializer specifically for creating feedback."""
-
-    class Meta:
-        """Meta options."""
-
-        model = Feedback
-        exclude = ["created_at", "updated_at"]
+        extra_kwargs = {
+            "email": {"required": False, "write_only": True},
+            "is_anonymous": {"required": False, "read_only": True},
+            "is_attendee": {"required": False, "read_only": True},
+        }
 
     def validate(self, data):
-        """Validate rating fields are within acceptable range."""
-        rating_fields = [
-            "overall_rating",
-            "engagement",
-            "clarity",
-            "content_depth",
-            "speaker_knowledge",
-            "practical_relevance",
-        ]
+        """Validate data."""
 
-        for field in rating_fields:
-            if field in data and (data[field] < 1 or data[field] > 10):
-                raise serializers.ValidationError(f"{field} must be between 1 and 10")
-        return data
+        if "email" not in data:
+            data["is_anonymous"] = True  # set anonymous if email not provided
+            return data
 
-    def validate_attendee(self, value):
-        """Ensure attendee can only submit one feedback per session."""
-        session = self.initial_data.get("session")
-        if Feedback.objects.filter(attendee=value, session=session).exists():
-            raise serializers.ValidationError(
-                "Attendee has already submitted feedback for this session."
-            )
-        return value
+        try:
+            attendance = Attendance.objects.get(email=data["email"])
+            if not attendance.is_given_feedback:
+                data["is_attendee"] = True  # set attendee flag to true
+                attendance.is_given_feedback = True  # set feedback given to true
+                attendance.save()
+            else:
+                # prevent multiple feedback submissions
+                return {"error": "Feedback has already been submitted with this email."}
+            return data
+        except Attendance.DoesNotExist:
+            data["is_anonymous"] = True  # set anonymous if email not found
+            return data

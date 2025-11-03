@@ -12,8 +12,9 @@ urlpatterns = [
         views.AttendeeListCreateView.as_view(),
         name="attendees-list-create",
     ),
+    path("attendees/verify/", views.verify_attendee, name="verify-attendee"),
     path(
-        "attendees/<pk>/",
+        "attendees/<int:pk>/",
         views.AttendeeRetrieveUpdateDestroyView.as_view(),
         name="attendee-detail",
     ),

@@ -7,7 +7,7 @@ from django.contrib.auth import logout
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -142,4 +142,27 @@ class PasswordResetConfirmView(APIView):
             return Response(
                 {"detail": "Password reset successfully."}, status=status.HTTP_200_OK
             )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RetrieveUpdateAuthenticatedUserView(APIView):
+    """View to retrieve and update the authenticated user's details."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=UserSerializer)
+    def get(self, request):
+        """Retrieve the authenticated user's details."""
+        user = request.user
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
+    @extend_schema(request=UserSerializer, responses=UserSerializer)
+    def put(self, request):
+        """Update the authenticated user's details."""
+        user = request.user
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

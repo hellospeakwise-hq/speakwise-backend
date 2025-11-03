@@ -5,6 +5,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import User
@@ -120,3 +121,83 @@ class TestPasswordReset(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         assert "Invalid or expired token." in str(response.data)
+
+
+class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
+    """Test cases for RetrieveUpdateAuthenticatedUserView."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = APIClient()
+        self.user = User.objects.create(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            first_name="Test",
+            last_name="User",
+        )
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("users:retrieve_update_authenticated_user")
+
+    def test_get_authenticated_user(self):
+        """Test retrieving authenticated user details."""
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["email"], self.user.email)
+        self.assertEqual(response.data["username"], self.user.username)
+        self.assertEqual(response.data["first_name"], self.user.first_name)
+        self.assertEqual(response.data["last_name"], self.user.last_name)
+
+    def test_get_unauthenticated(self):
+        """Test retrieving user details without authentication."""
+        self.client.force_authenticate(user=None)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_authenticated_user(self):
+        """Test updating authenticated user details."""
+        update_data = {
+            "first_name": "Updated",
+            "last_name": "Name",
+        }
+
+        response = self.client.put(self.url, update_data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, update_data["first_name"])
+        self.assertEqual(self.user.last_name, update_data["last_name"])
+
+    def test_update_invalid_data(self):
+        """Test updating with invalid data."""
+        invalid_data = {
+            "username": "",  # Username cannot be empty
+            "first_name": "x" * 151,  # Too long (assuming max_length=150)
+        }
+
+        response = self.client.put(self.url, invalid_data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_unauthenticated(self):
+        """Test updating user details without authentication."""
+        self.client.force_authenticate(user=None)
+        update_data = {"first_name": "Updated"}
+
+        response = self.client.put(self.url, update_data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_partial_update(self):
+        """Test partial update of user details."""
+        original_last_name = self.user.last_name
+        update_data = {"first_name": "NewFirst"}
+
+        response = self.client.put(self.url, update_data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, update_data["first_name"])
+        # Last name should remain unchanged
+        self.assertEqual(self.user.last_name, original_last_name)

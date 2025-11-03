@@ -4,6 +4,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
+from speakers.serializers import SpeakerProfileSerializer
 from users.models import User
 
 
@@ -71,3 +72,10 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
         self.context["user"] = user
         return data
+
+
+class UserProfileSerializer(serializers.Serializer):
+    """Serializer for user profile."""
+
+    user = UserSerializer()
+    speaker = SpeakerProfileSerializer()

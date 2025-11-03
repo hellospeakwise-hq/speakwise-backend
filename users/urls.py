@@ -20,4 +20,9 @@ urlpatterns = [
         views.PasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
     ),
+    path(
+        "users/me/",
+        views.RetrieveUpdateAuthenticatedUserView.as_view(),
+        name="retrieve_update_authenticated_user",
+    ),
 ]

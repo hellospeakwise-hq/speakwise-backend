@@ -3,7 +3,11 @@
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
-from speakers.models import SpeakerProfile, SpeakerSkillTag, SpeakerSocialLinks
+from speakers.models import (
+    SpeakerProfile,
+    SpeakerSkillTag,
+    SpeakerSocialLinks,
+)
 
 
 class SpeakerSocialLinksSerializer(ModelSerializer):

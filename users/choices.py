@@ -11,3 +11,4 @@ class UserRoleChoices(models.TextChoices):
     ORGANIZER = "organizer", _("Organizer")
     SPEAKER = "speaker", _("Speaker")
     ADMIN = "admin", _("Admin")
+    TALK_REVIEWER = "talk_reviewer", _("Talk Reviewer")

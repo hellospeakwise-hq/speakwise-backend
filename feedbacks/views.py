@@ -1,8 +1,12 @@
 """Feedback views using Generic Views."""
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics
+from rest_framework import generics, status
+from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from attendees.models import AttendeeProfile
 
 from .models import Feedback
 from .serializers import FeedbackCreateSerializer, FeedbackSerializer
@@ -43,3 +47,16 @@ class FeedbackRetrieveUpdateDestroyView(
     def get_queryset(self):
         """Optimize query with select_related for attendee."""
         return Feedback.objects.select_related("attendee").all()
+
+
+@api_view(["POST"])
+def verify_attendee(request):
+    """Verify attendee."""
+    attendee_email = request.POST.get("email")
+    try:
+        AttendeeProfile.objects.get(user_account__email=attendee_email)
+        return Response({"detail": "Found Attendee"}, status=status.HTTP_200_OK)
+    except AttendeeProfile.DoesNotExist:
+        return Response(
+            {"detail": "Attendee does not exist"}, status=status.HTTP_404_NOT_FOUND
+        )

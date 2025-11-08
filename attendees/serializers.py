@@ -36,3 +36,9 @@ class AttendanceSerializer(serializers.ModelSerializer):
 
         model = Attendance
         fields = ["username", "email", "is_given_feedback"]
+
+
+class VerifyAttendeeSerializer(serializers.Serializer):
+    """verify attendee serializer."""
+
+    email = serializers.EmailField(required=True)

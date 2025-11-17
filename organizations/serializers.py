@@ -10,15 +10,24 @@ from users.models import User
 class OrganizationMembershipSerializer(serializers.ModelSerializer):
     """Serializer for OrganizationMembership."""
 
-    user_id = serializers.IntegerField(write_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
-        """meta options."""
+        """Meta options for OrganizationMembershipSerializer."""
 
         model = OrganizationMembership
-        fields = ["id", "user_id", "username", "role", "is_active", "created_at"]
-        read_only_fields = ["id", "username", "created_at"]
+        fields = [
+            "id",
+            "organization",
+            "user",
+            "username",
+            "role",
+            "is_active",
+            "added_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "username", "created_at", "updated_at"]
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -31,7 +40,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
         source="organization_memberships", many=True, read_only=True
     )
     additional_members = serializers.ListField(
-        child=serializers.UUIDField(),
+        child=serializers.IntegerField(),
         write_only=True,
         required=False,
         help_text="User IDs to add as members (creator is auto-added as admin)",
@@ -41,14 +50,36 @@ class OrganizationSerializer(serializers.ModelSerializer):
         """Meta class for OrganizationSerializer."""
 
         model = Organization
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "email",
+            "website",
+            "logo",
+            "is_active",
+            "created_by",
+            "created_by_username",
+            "members",
+            "additional_members",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = [
             "id",
+            "created_by",
             "created_by_username",
             "members",
             "created_at",
             "updated_at",
         ]
+
+    def validate(self, attrs):
+        """Ensure request context with an authenticated user is provided."""
+        request = self.context.get("request")
+        if not request or not getattr(request, "user", None):
+            raise KeyError("request")
+        return attrs
 
     def create(self, validated_data):
         """Create a new organization."""

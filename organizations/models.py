@@ -23,12 +23,6 @@ class Organization(TimeStampedModel):
     created_by = models.ForeignKey(
         User, on_delete=models.CASCADE, null=True, related_name="created_organizations"
     )
-    members = models.ManyToManyField(
-        User,
-        through="OrganizationMembership",
-        through_fields=("organization", "user"),
-        related_name="organizations",
-    )
 
     class Meta:
         """Meta class for Organization model."""

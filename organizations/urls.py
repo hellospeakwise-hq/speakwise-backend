@@ -9,7 +9,7 @@ app_name = "organizations"
 urlpatterns = [
     path(
         "organizations/",
-        views.ListCreateOrganizationView.as_view(),
+        views.OrganizationListCreateView.as_view(),
         name="organization-list-create",
     ),
     path(

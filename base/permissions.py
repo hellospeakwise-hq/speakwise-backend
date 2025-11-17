@@ -2,15 +2,16 @@
 
 from rest_framework.permissions import BasePermission
 
+from organizations.models import Organization
+
 
 class IsOrganizer(BasePermission):
     """custom organizer permission."""
 
     def has_permission(self, request, view):
         """Check if user is organizer."""
-        return bool(
-            request.user and request.user.is_authenticated and request.user.is_organizer
-        )
+        user = Organization.objects.filter(members=request.user).first()
+        return bool(self.user and request.user.is_authenticated and user.is_organizer)
 
 
 class IsAdminOrOrganizer(BasePermission):
@@ -18,10 +19,10 @@ class IsAdminOrOrganizer(BasePermission):
 
     def has_permission(self, request, view):
         """Check if user is admin or organizer."""
+        user = Organization.objects.filter(members=request.user).first()
+
         return bool(
-            request.user
-            and request.user.is_authenticated
-            and (request.user.is_organizer_or_admin)
+            user and request.user.is_authenticated and (user.is_organizer_or_admin)
         )
 
 
@@ -30,6 +31,5 @@ class IsSpeaker(BasePermission):
 
     def has_permission(self, request, view):
         """Check if user is speaker."""
-        return bool(
-            request.user and request.user.is_authenticated and request.user.is_speaker
-        )
+        user = Organization.objects.filter(members=request.user).first()
+        return bool(user and request.user.is_authenticated and user.is_speaker)

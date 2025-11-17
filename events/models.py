@@ -4,7 +4,6 @@ from django.db import models
 from django.utils import timezone
 
 from base.models import TimeStampedModel
-from organizers.models import OrganizerProfile
 
 EVENT_IMAGE_UPLOAD = "event_images/"
 
@@ -51,7 +50,7 @@ class Event(TimeStampedModel):
 
     # Add organizer relationship
     organizer = models.ForeignKey(
-        OrganizerProfile,
+        "organizations.Organization",
         on_delete=models.CASCADE,
         null=True,
         blank=True,

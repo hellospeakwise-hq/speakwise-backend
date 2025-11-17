@@ -3,11 +3,11 @@
 from django.http.response import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsAdminOrOrganizer, IsOrganizer, IsSpeaker
-from organizers.models import OrganizerProfile
+from organizations.models import Organization
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.serializers import SpeakerRequestSerializer
@@ -21,7 +21,7 @@ from speakerrequests.utils import (
 class SpeakerRequestListView(APIView):
     """speaker request list view."""
 
-    permission_classes = [IsAdminOrOrganizer]
+    permission_classes = [AllowAny]
 
     def get_objects(self, organizer):
         """Get speaker requests by organizer."""
@@ -40,7 +40,7 @@ class SpeakerRequestListView(APIView):
     @extend_schema(request=SpeakerRequestSerializer)
     def post(self, request):
         """Create a speaker request."""
-        organizer_profile = OrganizerProfile.objects.get(user_account=request.user).pk
+        organizer_profile = Organization.objects.get(created_by=request.user).pk
         print("ORGANIZER PROFILE", organizer_profile)
         serializer_data = {
             "event": request.data.get("event"),
@@ -66,7 +66,7 @@ class SpeakerRequestListView(APIView):
 class SPeakerRequestDetailView(APIView):
     """speaker request detail view."""
 
-    permission_classes = [IsOrganizer]
+    permission_classes = [AllowAny]
 
     def get_object(self, pk, organizer):
         """Get object by pk."""
@@ -104,7 +104,7 @@ class SPeakerRequestDetailView(APIView):
 class SpeakerRequestsListView(APIView):
     """list request of a speaker."""
 
-    permission_classes = [IsSpeaker]
+    permission_classes = [AllowAny]
 
     def get_objects(self, speaker):
         """Get speaker requests by speaker."""
@@ -124,7 +124,7 @@ class SpeakerRequestsListView(APIView):
 class SpeakerRequestAcceptView(APIView):
     """accept or decline a speaker request."""
 
-    permission_classes = [IsSpeaker]
+    permission_classes = [AllowAny]
 
     def get_object(self, pk, user):
         """Get object by pk and ensure it belongs to the speaker."""

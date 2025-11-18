@@ -64,7 +64,6 @@ class OrganizationModelTest(TestCase):
 
         self.assertTrue(admin_user, membership.is_admins())
 
-
     def test_get_organizers(self):
         """Test getting all active organization members."""
         member_user = User.objects.create(
@@ -79,7 +78,6 @@ class OrganizationModelTest(TestCase):
 
         self.assertTrue(member_user, membership.is_member())
 
-
     def test_is_admin(self):
         """Test checking if a user is an admin."""
         admin_user = User.objects.create(
@@ -92,7 +90,6 @@ class OrganizationModelTest(TestCase):
             added_by=self.user,
         )
 
-
     def test_is_member(self):
         """Test checking if a user is a member."""
         member_user = User.objects.create(
@@ -104,7 +101,6 @@ class OrganizationModelTest(TestCase):
             role=OrganizationRole.MEMBER,
             added_by=self.user,
         )
-
 
 
 class OrganizationMembershipModelTest(TestCase):
@@ -230,7 +226,6 @@ class OrganizationSerializerTest(TestCase):
         organization = serializer.save()
         self.assertEqual(organization.name, self.organization_data["name"])
         self.assertEqual(organization.created_by, self.user)
-
 
     # Edge Cases for Serializer
     def test_serializer_with_missing_context(self):

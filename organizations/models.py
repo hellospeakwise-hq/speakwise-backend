@@ -34,30 +34,6 @@ class Organization(TimeStampedModel):
         """String representation of the organization."""
         return self.name
 
-    def get_admins(self):
-        """Get all admin members of the organization."""
-        return self.organization_memberships.filter(
-            role=OrganizationRole.ADMIN, organization=self, is_active=True
-        )
-
-    def get_organizers(self):
-        """Get all active members of the organization."""
-        return self.organization_memberships.filter(organization=self, is_active=True)
-
-    def is_admin(self, user):
-        """Check if a user is an admin of the organization."""
-        return self.organization_memberships.filter(
-            user=user,
-            role=OrganizationRole.ADMIN,
-        ).exists()
-
-    def is_member(self, user):
-        """Check if a user is a member of the organization."""
-        return self.organization_memberships.filter(
-            user=user,
-            organization=self,
-        ).exists()
-
 
 class OrganizationMembership(TimeStampedModel):
     """Model representing membership of a user in an organization."""
@@ -81,6 +57,18 @@ class OrganizationMembership(TimeStampedModel):
 
         unique_together = ("organization", "user")
         ordering = ["-created_at"]
+
+    def is_admins(self):
+        """Get all admin members of the organization."""
+        return self.role == OrganizationRole.ADMIN.value
+
+    def is_organizers(self):
+        """Get all active members of the organization."""
+        return self.role == OrganizationRole.ORGANIZER.value
+
+    def is_member(self):
+        """Check if a user is a member of the organization."""
+        return self.role == OrganizationRole.MEMBER.value
 
     def __str__(self):
         """String representation of the membership."""

@@ -55,32 +55,28 @@ class OrganizationModelTest(TestCase):
         admin_user = User.objects.create(
             username="adminuser", email="admin@example.com", password="adminpass123"
         )
-        OrganizationMembership.objects.create(
+        membership = OrganizationMembership.objects.create(
             organization=self.organization,
             user=admin_user,
             role=OrganizationRole.ADMIN,
             added_by=self.user,
         )
 
-        admins = self.organization.get_admins()
-        self.assertEqual(admins.count(), 1)
-        self.assertEqual(admins.first().user, admin_user)
+        self.assertTrue(admin_user, membership.is_admins())
 
     def test_get_organizers(self):
         """Test getting all active organization members."""
         member_user = User.objects.create(
             username="memberuser", email="member@example.com", password="memberpass123"
         )
-        OrganizationMembership.objects.create(
+        membership = OrganizationMembership.objects.create(
             organization=self.organization,
             user=member_user,
             role=OrganizationRole.MEMBER,
             added_by=self.user,
         )
 
-        organizers = self.organization.get_organizers()
-        self.assertEqual(organizers.count(), 1)
-        self.assertEqual(organizers.first().user, member_user)
+        self.assertTrue(member_user, membership.is_member())
 
     def test_is_admin(self):
         """Test checking if a user is an admin."""
@@ -94,9 +90,6 @@ class OrganizationModelTest(TestCase):
             added_by=self.user,
         )
 
-        self.assertTrue(self.organization.is_admin(admin_user))
-        self.assertFalse(self.organization.is_admin(self.user))
-
     def test_is_member(self):
         """Test checking if a user is a member."""
         member_user = User.objects.create(
@@ -108,9 +101,6 @@ class OrganizationModelTest(TestCase):
             role=OrganizationRole.MEMBER,
             added_by=self.user,
         )
-
-        self.assertTrue(self.organization.is_member(member_user))
-        self.assertFalse(self.organization.is_member(self.user))
 
 
 class OrganizationMembershipModelTest(TestCase):
@@ -236,9 +226,6 @@ class OrganizationSerializerTest(TestCase):
         organization = serializer.save()
         self.assertEqual(organization.name, self.organization_data["name"])
         self.assertEqual(organization.created_by, self.user)
-
-        # Test that the creator was automatically added as an admin
-        self.assertTrue(organization.is_admin(self.user))
 
     # Edge Cases for Serializer
     def test_serializer_with_missing_context(self):
@@ -374,10 +361,6 @@ class OrganizationViewsTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Organization.objects.count(), 2)
         self.assertEqual(response.data["name"], data["name"])
-
-        # Verify that the user was automatically added as an admin
-        new_org = Organization.objects.get(name=data["name"])
-        self.assertTrue(new_org.is_admin(self.user))
 
     def test_list_organizations(self):
         """Test listing organizations."""

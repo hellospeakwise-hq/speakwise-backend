@@ -14,6 +14,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from speakers.models import SpeakerProfile
 from speakers.serializers import SpeakerProfileSerializer
+from users.filters import UserFilter
 from users.models import User
 from users.serializers import (
     PasswordResetConfirmSerializer,
@@ -207,3 +208,17 @@ class RetrieveUpdateAuthenticatedUserView(APIView):
         )
 
         return Response(profile_serializer.data)
+
+
+class UsersListView(APIView):
+    """View to list all users."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=UserSerializer(many=True))
+    def get(self, request):
+        """List all users."""
+        users = User.objects.all()
+        user_filters = UserFilter(request.GET, queryset=users)
+        serializer = UserSerializer(user_filters.qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

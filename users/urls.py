@@ -25,4 +25,5 @@ urlpatterns = [
         views.RetrieveUpdateAuthenticatedUserView.as_view(),
         name="retrieve_update_authenticated_user",
     ),
+    path("users/", views.UsersListView.as_view(), name="user-list"),
 ]

@@ -8,8 +8,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationMember
+from organizations.filters import OrganizationMembershipFilter
 from organizations.models import Organization, OrganizationMembership
-from organizations.serializers import OrganizationSerializer, OrganizationMembershipSerializer
+from organizations.serializers import (
+    OrganizationMembershipSerializer,
+    OrganizationSerializer,
+)
 
 
 class OrganizationListCreateView(APIView):
@@ -89,7 +93,14 @@ class OrganizationMembersView(APIView):
     @extend_schema(responses={200: OrganizationSerializer(many=True)})
     def get(self, request, pk):
         """List members of an organization."""
-        # todo: filter by membership status
-        members = OrganizationMembership.objects.filter(organization=pk)
-        serializer = OrganizationMembershipSerializer(members, many=True)
+        try:
+            organization = Organization.objects.get(pk=pk)
+            members = OrganizationMembership.objects.filter(organization=organization)
+            members_filters = OrganizationMembershipFilter(
+                request.GET, queryset=members
+            )
+        except (Organization.DoesNotExist, OrganizationMembership.DoesNotExist) as err:
+            raise Http404 from err
+
+        serializer = OrganizationMembershipSerializer(members_filters.qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

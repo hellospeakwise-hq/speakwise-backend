@@ -7,8 +7,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import Organization
-from organizations.serializers import OrganizationSerializer
+from base.permissions import IsOrganizationMember
+from organizations.filters import OrganizationMembershipFilter
+from organizations.models import Organization, OrganizationMembership
+from organizations.serializers import (
+    OrganizationMembershipSerializer,
+    OrganizationSerializer,
+)
 
 
 class OrganizationListCreateView(APIView):
@@ -78,3 +83,24 @@ class OrganizationDetailView(APIView):
         organization = self.get_object(pk)
         organization.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class OrganizationMembersView(APIView):
+    """View for listing members of an organization."""
+
+    permission_classes = [IsOrganizationMember]
+
+    @extend_schema(responses={200: OrganizationMembershipSerializer(many=True)})
+    def get(self, request, pk):
+        """List members of an organization."""
+        try:
+            organization = Organization.objects.get(pk=pk)
+            members = OrganizationMembership.objects.filter(organization=organization)
+            members_filters = OrganizationMembershipFilter(
+                request.GET, queryset=members
+            )
+        except (Organization.DoesNotExist, OrganizationMembership.DoesNotExist) as err:
+            raise Http404 from err
+
+        serializer = OrganizationMembershipSerializer(members_filters.qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

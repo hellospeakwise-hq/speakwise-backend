@@ -24,3 +24,4 @@ class AttendeeRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     serializer_class = AttendeeProfileSerializer
     queryset = AttendeeProfile.objects.all()
     permission_classes = [IsAuthenticated]
+

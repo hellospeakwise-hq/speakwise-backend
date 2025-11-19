@@ -90,7 +90,7 @@ class OrganizationMembersView(APIView):
 
     permission_classes = [IsOrganizationMember]
 
-    @extend_schema(responses={200: OrganizationSerializer(many=True)})
+    @extend_schema(responses={200: OrganizationMembershipSerializer(many=True)})
     def get(self, request, pk):
         """List members of an organization."""
         try:

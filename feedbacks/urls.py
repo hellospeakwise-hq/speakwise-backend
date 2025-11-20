@@ -11,10 +11,5 @@ urlpatterns = [
         "feedbacks/",
         views.FeedbackListCreateView.as_view(),
         name="feedbacks_list_create",
-    ),
-    path(
-        "feedbacks/<int:pk>/",
-        views.FeedbackRetrieveUpdateDestroyView.as_view(),
-        name="feedbacks_retrieve_update_delete",
-    ),
+    )
 ]

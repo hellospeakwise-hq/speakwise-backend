@@ -44,11 +44,8 @@ class AttendeeSocialLinks(SocialLinks):
 class Attendance(TimeStampedModel):
     """Attendance model."""
 
-    attendee = models.ForeignKey(
-        AttendeeProfile, on_delete=models.CASCADE, related_name="attendances", null=True
-    )
     event = models.ForeignKey(
-        "events.Event", on_delete=models.CASCADE, related_name="attendees"
+        "events.Event", on_delete=models.CASCADE, related_name="event_attendance"
     )
     check_in_time = models.DateTimeField(auto_now_add=True)
     email = models.EmailField(null=True)
@@ -56,14 +53,9 @@ class Attendance(TimeStampedModel):
     is_verified = models.BooleanField(default=False)
     is_given_feedback = models.BooleanField(default=False)
 
-    class Meta:
-        """Meta class."""
-
-        unique_together = ("attendee", "event")
-
     def __str__(self):
         """Str method."""
-        return f"{self.attendee} attended {self.event}"
+        return f"{self.email} attended {self.event}"
 
     def mark_as_verified(self):
         """Mark the attendance as verified."""
@@ -73,7 +65,7 @@ class Attendance(TimeStampedModel):
 
     def is_user(self):
         """Check if the user is the attendee."""
-        return self.attendee.user_account == self.user_account
+        return get_user_model().objects.filter(email=self.email).exists()
 
     def mark_as_given_feedback(self):
         """Mark the attendance as given feedback."""

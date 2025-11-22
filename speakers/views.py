@@ -19,7 +19,10 @@ from speakers.serializers import (
     responses=SpeakerProfileSerializer(many=True),
 )
 class SpeakerProfileListCreateView(ListCreateAPIView):
-    """list create speaker profile view."""
+    """View to list and create speaker profiles.
+
+    This view allows users to view a list of speaker profiles and create a new one.
+    """
 
     queryset = SpeakerProfile.objects.all()
     serializer_class = SpeakerProfileSerializer
@@ -30,7 +33,10 @@ class SpeakerProfileListCreateView(ListCreateAPIView):
     request=SpeakerSocialLinksSerializer, responses=SpeakerSocialLinksSerializer
 )
 class SpeakerProfileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    """list create speaker profile view."""
+    """View to retrieve, update, and delete a speaker profile.
+
+    This view allows users to manage a specific speaker profile.
+    """
 
     queryset = SpeakerProfile.objects.all()
     serializer_class = SpeakerProfileSerializer

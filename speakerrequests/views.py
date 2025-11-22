@@ -19,7 +19,10 @@ from speakerrequests.utils import (
 
 
 class SpeakerRequestListView(APIView):
-    """speaker request list view."""
+    """View to list and create speaker requests.
+
+    This view allows organizers to list all their speaker requests and create new ones.
+    """
 
     permission_classes = [AllowAny]
 
@@ -32,14 +35,28 @@ class SpeakerRequestListView(APIView):
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
     def get(self, request):
-        """Get speaker requests."""
+        """Get all speaker requests for the authenticated organizer.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            Response: A list of speaker requests.
+        """
         speaker_requests = self.get_objects(request.user)
         serializer = SpeakerRequestSerializer(speaker_requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(request=SpeakerRequestSerializer)
     def post(self, request):
-        """Create a speaker request."""
+        """Create a new speaker request.
+
+        Args:
+            request: The HTTP request object containing the speaker request data.
+
+        Returns:
+            Response: The created speaker request data.
+        """
         organizer_profile = Organization.objects.get(created_by=request.user).pk
         print("ORGANIZER PROFILE", organizer_profile)
         serializer_data = {
@@ -64,7 +81,10 @@ class SpeakerRequestListView(APIView):
 
 
 class SPeakerRequestDetailView(APIView):
-    """speaker request detail view."""
+    """View to retrieve, update, and delete a specific speaker request.
+
+    This view allows organizers to manage individual speaker requests.
+    """
 
     permission_classes = [AllowAny]
 
@@ -77,14 +97,30 @@ class SPeakerRequestDetailView(APIView):
 
     @extend_schema(responses=SpeakerRequestSerializer)
     def get(self, request, pk=None):
-        """Get a speaker request."""
+        """Retrieve a specific speaker request by ID.
+
+        Args:
+            request: The HTTP request object.
+            pk: The primary key of the speaker request.
+
+        Returns:
+            Response: The speaker request data.
+        """
         speaker_request = self.get_object(pk, request.user)
         serializer = SpeakerRequestSerializer(speaker_request)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(request=SpeakerRequestSerializer, responses=SpeakerRequestSerializer)
     def patch(self, request, pk=None):
-        """Update a speaker request."""
+        """Update a specific speaker request.
+
+        Args:
+            request: The HTTP request object containing the update data.
+            pk: The primary key of the speaker request.
+
+        Returns:
+            Response: The updated speaker request data.
+        """
         speaker_request = self.get_object(pk, request.user)
         serializer = SpeakerRequestSerializer(
             speaker_request, data=request.data, partial=True
@@ -95,14 +131,25 @@ class SPeakerRequestDetailView(APIView):
 
     @extend_schema(responses={204: None})
     def delete(self, request, pk=None):
-        """Delete a speaker request."""
+        """Delete a specific speaker request.
+
+        Args:
+            request: The HTTP request object.
+            pk: The primary key of the speaker request.
+
+        Returns:
+            Response: HTTP 204 No Content.
+        """
         speaker_request = self.get_object(pk, request.user)
         speaker_request.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SpeakerRequestsListView(APIView):
-    """list request of a speaker."""
+    """View to list incoming speaker requests for a speaker.
+
+    This view allows speakers to see all requests sent to them.
+    """
 
     permission_classes = [AllowAny]
 
@@ -115,14 +162,25 @@ class SpeakerRequestsListView(APIView):
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
     def get(self, request, pk=None):
-        """Get speaker requests."""
+        """Get all incoming speaker requests for the authenticated speaker.
+
+        Args:
+            request: The HTTP request object.
+            pk: Ignored.
+
+        Returns:
+            Response: A list of incoming speaker requests.
+        """
         speaker_requests = self.get_objects(request.user)
         serializer = SpeakerRequestSerializer(speaker_requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class SpeakerRequestAcceptView(APIView):
-    """accept or decline a speaker request."""
+    """View to accept or decline a speaker request.
+
+    This view allows speakers to respond to a request.
+    """
 
     permission_classes = [AllowAny]
 
@@ -135,7 +193,15 @@ class SpeakerRequestAcceptView(APIView):
 
     @extend_schema(request=SpeakerRequestSerializer, responses=SpeakerRequestSerializer)
     def patch(self, request, pk=None):
-        """Update a speaker request."""
+        """Respond to a speaker request (accept or decline).
+
+        Args:
+            request: The HTTP request object containing the status update.
+            pk: The primary key of the speaker request.
+
+        Returns:
+            Response: The updated speaker request data.
+        """
         speaker_request = self.get_object(pk, request.user)
         current_status = speaker_request.status
         if current_status != RequestStatusChoices.PENDING.value:

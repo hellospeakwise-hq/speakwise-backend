@@ -34,9 +34,9 @@ class SpeakerRequestListView(APIView):
         user_organizations = OrganizationMembership.objects.filter(
             user=user,
             role__in=[OrganizationRole.ADMIN, OrganizationRole.ORGANIZER],
-            is_active=True
-        ).values_list('organization', flat=True)
-        
+            is_active=True,
+        ).values_list("organization", flat=True)
+
         # Return all speaker requests for those organizations
         return SpeakerRequest.objects.filter(organizer__in=user_organizations)
 
@@ -66,27 +66,25 @@ class SpeakerRequestListView(APIView):
         """
         # Get organizer from the request data or derive from event
         organizer_id = request.data.get("organizer")
-        
+
         if not organizer_id:
             # Get event and use its organizer
             from events.models import Event
+
             event_id = request.data.get("event")
             try:
                 event = Event.objects.get(pk=event_id)
                 organizer_id = event.organizer.pk if event.organizer else None
             except Event.DoesNotExist:
                 return Response(
-                    {"detail": "Event not found"},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "Event not found"}, status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         serializer_data = {
             "event": request.data.get("event"),
             "organizer": organizer_id,
             "speaker": request.data.get("speaker"),
-            "status": request.data.get(
-                "status", RequestStatusChoices.PENDING.value
-            ),
+            "status": request.data.get("status", RequestStatusChoices.PENDING.value),
             "message": request.data.get("message", ""),
         }
 
@@ -115,18 +113,18 @@ class SPeakerRequestDetailView(APIView):
         """Get speaker request if user is ADMIN or ORGANIZER of org."""
         try:
             speaker_request = SpeakerRequest.objects.get(pk=pk)
-            
+
             # Check if user is ADMIN or ORGANIZER in the organization
             has_permission = OrganizationMembership.objects.filter(
                 user=user,
                 organization=speaker_request.organizer,
                 role__in=[OrganizationRole.ADMIN, OrganizationRole.ORGANIZER],
-                is_active=True
+                is_active=True,
             ).exists()
-            
+
             if not has_permission:
                 raise Http404
-            
+
             return speaker_request
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err

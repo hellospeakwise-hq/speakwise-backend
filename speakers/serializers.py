@@ -56,8 +56,8 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     def get_average_rating(self, obj):
         """Calculate average rating from feedback."""
-        result = obj.speaker_feedback.aggregate(Avg('overall_rating'))
-        avg = result['overall_rating__avg']
+        result = obj.speaker_feedback.aggregate(Avg("overall_rating"))
+        avg = result["overall_rating__avg"]
         return round(avg, 1) if avg else 0.0
 
     def get_review_count(self, obj):

@@ -60,15 +60,18 @@ class OrganizationMembership(TimeStampedModel):
 
     def is_admins(self):
         """Get all admin members of the organization."""
-        return self.role == OrganizationRole.ADMIN.value
+        if self.is_active:
+            return self.role == OrganizationRole.ADMIN.value
 
     def is_organizers(self):
         """Get all active members of the organization."""
-        return self.role == OrganizationRole.ORGANIZER.value
+        if self.is_active:
+            return self.role == OrganizationRole.ORGANIZER.value
 
     def is_member(self):
         """Check if a user is a member of the organization."""
-        return self.role == OrganizationRole.MEMBER.value
+        if self.is_active:
+            return self.role == OrganizationRole.MEMBER.value
 
     def __str__(self):
         """String representation of the membership."""

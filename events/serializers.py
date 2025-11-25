@@ -43,12 +43,12 @@ class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
     event_image = serializers.ImageField(required=False, allow_null=True)
-    tags = TagSerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True, required=False)
     website = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
     # Frontend-specific computed fields
-    name = serializers.CharField(source="title", read_only=True)
+    name = serializers.CharField(source="title", required=True)
     date = serializers.SerializerMethodField()
     date_range = serializers.SerializerMethodField()  # New field for start/end dates
 

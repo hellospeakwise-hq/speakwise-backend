@@ -7,6 +7,7 @@ from organizations.models import Organization, OrganizationMembership
 
 def create_event_payload(request):
     """Create event payload."""
+    print(request.data)
     try:
         user = request.user
         membership = OrganizationMembership.objects.get(user=user)

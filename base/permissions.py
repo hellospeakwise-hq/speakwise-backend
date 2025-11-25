@@ -13,7 +13,7 @@ class IsOrganizationAdmin(BasePermission):
         if request.user and request.user.is_authenticated:
             try:
                 membership = OrganizationMembership.objects.get(user=request.user)
-                return membership.is_admins() and membership.is_member()
+                return membership.is_admins()
             except OrganizationMembership.DoesNotExist:
                 return False
         return False
@@ -41,7 +41,7 @@ class IsOrganizationOrganizer(BasePermission):
         if request.user and request.user.is_authenticated:
             try:
                 membership = OrganizationMembership.objects.get(user=request.user)
-                return membership.is_organizers() and membership.is_member()
+                return membership.is_organizers()
             except OrganizationMembership.DoesNotExist:
                 return False
         return False

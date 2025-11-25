@@ -43,7 +43,7 @@ class EventDetailView(APIView):
     """get event detail view."""
 
     def get_permissions(self):
-        """get permissions."""
+        """Get permissions."""
         if self.request.method in ["GET"]:
             return [AllowAny()]
         return [IsOrganizationAdmin()]

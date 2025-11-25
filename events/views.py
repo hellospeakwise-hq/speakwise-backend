@@ -1,55 +1,76 @@
 """Events views."""
 
-from django_filters import rest_framework as filters
+from django.http import Http404
 from drf_spectacular.utils import extend_schema
-from rest_framework.generics import (
-    ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView,
-)
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from events.filters import EventFilter
 from events.models import Event
 from events.serializers import EventSerializer
+from events.utils import create_event_payload
 
 
-@extend_schema(responses={200: EventSerializer})
-class EventListCreateAPIView(ListCreateAPIView):
-    """View for retrieving, updating, and deleting events."""
+class EventListView(APIView):
+    """event list view."""
 
-    serializer_class = EventSerializer
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_class = EventFilter
+    permission_classes = [AllowAny]
 
-    def get_queryset(self):
-        """Return the user's events."""
-        if self.request.method == "POST":
-            return Event.objects.all()
-        if self.request.method == "GET":
-            return Event.objects.all()
+    @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
+    def get(self, request, *args, **kwargs):
+        """List events."""
+        events = Event.objects.all()
+        serializer = EventSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def get_permissions(self):
-        """Get permissions."""
-        if self.request.method == "POST":
-            permission_classes = (IsAuthenticated,)
-        else:
-            permission_classes = (AllowAny,)
-        return [permission() for permission in permission_classes]
-
-
-@extend_schema(responses={200: EventSerializer})
-class EventRetrieveUpdateDestroyAPIView(APIView):
-    """View for retrieving, updating, and deleting events."""
-
-    serializer_class = EventSerializer
-    permission_classes = (IsAuthenticated,)
+    @extend_schema(
+        tags=["Events"], request=EventSerializer, responses={201: EventSerializer}
+    )
+    def post(self, request, *args, **kwargs):
+        """Create event."""
+        payload = create_event_payload(request)
+        serializer = EventSerializer(data=payload)
+        if serializer.is_valid():
+            serializer.save()
+            print(serializer.validated_data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(responses={200: EventSerializer})
-class EventDetailAPIView(RetrieveUpdateDestroyAPIView):
-    """View for retrieving event details with extended information."""
+class EventDetailView(APIView):
+    """get event detail view."""
 
-    queryset = Event.objects.all()
-    serializer_class = EventSerializer
-    permission_classes = (AllowAny,)
+    def get_object(self, pk):
+        """Get event object."""
+        try:
+            return Event.objects.get(pk=pk)
+        except Event.DoesNotExist as err:
+            raise Http404 from err
+
+    @extend_schema(tags=["Events"], responses={200: EventSerializer})
+    def get(self, request, pk, *args, **kwargs):
+        """Retrieve event detail."""
+        event = self.get_object(pk)
+        serializer = EventSerializer(event)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Events"], request=EventSerializer, responses={200: EventSerializer}
+    )
+    def put(self, request, pk, *args, **kwargs):
+        """Update event detail."""
+        event = self.get_object(pk)
+        payload = create_event_payload(request)
+        serializer = EventSerializer(event, data=payload)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(tags=["Events"], responses={204: None})
+    def delete(self, request, pk, *args, **kwargs):
+        """Delete event."""
+        event = self.get_object(pk)
+        event.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

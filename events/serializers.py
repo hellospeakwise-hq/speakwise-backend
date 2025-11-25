@@ -48,7 +48,7 @@ class EventSerializer(WritableNestedModelSerializer):
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
     # Frontend-specific computed fields
-    name = serializers.CharField(source="title", required=True)
+    name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
     date_range = serializers.SerializerMethodField()  # New field for start/end dates
 

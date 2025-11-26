@@ -7,7 +7,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import Organization
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.serializers import SpeakerRequestSerializer
@@ -57,19 +56,10 @@ class SpeakerRequestListView(APIView):
         Returns:
             Response: The created speaker request data.
         """
-        organizer_profile = Organization.objects.get(created_by=request.user).pk
-        print("ORGANIZER PROFILE", organizer_profile)
-        serializer_data = {
-            "event": request.data.get("event"),
-            "organizer": organizer_profile,
-            "speaker": request.data.get("speaker"),
-            "status": request.data.get("status", RequestStatusChoices.PENDING.value),
-            "message": request.data.get("message", ""),
-        }
-
-        serializer = SpeakerRequestSerializer(data=serializer_data)
+        serializer = SpeakerRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
         # send email notification to speaker
         send_speaker_request_email(
             speaker_email=serializer.instance.speaker.user_account.email,

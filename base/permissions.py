@@ -12,7 +12,7 @@ class IsOrganizationAdmin(BasePermission):
         """Check if the user has admin permissions for the organization."""
         if request.user and request.user.is_authenticated:
             try:
-                membership = OrganizationMembership.objects.get(user=request.user)
+                membership = OrganizationMembership.objects.filter(user=request.user).first()
                 return membership.is_admins()
             except OrganizationMembership.DoesNotExist:
                 return False
@@ -26,7 +26,7 @@ class IsOrganizationMember(BasePermission):
         """Check if the user has member permissions for the organization."""
         if request.user and request.user.is_authenticated:
             try:
-                membership = OrganizationMembership.objects.get(user=request.user)
+                membership = OrganizationMembership.objects.filter(user=request.user).first()
                 return membership.is_active
             except OrganizationMembership.DoesNotExist:
                 return False
@@ -40,7 +40,7 @@ class IsOrganizationOrganizer(BasePermission):
         """Check if the user has organizer permissions for the organization."""
         if request.user and request.user.is_authenticated:
             try:
-                membership = OrganizationMembership.objects.get(user=request.user)
+                membership = OrganizationMembership.objects.filter(user=request.user).first()
                 return membership.is_organizers()
             except OrganizationMembership.DoesNotExist:
                 return False

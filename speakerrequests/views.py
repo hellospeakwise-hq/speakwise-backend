@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from organizations.models import Organization, OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.serializers import SpeakerRequestSerializer
@@ -28,7 +29,8 @@ class SpeakerRequestListView(APIView):
     def get_objects(self, organizer):
         """Get speaker requests by organizer."""
         try:
-            return SpeakerRequest.objects.filter(organizer__user_account=organizer)
+            org = OrganizationMembership.objects.get(user=organizer).organization
+            return SpeakerRequest.objects.filter(organizer=org)
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err
 

@@ -66,7 +66,7 @@ class SpeakerRequestListView(APIView):
         send_speaker_request_email(
             speaker_email=serializer.instance.speaker.user_account.email,
             event_name=serializer.instance.event.title,
-            organizer_name=serializer.instance.organizer.user_account.username,
+            organizer_name=serializer.instance.organizer.name,
             message=serializer.instance.message,
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -148,7 +148,7 @@ class SpeakerRequestsListView(APIView):
     def get_objects(self, speaker):
         """Get speaker requests by speaker."""
         try:
-            return SpeakerRequest.objects.filter(speaker__user_account=speaker)
+            return SpeakerRequest.objects.filter(speaker=speaker)
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err
 

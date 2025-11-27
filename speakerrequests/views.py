@@ -81,7 +81,7 @@ class SPeakerRequestDetailView(APIView):
     def get_object(self, pk, organizer):
         """Get object by pk."""
         try:
-            return SpeakerRequest.objects.get(pk=pk, organizer__user_account=organizer)
+            return SpeakerRequest.objects.get(pk=pk)
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err
 

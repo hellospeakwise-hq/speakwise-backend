@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from organizations.models import OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
+from speakerrequests.filters import SpeakerRequestFilter
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.serializers import SpeakerRequestSerializer
 from speakerrequests.utils import (
@@ -148,7 +149,7 @@ class SpeakerRequestsListView(APIView):
     def get_objects(self, speaker):
         """Get speaker requests by speaker."""
         try:
-            return SpeakerRequest.objects.filter(speaker=speaker)
+            return SpeakerRequest.objects.filter(speaker__user_account=speaker)
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err
 
@@ -164,7 +165,10 @@ class SpeakerRequestsListView(APIView):
             Response: A list of incoming speaker requests.
         """
         speaker_requests = self.get_objects(request.user)
-        serializer = SpeakerRequestSerializer(speaker_requests, many=True)
+        speaker_requests_filter = SpeakerRequestFilter(
+            request.GET, queryset=speaker_requests
+        )
+        serializer = SpeakerRequestSerializer(speaker_requests_filter.qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 

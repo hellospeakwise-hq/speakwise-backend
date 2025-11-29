@@ -25,6 +25,29 @@ class SpeakerSkillTag(TimeStampedModel):
         return self.name
 
 
+class SpeakerExperiences(TimeStampedModel):
+    """speaker experience model.
+    This model holds speaker's presentation or speaking experiences.
+    """
+
+    event_name = models.CharField(max_length=255, help_text="Name of the event")
+    event_date = models.DateField(help_text="Date of the event")
+    topic = models.CharField(max_length=255, help_text="Topic presented")
+    description = models.TextField(
+        null=True, help_text="A brief description of the experience"
+    )
+    presentation_link = models.URLField(
+        null=True, help_text="Link to slides of the presentation or talk"
+    )
+    video_recording_link = models.URLField(
+        null=True, help_text="Link to the video recording of the talk"
+    )
+
+    def __str__(self):
+        """String representation of the speaker experience."""
+        return f"{self.event_name} - {self.topic}"
+
+
 class SpeakerProfile(TimeStampedModel):
     """speakers model."""
 
@@ -39,6 +62,9 @@ class SpeakerProfile(TimeStampedModel):
     avatar = models.ImageField(upload_to=SPEAKERS_UPLOAD_DIR, blank=True)
     skill_tag = models.ManyToManyField(
         SpeakerSkillTag, blank=True, related_name="speakers_profile_skill_tags"
+    )
+    experiences = models.ManyToManyField(
+        SpeakerExperiences, blank=True, related_name="speakers_profile_experiences"
     )
 
     def __str__(self):

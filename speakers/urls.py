@@ -17,4 +17,14 @@ urlpatterns = [
         views.SpeakerProfileRetrieveUpdateDestroyView.as_view(),
         name="speakers_retrieve_update_delete",
     ),
+    path(
+        "speakers/experiences/",
+        views.SpeakerExperiencesListCreateView.as_view(),
+        name="speakers_experiences_list_create",
+    ),
+    path(
+        "speakers/experiences/<pk>/",
+        views.SpeakerExperiencesRetrieveUpdateDestroyView.as_view(),
+        name="speakers_experiences_retrieve_update_delete",
+    ),
 ]

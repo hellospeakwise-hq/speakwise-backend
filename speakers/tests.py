@@ -3,7 +3,12 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from speakers.models import SpeakerProfile, SpeakerSkillTag, SpeakerSocialLinks
+from speakers.models import (
+    SpeakerExperiences,
+    SpeakerProfile,
+    SpeakerSkillTag,
+    SpeakerSocialLinks,
+)
 from speakers.serializers import SpeakerProfileSerializer
 
 
@@ -79,3 +84,69 @@ class TestSpeakerProfile(TestCase):
             self.speaker_profile.social_links.first().link
             == "https://twitter.com/testuser"
         )
+
+
+class TestSpeakerExperiences(TestCase):
+    """test speaker experiences models, views and serializers."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.user = get_user_model().objects.create(
+            username="expuser",
+            email="expuser@mail.com",
+            password="testpass123",
+        )
+        self.speaker_profile = SpeakerProfile.objects.create(
+            user_account=self.user,
+            short_bio="Experience test bio.",
+            long_bio="Longer experience test bio for the speaker profile.",
+            organization="Experience Test Org",
+            country="Experience Test Country",
+        )
+        self.speaker_experiences = SpeakerExperiences.objects.create(
+            event_name="Tech Conference",
+            event_date="2023-01-15",
+            topic="Django Testing",
+            description="Presented on testing in Django applications.",
+            presentation_link="https://slides.com/expuser/django-testing",
+            video_recording_link="https://youtube.com/watch?v=expuser123",
+        )
+        self.speaker_profile.experiences.set([self.speaker_experiences])
+
+    def test_speaker_experiences_creation(self):
+        """Test speaker experiences creation."""
+        assert self.speaker_experiences.event_name == "Tech Conference"
+        assert self.speaker_experiences.event_date == "2023-01-15"
+        assert self.speaker_experiences.topic == "Django Testing"
+        assert (
+            self.speaker_experiences.description
+            == "Presented on testing in Django applications."
+        )
+        assert (
+            self.speaker_experiences.presentation_link
+            == "https://slides.com/expuser/django-testing"
+        )
+        assert (
+            self.speaker_experiences.video_recording_link
+            == "https://youtube.com/watch?v=expuser123"
+        )
+
+    def test_speaker_profile_experiences_association(self):
+        """Test association between speaker profile and experiences."""
+        assert self.speaker_profile.experiences.count() == 1
+        experience = self.speaker_profile.experiences.first()
+        assert experience.event_name == "Tech Conference"
+        assert experience.topic == "Django Testing"
+
+    def test_speaker_experiences_serializer(self):
+        """Test speaker experiences serializer."""
+        from speakers.serializers import SpeakerExperiencesSerializer
+
+        serializer = SpeakerExperiencesSerializer(instance=self.speaker_experiences)
+        data = serializer.data
+        assert data["event_name"] == "Tech Conference"
+        assert data["event_date"] == "2023-01-15"
+        assert data["topic"] == "Django Testing"
+        assert data["description"] == "Presented on testing in Django applications."
+        assert data["presentation_link"] == "https://slides.com/expuser/django-testing"
+        assert data["video_recording_link"] == "https://youtube.com/watch?v=expuser123"

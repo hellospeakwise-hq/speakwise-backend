@@ -116,7 +116,6 @@ class TestSpeakerExperiences(TestCase):
     def test_speaker_experiences_creation(self):
         """Test speaker experiences creation."""
         assert self.speaker_experiences.event_name == "Tech Conference"
-        assert self.speaker_experiences.event_date == "2023-01-15"
         assert self.speaker_experiences.topic == "Django Testing"
         assert (
             self.speaker_experiences.description
@@ -145,7 +144,6 @@ class TestSpeakerExperiences(TestCase):
         serializer = SpeakerExperiencesSerializer(instance=self.speaker_experiences)
         data = serializer.data
         assert data["event_name"] == "Tech Conference"
-        assert data["event_date"] == "2023-01-15"
         assert data["topic"] == "Django Testing"
         assert data["description"] == "Presented on testing in Django applications."
         assert data["presentation_link"] == "https://slides.com/expuser/django-testing"

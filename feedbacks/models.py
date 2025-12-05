@@ -5,6 +5,7 @@ from django.db import models
 # Create your models here.
 from base.models import TimeStampedModel
 from speakers.models import SpeakerProfile
+from talks.models import Session
 
 RATE_VALIDATION_REGEX = []
 
@@ -12,6 +13,13 @@ RATE_VALIDATION_REGEX = []
 class Feedback(TimeStampedModel):
     """Feedback model for storing user feedback."""
 
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="session_feedback",
+    )
     speaker = models.ForeignKey(
         SpeakerProfile,
         on_delete=models.DO_NOTHING,
@@ -56,4 +64,5 @@ class Feedback(TimeStampedModel):
 
     def __str__(self):
         """Return string representation."""
-        return f"Feedback for {self.speaker} with overall rating {self.overall_rating}"
+        rating = self.overall_rating
+        return f"Feedback for {self.speaker} with overall rating {rating}"

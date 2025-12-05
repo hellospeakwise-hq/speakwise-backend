@@ -14,7 +14,8 @@ class Session(TimeStampedModel):
     """talk session model."""
 
     type = models.CharField(
-        max_length=255, help_text="session type. eg. Keynote, lightning talk. etc"
+        max_length=255,
+        help_text="session type. eg. Keynote, lightning talk. etc",
     )
     duration = models.IntegerField(help_text="session duration in minutes")
     talk = models.ForeignKey(
@@ -23,7 +24,7 @@ class Session(TimeStampedModel):
 
     def __str__(self):
         """String rep of speakwise social."""
-        return self.talk
+        return f"{self.type} - {self.talk.title}"
 
 
 class Talks(TimeStampedModel):
@@ -35,7 +36,9 @@ class Talks(TimeStampedModel):
         SpeakerProfile, on_delete=models.CASCADE, related_name="speaker_talks"
     )
     duration = models.IntegerField()
-    category = models.CharField(max_length=100, choices=TalkCategoryChoices.choices)
+    category = models.CharField(
+        max_length=100, choices=TalkCategoryChoices.choices
+    )
     presentation_files = models.FileField(
         upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
     )

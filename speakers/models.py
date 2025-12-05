@@ -30,9 +30,9 @@ class SpeakerExperiences(TimeStampedModel):
     This model holds speaker's presentation or speaking experiences.
     """
 
-    event_name = models.CharField(max_length=255, help_text="Name of the event")
-    event_date = models.DateField(help_text="Date of the event")
-    topic = models.CharField(max_length=255, help_text="Topic presented")
+    event_name = models.CharField(max_length=255, null=True,help_text="Name of the event")
+    event_date = models.DateField(help_text="Date of the event", auto_now=True)
+    topic = models.CharField(max_length=255, null=True,help_text="Topic presented")
     description = models.TextField(
         null=True, help_text="A brief description of the experience"
     )
@@ -54,7 +54,7 @@ class SpeakerProfile(TimeStampedModel):
     user_account = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="speakers_profile_user"
     )
-    # TODO: events_spoken = models.ManyToManyField(Event, blank=True, related_name="speakers")
+    events_spoken = models.ForeignKey("events.Event", on_delete=models.DO_NOTHING,null=True, related_name="speakers")
     organization = models.CharField(max_length=255, blank=True)
     short_bio = models.CharField(max_length=255, blank=True)
     long_bio = models.TextField(null=True)

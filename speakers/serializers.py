@@ -57,7 +57,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     social_links = SpeakerSocialLinksSerializer(many=True, required=False)
     skill_tag = SpeakerSkillTagSerializer(many=True, required=False)
     speaker_name = SerializerMethodField()
-    experiences = SpeakerExperiencesSerializer(many=True, required=False)
+    experiences = SpeakerExperiencesSerializer(many=True, read_only=True, required=False)
 
     class Meta:
         """meta options."""

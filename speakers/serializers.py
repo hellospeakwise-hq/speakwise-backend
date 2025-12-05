@@ -41,14 +41,15 @@ class SpeakerExperiencesSerializer(ModelSerializer):
         model = SpeakerExperiences
         exclude = ["created_at", "updated_at"]
 
-    def validate(self, data):
-        """Validate event_date is not in the future."""
-        from datetime import date
 
-        event_date = data.get("event_date")
-        if event_date and event_date > date.today():
-            raise ValidationError("Event date cannot be in the future.")
-        return data
+    def create(self, validated_data):
+        """Create speaker experience with validation."""
+        event_date = validated_data.get("event_date")
+        if event_date is None:
+            raise ValidationError("Event date is required.")
+        speaker = self.context['request'].user.speakers_profile_user.first()
+        validated_data["speaker"] = speaker
+        return super().create(validated_data)
 
 
 class SpeakerProfileSerializer(WritableNestedModelSerializer):

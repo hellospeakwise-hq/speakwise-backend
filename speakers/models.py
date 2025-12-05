@@ -42,6 +42,7 @@ class SpeakerExperiences(TimeStampedModel):
     video_recording_link = models.URLField(
         null=True, help_text="Link to the video recording of the talk"
     )
+    speaker = models.ForeignKey("speakers.SpeakerProfile", null=True, on_delete=models.CASCADE, related_name="experiences")
 
     def __str__(self):
         """String representation of the speaker experience."""
@@ -62,9 +63,6 @@ class SpeakerProfile(TimeStampedModel):
     avatar = models.ImageField(upload_to=SPEAKERS_UPLOAD_DIR, blank=True)
     skill_tag = models.ManyToManyField(
         SpeakerSkillTag, blank=True, related_name="speakers_profile_skill_tags"
-    )
-    experiences = models.ManyToManyField(
-        SpeakerExperiences, blank=True, related_name="speakers_profile_experiences"
     )
 
     def __str__(self):

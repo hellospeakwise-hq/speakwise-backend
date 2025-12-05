@@ -58,7 +58,12 @@ class SpeakerExperiences(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="experiences",
     )
-    speaker = models.ForeignKey("speakers.SpeakerProfile", null=True, on_delete=models.CASCADE, related_name="experiences")
+    speaker = models.ForeignKey(
+        "speakers.SpeakerProfile",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="experiences",
+    )
 
     def __str__(self):
         """String representation of the speaker experience."""

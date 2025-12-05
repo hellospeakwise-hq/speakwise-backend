@@ -99,7 +99,6 @@ class FileHandler:
             _name_list = _name_series.tolist()
         else:
             _name_list = [""] * len(_email_list)
-        print("EMAIL LIST: ", _email_list)
         return self._save_extracted_attendee_profile(
             _email_list, _name_list, event=event
         )

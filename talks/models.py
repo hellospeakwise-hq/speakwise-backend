@@ -36,9 +36,7 @@ class Talks(TimeStampedModel):
         SpeakerProfile, on_delete=models.CASCADE, related_name="speaker_talks"
     )
     duration = models.IntegerField()
-    category = models.CharField(
-        max_length=100, choices=TalkCategoryChoices.choices
-    )
+    category = models.CharField(max_length=100, choices=TalkCategoryChoices.choices)
     presentation_files = models.FileField(
         upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
     )

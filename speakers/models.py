@@ -42,7 +42,12 @@ class SpeakerExperiences(TimeStampedModel):
     video_recording_link = models.URLField(
         null=True, help_text="Link to the video recording of the talk"
     )
-    speaker = models.ForeignKey("speakers.SpeakerProfile", null=True, on_delete=models.CASCADE, related_name="experiences")
+    speaker = models.ForeignKey(
+        "speakers.SpeakerProfile",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="experiences",
+    )
 
     def __str__(self):
         """String representation of the speaker experience."""

@@ -1,6 +1,8 @@
 """speakers app views."""
+
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
+from rest_framework import status
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -8,8 +10,8 @@ from rest_framework.generics import (
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
-from speakers.models import SpeakerProfile, SpeakerExperiences
+
+from speakers.models import SpeakerExperiences, SpeakerProfile
 from speakers.serializers import (
     SpeakerExperiencesSerializer,
     SpeakerProfileSerializer,
@@ -54,17 +56,22 @@ class SpeakerExperiencesListCreateView(APIView):
 
     This view allows users to view a list of speaker experiences and create a new one.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """List all speaker experiences for the authenticated user."""
-        speaker_experiences = SpeakerExperiences.objects.filter(speaker__user_account=request.user)
+        speaker_experiences = SpeakerExperiences.objects.filter(
+            speaker__user_account=request.user
+        )
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         """Create a new speaker experience for the authenticated user."""
-        serializer = SpeakerExperiencesSerializer(data=request.data, context={"request": request})
+        serializer = SpeakerExperiencesSerializer(
+            data=request.data, context={"request": request}
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -79,6 +86,7 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
 
     This view allows users to manage a specific speaker experience.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get_object(self, pk, speaker):

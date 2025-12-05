@@ -33,7 +33,7 @@ class SpeakerExperiences(TimeStampedModel):
     event_name = models.CharField(
         max_length=255, null=True, help_text="Name of the event"
     )
-    event_date = models.DateField(help_text="Date of the event", auto_now=True)
+    event_date = models.DateField(help_text="Date of the event")
     topic = models.CharField(max_length=255, null=True, help_text="Topic presented")
     description = models.TextField(
         null=True, help_text="A brief description of the experience"

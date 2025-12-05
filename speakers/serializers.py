@@ -44,6 +44,7 @@ class SpeakerExperiencesSerializer(ModelSerializer):
     def create(self, validated_data):
         """Create speaker experience with validation."""
         event_date = validated_data.get("event_date")
+        print(validated_data)
         if event_date is None:
             raise ValidationError("Event date is required.")
         speaker = self.context["request"].user.speakers_profile_user.first()

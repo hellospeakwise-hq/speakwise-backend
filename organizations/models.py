@@ -6,8 +6,6 @@ from base.models import TimeStampedModel
 from organizations.choices import OrganizationRole
 from users.models import User
 
-# Create your models here.
-
 ORGANIZATION_UPLOAD_DIR = "organizations/logos/"
 
 

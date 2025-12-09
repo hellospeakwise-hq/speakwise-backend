@@ -6,6 +6,6 @@ from django.db import models
 class OrganizationRole(models.TextChoices):
     """Choices for organization roles."""
 
-    ADMIN = "ADMIN", "Admin"
-    MEMBER = "MEMBER", "Member"
-    ORGANIZER = "ORGANIZER", "Organizer"
+    ADMIN = "admin", "Admin"
+    MEMBER = "member", "Member"
+    ORGANIZER = "organizer", "Organizer"

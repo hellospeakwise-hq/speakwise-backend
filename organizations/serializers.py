@@ -74,14 +74,14 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def validate(self, attrs):
+    def validate(self, attrs) -> dict:
         """Ensure request context with an authenticated user is provided."""
         request = self.context.get("request")
         if not request or not getattr(request, "user", None):
             raise KeyError("request")
         return attrs
 
-    def create(self, validated_data):
+    def create(self, validated_data) -> Organization:
         """Create a new organization."""
         request = self.context.get("request")
         additional_members = validated_data.pop("additional_members", [])
@@ -111,7 +111,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
         return organization
 
-    def update(self, instance, validated_data):
+    def update(self, instance, validated_data) -> Organization:
         """Update an organization."""
         request = self.context.get("request")
         additional_members = validated_data.pop("additional_members", [])

@@ -41,7 +41,7 @@ class SpeakerExperiencesSerializer(ModelSerializer):
         model = SpeakerExperiences
         exclude = ["created_at", "updated_at"]
 
-    def create(self, validated_data):
+    def create(self, validated_data) -> SpeakerExperiences:
         """Create speaker experience with validation."""
         event_date = validated_data.get("event_date")
         print(validated_data)
@@ -68,7 +68,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         model = SpeakerProfile
         exclude = ["created_at", "updated_at"]
 
-    def get_speaker_name(self, obj):
+    def get_speaker_name(self, obj) -> str:
         """Get speaker name."""
         return (
             obj.user_account.first_name + " " + obj.user_account.last_name

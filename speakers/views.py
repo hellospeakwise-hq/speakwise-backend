@@ -17,6 +17,7 @@ from speakers.serializers import (
     SpeakerProfileSerializer,
     SpeakerSocialLinksSerializer,
 )
+from users.models import User
 
 
 @extend_schema(
@@ -89,20 +90,20 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk, speaker):
+    def get_object(self, pk: int, speaker: User):
         """Get speaker experience by primary key and user."""
         try:
             return SpeakerExperiences.objects.get(pk=pk, speaker__user_account=speaker)
         except SpeakerExperiences.DoesNotExist as err:
             raise Http404 from err
 
-    def get(self, request, pk):
+    def get(self, request, pk: int) -> Response:
         """Retrieve a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         serializer = SpeakerExperiencesSerializer(speaker_experience)
         return Response(serializer.data)
 
-    def patch(self, request, pk):
+    def patch(self, request, pk: int) -> Response:
         """Update a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         serializer = SpeakerExperiencesSerializer(
@@ -113,7 +114,7 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk):
+    def delete(self, request, pk: int) -> Response:
         """Delete a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         speaker_experience.delete()

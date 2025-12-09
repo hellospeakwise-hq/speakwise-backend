@@ -78,6 +78,8 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
+
+
 ROOT_URLCONF = "speakwise.urls"
 
 TEMPLATES = [

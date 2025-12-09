@@ -39,7 +39,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     email = serializers.EmailField()
 
-    def validate_email(self, value):
+    def validate_email(self, value) -> str:
         """Validate that the provided email is associated with a user."""
         try:
             User.objects.get(email=value)
@@ -57,7 +57,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True, min_length=8)
 
-    def validate(self, data):
+    def validate(self, data) -> dict:
         """Validate the provided email and token, and ensure the user exists."""
         try:
             user = User.objects.get(email=data["email"])

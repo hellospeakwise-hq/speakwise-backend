@@ -18,12 +18,12 @@ urlpatterns = [
         name="speakers_experiences_list_create",
     ),
     path(
-        "speakers/experiences/<pk>/",
+        "speakers/experiences/<int:pk>/",
         views.SpeakerExperiencesRetrieveUpdateDestroyView.as_view(),
         name="speakers_experiences_retrieve_update_delete",
     ),
     path(
-        "speakers/<pk>/",
+        "speakers/<int:pk>/",
         views.SpeakerProfileRetrieveUpdateDestroyView.as_view(),
         name="speakers_retrieve_update_delete",
     ),

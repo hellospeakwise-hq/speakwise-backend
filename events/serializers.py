@@ -1,5 +1,7 @@
 """Serializers for the events app."""
 
+from typing import Any
+
 from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
@@ -58,7 +60,7 @@ class EventSerializer(WritableNestedModelSerializer):
         model = Event
         exclude = ["created_at", "updated_at"]
 
-    def get_date(self, obj):
+    def get_date(self, obj) -> str | None:
         """Return a compact date representation for the event.
 
         - If start and end fall on the same date, return the ISO date string for that day.
@@ -79,7 +81,7 @@ class EventSerializer(WritableNestedModelSerializer):
             return start.date().isoformat()
         return None
 
-    def get_date_range(self, obj):
+    def get_date_range(self, obj) -> dict:
         """Return start/end datetimes for the event in ISO format."""
         start = obj.start_date_time
         end = obj.end_date_time
@@ -95,7 +97,7 @@ class EventWithGuestSpeakersSerializer(EventSerializer):
     speaker_profiles = serializers.SerializerMethodField()
     event_sessions = serializers.SerializerMethodField()
 
-    def get_speaker_profiles(self, obj):
+    def get_speaker_profiles(self, obj) -> list[dict]:
         """Get detailed speaker profiles for this event."""
         speakers = obj.speakers.all()
         return SpeakerProfileSerializer(speakers, many=True).data

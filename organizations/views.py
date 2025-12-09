@@ -24,7 +24,7 @@ class OrganizationListCreateView(APIView):
     @extend_schema(
         request=OrganizationSerializer, responses={201: OrganizationSerializer}
     )
-    def get(self, request):
+    def get(self, request) -> Response:
         """List all organizations."""
         organizations = Organization.objects.all()
         serializer = OrganizationSerializer(organizations, many=True)
@@ -33,7 +33,7 @@ class OrganizationListCreateView(APIView):
     @extend_schema(
         request=OrganizationSerializer, responses={201: OrganizationSerializer}
     )
-    def post(self, request):
+    def post(self, request) -> Response:
         """Create a new organization."""
         serializer = OrganizationSerializer(
             data=request.data, context={"request": request}
@@ -49,7 +49,7 @@ class OrganizationDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk):
+    def get_object(self, pk: int) -> Organization:
         """Get an organization by its primary key."""
         try:
             return Organization.objects.get(pk=pk)
@@ -57,7 +57,7 @@ class OrganizationDetailView(APIView):
             raise Http404 from err
 
     @extend_schema(responses={200: OrganizationSerializer})
-    def get(self, request, pk):
+    def get(self, request, pk: int) -> Response:
         """Retrieve an organization."""
         organization = self.get_object(pk)
         serializer = OrganizationSerializer(organization)
@@ -66,7 +66,7 @@ class OrganizationDetailView(APIView):
     @extend_schema(
         request=OrganizationSerializer, responses={200: OrganizationSerializer}
     )
-    def patch(self, request, pk):
+    def patch(self, request, pk: int) -> Response:
         """Update an organization."""
         organization = self.get_object(pk)
         serializer = OrganizationSerializer(
@@ -78,7 +78,7 @@ class OrganizationDetailView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(responses={204: None})
-    def delete(self, request, pk):
+    def delete(self, request, pk: int) -> Response:
         """Delete an organization."""
         organization = self.get_object(pk)
         organization.delete()
@@ -91,7 +91,7 @@ class OrganizationMembersView(APIView):
     permission_classes = [IsOrganizationMember]
 
     @extend_schema(responses={200: OrganizationMembershipSerializer(many=True)})
-    def get(self, request, pk):
+    def get(self, request, pk: int) -> Response:
         """List members of an organization."""
         try:
             organization = Organization.objects.get(pk=pk)

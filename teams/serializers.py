@@ -27,7 +27,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         model = TeamMember
         exclude = ["is_active", "created_at", "updated_at"]
 
-    def get_avatar_url(self, obj):
+    def get_avatar_url(self, obj) -> str | None:
         """Get the full URL for the avatar image."""
         if obj.avatar:
             request = self.context.get("request")

@@ -1,5 +1,7 @@
 """Serializers for the events app."""
 
+from typing import Any
+
 from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 

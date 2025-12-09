@@ -14,9 +14,9 @@ class SpeakerSkillTag(TimeStampedModel):
 
     name = models.CharField(
         max_length=255, null=True, help_text="name of skill. Eg. Software Engineer"
-    )
+    )  # Consider making this non-nullable if a skill must have a name.
     description = models.TextField(
-        null=True, help_text="A brief description of the skill"
+        blank=True, null=True, help_text="A brief description of the skill"
     )
     duration = models.PositiveIntegerField(null=True, help_text="years of experience")
 
@@ -36,13 +36,13 @@ class SpeakerExperiences(TimeStampedModel):
     event_date = models.DateField(help_text="Date of the event")
     topic = models.CharField(max_length=255, null=True, help_text="Topic presented")
     description = models.TextField(
-        null=True, help_text="A brief description of the experience"
+        blank=True, null=True, help_text="A brief description of the experience"
     )
     presentation_link = models.URLField(
-        null=True, help_text="Link to slides of the presentation or talk"
+        blank=True, null=True, help_text="Link to slides of the presentation or talk"
     )
     video_recording_link = models.URLField(
-        null=True, help_text="Link to the video recording of the talk"
+        blank=True, null=True, help_text="Link to the video recording of the talk"
     )
     speaker = models.ForeignKey(
         "speakers.SpeakerProfile",
@@ -63,11 +63,15 @@ class SpeakerProfile(TimeStampedModel):
         User, on_delete=models.CASCADE, related_name="speakers_profile_user"
     )
     events_spoken = models.ForeignKey(
-        "events.Event", on_delete=models.DO_NOTHING, null=True, related_name="speakers"
+        "events.Event",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="speakers",
     )
     organization = models.CharField(max_length=255, blank=True)
     short_bio = models.CharField(max_length=255, blank=True)
-    long_bio = models.TextField(null=True)
+    long_bio = models.TextField(blank=True, null=True)
     country = models.CharField(max_length=255, blank=True)
     avatar = models.ImageField(upload_to=SPEAKERS_UPLOAD_DIR, blank=True)
     skill_tag = models.ManyToManyField(

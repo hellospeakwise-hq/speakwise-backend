@@ -79,3 +79,9 @@ class UserProfileSerializer(serializers.Serializer):
 
     user = UserSerializer()
     speaker = SpeakerProfileSerializer()
+
+
+class LogoutSerializer(serializers.Serializer):
+    """Serializer for logging out a user by blacklisting a refresh token."""
+
+    refresh = serializers.CharField(write_only=True)

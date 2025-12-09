@@ -1,14 +1,16 @@
-"""Production settings for SpeakWise project."""
+"""Production settings for speakwise."""
 
-import os
-
-from .base import *  # Import base settings  # noqa: E402,F403,F401
+from .base import *  # noqa: E402,F403,F401
 from .base import BASE_DIR  # noqa: E402
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-fallback-key-change-me")
+# Do not provide an insecure fallback in production.
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable must be set in production")
 
 # SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = False
 
 
 ALLOWED_HOSTS = ["10.114.0.2", "apis.speak-wise.live"]
@@ -44,11 +46,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
 # Media files
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
@@ -122,15 +119,3 @@ LOGGING = {
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-
-# Security settings
-SECURE_HSTS_SECONDS = 2592000  # 30 days
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
-

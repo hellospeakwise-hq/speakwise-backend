@@ -22,7 +22,9 @@ class OrganizationListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        request=OrganizationSerializer, responses={201: OrganizationSerializer}
+        operation_id="organizations_list",
+        request=OrganizationSerializer,
+        responses={201: OrganizationSerializer},
     )
     def get(self, request) -> Response:
         """List all organizations."""
@@ -56,7 +58,9 @@ class OrganizationDetailView(APIView):
         except Organization.DoesNotExist as err:
             raise Http404 from err
 
-    @extend_schema(responses={200: OrganizationSerializer})
+    @extend_schema(
+        operation_id="organizations_retrieve", responses={200: OrganizationSerializer}
+    )
     def get(self, request, pk: int) -> Response:
         """Retrieve an organization."""
         organization = self.get_object(pk)

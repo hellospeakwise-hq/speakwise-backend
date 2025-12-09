@@ -17,6 +17,7 @@ from speakers.serializers import SpeakerProfileSerializer
 from users.filters import UserFilter
 from users.models import User
 from users.serializers import (
+    LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     UserProfileSerializer,
@@ -37,14 +38,14 @@ class UserCreateView(CreateAPIView):
 class UserLogoutView(APIView):
     """User logout view."""
 
+    serializer_class = LogoutSerializer
+
+    @extend_schema(request=LogoutSerializer, responses={205: None})
     def post(self, request):
         """Logout user."""
-        refresh = request.data.get("refresh")
-        if refresh is None:
-            return Response(
-                {"detail": "Refresh token is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        refresh = serializer.validated_data["refresh"]
         try:
             token = RefreshToken(refresh)
             token.blacklist()
@@ -113,10 +114,12 @@ class PasswordResetRequestView(APIView):
     """Password request view for users."""
 
     permission_classes = [AllowAny]
+    serializer_class = PasswordResetRequestSerializer
 
+    @extend_schema(request=PasswordResetRequestSerializer, responses={200: None})
     def post(self, request):
         """Request password reset for email."""
-        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data["email"]
             user = User.objects.get(email=email)
@@ -135,10 +138,12 @@ class PasswordResetConfirmView(APIView):
     """Password request confirm view."""
 
     permission_classes = [AllowAny]
+    serializer_class = PasswordResetConfirmSerializer
 
+    @extend_schema(request=PasswordResetConfirmSerializer, responses={200: None})
     def post(self, request):
         """Confirm password reset."""
-        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             user = serializer.context["user"]  # User set in serializer's validate
             user.set_password(serializer.validated_data["new_password"])

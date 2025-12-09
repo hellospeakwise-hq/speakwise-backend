@@ -26,6 +26,7 @@ class SpeakerRequestListView(APIView):
     """
 
     permission_classes = [AllowAny]
+    serializer_class = SpeakerRequestSerializer
 
     def get_objects(self, organizer):
         """Get speaker requests by organizer."""
@@ -80,6 +81,7 @@ class SPeakerRequestDetailView(APIView):
     """
 
     permission_classes = [AllowAny]
+    serializer_class = SpeakerRequestSerializer
 
     def get_object(self, pk, organizer):
         """Get object by pk."""

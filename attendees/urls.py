@@ -18,4 +18,8 @@ urlpatterns = [
         views.AttendeeRetrieveUpdateDestroyView.as_view(),
         name="attendee-detail",
     ),
+    path("attendees/upload-attendance/",
+         views.CreateAttendanceByFileUploadView.as_view(),
+         name="upload-attendance-file"),
+
 ]

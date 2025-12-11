@@ -5,6 +5,7 @@ import re
 import tempfile
 
 import pandas
+from django.db import transaction
 from email_validator import EmailNotValidError, validate_email
 
 from attendees.models import Attendance
@@ -21,16 +22,45 @@ class FileHandler:
 
     def _save_extracted_attendee_profile(self, email_list, name_list, event):
         """Save extracted emails, save unto a database."""
+        if event is None:
+            raise ValueError("Event is required.")
+
+        normalized_pairs = []
         for email, name in zip(email_list, name_list, strict=False):
             try:
-                validate_email(email, check_deliverability=True, strict=True)
-                try:
-                    Attendance.objects.get(email=email, event=event)
-                except Attendance.DoesNotExist:
-                    Attendance.objects.create(email=email, event=event, username=name)
+                v = validate_email(email, check_deliverability=True, strict=True)
+                normalized_email = v.normalized  # canonical form
             except EmailNotValidError as err:
                 raise ValueError("Email is not valid: ", str(email)) from err
-        return Attendance.objects.filter(event=event)
+            normalized_pairs.append((normalized_email, name or ""))
+
+        if not normalized_pairs:
+            return Attendance.objects.filter(event=event)
+
+        first_name_by_email = {}
+        for e, n in normalized_pairs:
+            if e not in first_name_by_email:
+                first_name_by_email[e] = n
+
+        emails = list(first_name_by_email.keys())
+
+        existing = set(
+            Attendance.objects.filter(event=event, email__in=emails).values_list(
+                "email", flat=True
+            )
+        )
+
+        to_create = [
+            Attendance(email=e, event=event, username=first_name_by_email[e])
+            for e in emails
+            if e not in existing
+        ]
+
+        if to_create:
+            with transaction.atomic():
+                Attendance.objects.bulk_create(to_create, batch_size=1000)
+
+        return Attendance.objects.filter(event=event, email__in=emails)
 
     def _extract_attendee_profiles(self, uploaded_file, event=None):
         """Extract emails from csv or excel file."""

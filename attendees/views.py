@@ -1,14 +1,26 @@
 """attendees views."""
 
+from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import (
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from attendees.models import Attendance, AttendeeProfile
-from attendees.serializers import AttendeeProfileSerializer, VerifyAttendeeSerializer
+from attendees.serializers import (
+    AttendanceSerializer,
+    AttendeeProfileSerializer,
+    FileUploadSerializer,
+    VerifyAttendeeSerializer,
+)
+from base.permissions import IsOrganizationAdmin
+from base.utils import FileHandler
 
 
 @extend_schema(responses=AttendeeProfileSerializer, request=AttendeeProfileSerializer)
@@ -67,3 +79,28 @@ def verify_attendee(request):
         {"detail": "Attendee verified. You may now submit feedback.", "email": email},
         status=status.HTTP_200_OK,
     )
+
+
+class CreateAttendanceByFileUploadView(APIView):
+    """Attendee list create view."""
+
+    permission_classes = [IsOrganizationAdmin]
+
+    @extend_schema(
+        request=FileUploadSerializer, responses=AttendanceSerializer(many=True)
+    )
+    def post(self, request, *args, **kwargs):
+        """Create attendance through file upload."""
+        attendance_file = request.FILES["file"]
+        event =  request.data["event"]
+
+        if not attendance_file:
+            raise Http404("file not found")
+
+        if not event:
+            raise Http404("event not found")
+
+        attendance = FileHandler.clean_file(attendance_file, event)
+        serializer = AttendanceSerializer(attendance)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+

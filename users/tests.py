@@ -59,7 +59,7 @@ class TestPasswordReset(TestCase):
         email = mail.outbox[0]
         self.assertEqual(email.subject, "Password Reset Request - SpeakWise")
         self.assertEqual(email.to, ["test@mail.com"])
-        assert f"{settings.FRONTEND_URL}/reset-password/" in email.body
+        assert f"{settings.FRONTEND_URL}/reset-password?" in email.body
 
     def test_password_reset_request_invalid_email(self):
         """Test sending a password reset email with an invalid email."""

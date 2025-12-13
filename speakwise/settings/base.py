@@ -128,6 +128,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# OAuth settings (to be set via environment variables or directly for dev)
+GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID")
+GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+OAUTH2_REDIRECT_URI = os.environ.get("OAUTH2_REDIRECT_URI")
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 

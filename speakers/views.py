@@ -88,7 +88,7 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     This view allows users to manage a specific speaker experience.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_object(self, pk: int, speaker: User):
         """Get speaker experience by primary key and user."""

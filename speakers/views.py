@@ -5,9 +5,12 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import (
     ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView,
 )
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -38,14 +41,48 @@ class SpeakerProfileListCreateView(ListCreateAPIView):
 @extend_schema(
     request=SpeakerSocialLinksSerializer, responses=SpeakerSocialLinksSerializer
 )
-class SpeakerProfileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
+class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker profile.
 
     This view allows users to manage a specific speaker profile.
     """
 
-    queryset = SpeakerProfile.objects.all()
-    serializer_class = SpeakerProfileSerializer
+    SAFE_METHODS = ["GET", "HEAD", "OPTIONS"]
+
+    def get_permissions(self):
+        """Get permissions based on request method."""
+        if self.request.method in self.SAFE_METHODS:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def get_object(self, pk):
+        """Get speaker profile by ID."""
+        try:
+            return SpeakerProfile.objects.get(id=pk)
+        except SpeakerProfile.DoesNotExist as err:
+            raise Http404 from err
+
+    def get(self, request, pk):
+        """Retrieve a specific speaker profile by ID."""
+        speaker_profile = self.get_object(pk)
+        serializer = SpeakerProfileSerializer(speaker_profile)
+        return Response(serializer.data)
+
+    def patch(self, request, pk):
+        """Update a specific speaker profile by ID."""
+        speaker_profile = self.get_object(pk)
+        serializer = SpeakerProfileSerializer(
+            speaker_profile, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, pk):
+        """Delete a specific speaker profile by ID."""
+        speaker_profile = self.get_object(pk)
+        speaker_profile.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(
@@ -88,7 +125,7 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     This view allows users to manage a specific speaker experience.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_object(self, pk: int, speaker: User):
         """Get speaker experience by primary key and user."""

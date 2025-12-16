@@ -156,3 +156,16 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
         speaker_experience = self.get_object(pk, request.user)
         speaker_experience.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PublicSpeakerExperiencesListView(APIView):
+    """View to list all speaker experiences."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(responses=SpeakerExperiencesSerializer(many=True))
+    def get(self, request, pk):
+        """List all speaker experiences."""
+        speaker_experiences = SpeakerExperiences.objects.filter(speaker=pk)
+        serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

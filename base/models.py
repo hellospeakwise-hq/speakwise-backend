@@ -19,8 +19,8 @@ class TimeStampedModel(models.Model):
 class SocialLinks(TimeStampedModel):
     """social links model."""
 
-    name = models.CharField(null=True, max_length=255)
-    link = models.URLField(null=True, max_length=255)
+    name = models.CharField(null=True, max_length=255, unique=True)
+    link = models.URLField(null=True, max_length=255, unique=True)
 
     class Meta:
         """meta options."""

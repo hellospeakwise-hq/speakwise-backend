@@ -19,8 +19,9 @@ from attendees.serializers import (
     FileUploadSerializer,
     VerifyAttendeeSerializer,
 )
-from base.permissions import IsOrganizationAdmin
+from base.permissions import IsOrganizationAdmin, IsOrganizationOrganizer
 from base.utils import FileHandler
+from events.models import Event
 
 
 @extend_schema(responses=AttendeeProfileSerializer, request=AttendeeProfileSerializer)
@@ -86,21 +87,82 @@ class CreateAttendanceByFileUploadView(APIView):
 
     permission_classes = [IsOrganizationAdmin]
 
-    @extend_schema(
-        request=FileUploadSerializer, responses=AttendanceSerializer(many=True)
-    )
-    def post(self, request, *args, **kwargs):
-        """Create attendance through file upload."""
-        attendance_file = request.FILES["file"]
-        event =  request.data["event"]
+    def get(self, request):
+        """Return all attendance objects."""
+        attendance = Attendance.objects.all()
+        serializer = AttendanceSerializer(attendance, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        if not attendance_file:
-            raise Http404("file not found")
-
-        if not event:
-            raise Http404("event not found")
-
-        attendance = FileHandler.clean_file(attendance_file, event)
-        serializer = AttendanceSerializer(attendance)
+    @extend_schema(request=AttendanceSerializer, responses=AttendanceSerializer)
+    def post(self, request):
+        """Create attendance by file upload."""
+        serializer = AttendanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+
+class AttendanceDetailView(APIView):
+    """get attendance detail view."""
+
+    permission_classes = [IsOrganizationOrganizer]
+
+    def get_object(self, pk):
+        """Get attendance object."""
+        try:
+            return Attendance.objects.get(pk=pk)
+        except Attendance.DoesNotExist as err:
+            raise Http404 from err
+
+    @extend_schema(responses=AttendanceSerializer)
+    def get(self, request, pk):
+        """Get attendance detail."""
+        attendance = self.get_object(pk)
+        serializer = AttendanceSerializer(attendance)
+        return Response(serializer.data)
+
+    @extend_schema(request=AttendanceSerializer)
+    def patch(self, request, pk):
+        """Update attendance detail."""
+        attendance = self.get_object(pk)
+        serializer = AttendanceSerializer(attendance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+    @extend_schema(responses={204: None})
+    def delete(self, request, pk):
+        """Delete attendance detail."""
+        attendance = self.get_object(pk)
+        attendance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+@extend_schema(request=FileUploadSerializer, responses=AttendanceSerializer(many=True))
+def upload_attendance_view(request, *args, **kwargs):
+    """Create attendance objects from uploaded file."""
+    attendance_file = request.FILES.get("file")
+    event = Event.objects.get(id=int(request.data.get("event")))
+
+    if not attendance_file:
+        return Response(
+            {"detail": "No file uploaded. Use multipart/form-data with field 'file'."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not event:
+        return Response(
+            {"detail": "'event' is required."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        attendance = FileHandler().clean_file(file_obj=attendance_file, event=event)
+    except ValueError as e:
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response(
+            {"detail": "Unable to process file.", "error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = AttendanceSerializer(attendance, many=True)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)

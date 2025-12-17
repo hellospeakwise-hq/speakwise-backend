@@ -60,7 +60,7 @@ class FileHandler:
             with transaction.atomic():
                 Attendance.objects.bulk_create(to_create, batch_size=1000)
 
-        return Attendance.objects.filter(event=event, email__in=emails)
+        return Attendance.objects.filter(event=event)
 
     def _extract_attendee_profiles(self, uploaded_file, event=None):
         """Extract emails from csv or excel file."""
@@ -141,9 +141,12 @@ class FileHandler:
         allowed_exts = {".csv", ".xlsx"}
         allowed_ct = {
             "text/csv",
+            "application/csv",
+            "text/plain",
+            "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }
-        max_bytes = 15 * 1024 * 1024  # 15 MB
+        max_bytes = 20 * 1024 * 1024  # 20 MB
 
         filename = getattr(file_obj, "name", "")
         ext = os.path.splitext(filename)[1].lower()
@@ -169,7 +172,6 @@ class FileHandler:
                     temp_file.write(chunk)
                 temp_file_path = temp_file.name
         except Exception:
-            # Best-effort cleanup if a temp file was created
             try:
                 if "temp_file_path" in locals() and os.path.exists(temp_file_path):
                     os.remove(temp_file_path)

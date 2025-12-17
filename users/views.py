@@ -181,50 +181,6 @@ class RetrieveUpdateAuthenticatedUserView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-    # @extend_schema(request=UserProfileSerializer, responses=UserProfileSerializer)
-    # def patch(self, request):
-    #     """Update the authenticated user's details along with the speaker profile."""
-    #     user = request.user
-    #
-    #     # Expecting payload like: { "user": {..}, "speaker": {..} }
-    #     incoming_user = request.data.get("user", {})
-    #     incoming_speaker = request.data.get("speaker", None)
-    #
-    #     # Update users
-    #     user_serializer = UserSerializer(user, data=incoming_user, partial=True)
-    #     if not user_serializer.is_valid():
-    #         return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    #
-    #     user_serializer.save()
-    #
-    #     if incoming_speaker is not None:
-    #         # Get or create speaker profile for user
-    #         speaker_profile = SpeakerProfile.objects.filter(user_account=user).first()
-    #
-    #         if speaker_profile is None:
-    #             speaker_profile = SpeakerProfile(user_account=user)
-    #
-    #         speaker_serializer = SpeakerProfileSerializer(
-    #             instance=speaker_profile, data=incoming_speaker, partial=True
-    #         )
-    #
-    #         if not speaker_serializer.is_valid():
-    #             return Response(
-    #                 {"speaker": speaker_serializer.errors},
-    #                 status=status.HTTP_400_BAD_REQUEST,
-    #             )
-    #
-    #         speaker_serializer.save()
-    #
-    #     # Build a UserProfileSerializer for consistent output
-    #     speaker_instance = SpeakerProfile.objects.filter(user_account=user).first()
-    #
-    #     profile_serializer = UserProfileSerializer(
-    #         {"user": user, "speaker": speaker_instance}
-    #     )
-    #
-    #     return Response(profile_serializer.data)
-
 
 class UsersListView(APIView):
     """View to list all users."""

@@ -42,3 +42,10 @@ class VerifyAttendeeSerializer(serializers.Serializer):
     """verify attendee serializer."""
 
     email = serializers.EmailField(required=True)
+
+
+class FileUploadSerializer(serializers.Serializer):
+    """file upload serializer."""
+
+    file = serializers.FileField(required=True)
+    event = serializers.CharField(required=True)

@@ -85,3 +85,5 @@ celerybeat.pid
 /speakwise/media/team/avatars/*
 
 todo.md
+
+test_attendance.csv

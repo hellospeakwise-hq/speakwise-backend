@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
 from django.contrib.auth import logout
+from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
@@ -12,8 +13,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from speakers.models import SpeakerProfile
-from speakers.serializers import SpeakerProfileSerializer
 from users.filters import UserFilter
 from users.models import User
 from users.serializers import (
@@ -159,60 +158,28 @@ class RetrieveUpdateAuthenticatedUserView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    def get_object(self, pk):
+        """Get the authenticated user."""
+        try:
+            return User.objects.get(pk=pk)
+        except User.DoesNotExist as err:
+            raise Http404 from err
+
     @extend_schema(responses=UserProfileSerializer)
     def get(self, request):
         """Retrieve the authenticated user's details."""
-        user = request.user
-        serializer = UserProfileSerializer(
-            {
-                "user": user,
-                "speaker": SpeakerProfile.objects.filter(user_account=user).first(),
-            }
-        )
+        user = self.get_object(request.user.pk)
+        serializer = UserProfileSerializer(user)
         return Response(serializer.data)
 
-    @extend_schema(request=UserProfileSerializer, responses=UserProfileSerializer)
-    def put(self, request):
-        """Update the authenticated user's details along with the speaker profile."""
-        user = request.user
-
-        # Expecting payload like: { "user": {..}, "speaker": {..} }
-        incoming_user = request.data.get("user", {})
-        incoming_speaker = request.data.get("speaker", None)
-
-        # Update user
-        user_serializer = UserSerializer(user, data=incoming_user, partial=True)
-        if not user_serializer.is_valid():
-            return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        user_serializer.save()
-
-        if incoming_speaker is not None:
-            # Get or create speaker profile for user
-            speaker_profile = SpeakerProfile.objects.filter(user_account=user).first()
-            if speaker_profile is None:
-                speaker_profile = SpeakerProfile(user_account=user)
-
-            speaker_serializer = SpeakerProfileSerializer(
-                instance=speaker_profile, data=incoming_speaker, partial=True
-            )
-
-            if not speaker_serializer.is_valid():
-                return Response(
-                    {"speaker": speaker_serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            speaker_serializer.save()
-
-        # Build a UserProfileSerializer for consistent output
-        speaker_instance = SpeakerProfile.objects.filter(user_account=user).first()
-
-        profile_serializer = UserProfileSerializer(
-            {"user": user, "speaker": speaker_instance}
-        )
-
-        return Response(profile_serializer.data)
+    @extend_schema(responses=UserProfileSerializer, request=UserProfileSerializer)
+    def patch(self, request):
+        """Update the authenticated user's details."""
+        user = self.get_object(request.user.pk)
+        serializer = UserProfileSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class UsersListView(APIView):

@@ -147,13 +147,11 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Ensure expected fields from UserSerializer are present
-        self.assertEqual(response.data["user"]["email"], self.user.email)
-        self.assertEqual(response.data["user"]["username"], self.user.username)
-        self.assertEqual(response.data["user"]["first_name"], self.user.first_name)
-        self.assertEqual(response.data["user"]["last_name"], self.user.last_name)
-        self.assertEqual(
-            response.data["user"].get("nationality"), self.user.nationality
-        )
+        self.assertEqual(response.data["email"], self.user.email)
+        self.assertEqual(response.data["username"], self.user.username)
+        self.assertEqual(response.data["first_name"], self.user.first_name)
+        self.assertEqual(response.data["last_name"], self.user.last_name)
+        self.assertEqual(response.data.get("nationality"), self.user.nationality)
 
     def test_get_unauthenticated(self):
         """Test retrieving user details without authentication."""
@@ -164,24 +162,22 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
     def test_update_authenticated_user(self):
         """Test updating authenticated user details."""
         update_data = {
-            "user": {
-                "first_name": "Updated",
-                "last_name": "Name",
-                "nationality": "Uganda",
-            }
+            "first_name": "Updated",
+            "last_name": "Name",
+            "nationality": "Uganda",
         }
-        response = self.client.put(self.url, update_data, format="json")
+        response = self.client.patch(self.url, update_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.first_name, update_data["user"]["first_name"])
-        self.assertEqual(self.user.last_name, update_data["user"]["last_name"])
-        self.assertEqual(self.user.nationality, update_data["user"]["nationality"])
+        self.assertEqual(self.user.first_name, update_data["first_name"])
+        self.assertEqual(self.user.last_name, update_data["last_name"])
+        self.assertEqual(self.user.nationality, update_data["nationality"])
 
     def test_update_readonly_fields_ignored(self):
         """Test that read-only fields are ignored during update."""
         # email is part of serializer but should be allowed; password is write_only
-        data = {"user": {"email": "new@example.com", "password": "newpass123"}}
-        response = self.client.put(self.url, data, format="json")
+        data = {"email": "new@example.com", "password": "newpass123"}
+        response = self.client.patch(self.url, data, format="json")
         # password write-only won't be returned but should be accepted; email may be updated
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
@@ -191,27 +187,34 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
     def test_update_invalid_data(self):
         """Test updating user with invalid data."""
         # username is required and must be non-empty; send invalid username
-        invalid_data = {"user": {"username": ""}}
-        response = self.client.put(self.url, invalid_data, format="json")
+        invalid_data = {"username": ""}
+        response = self.client.patch(self.url, invalid_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_update_unauthenticated(self):
         """Test updating user details without authentication."""
         self.client.force_authenticate(user=None)
-        response = self.client.put(
+        response = self.client.patch(
             self.url, {"user": {"first_name": "X"}}, format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_update_with_speaker_profile(self):
         """Test updating user details along with speaker profile."""
-        # Update both user and speaker profile together
+        self.client.force_authenticate(self.user)
         payload = {
-            "user": {"first_name": "Speaker", "last_name": "One"},
-            "speaker": {"organization": "Acme Org", "short_bio": "Hello world"},
+            "first_name": "Speaker",
+            "last_name": "One",
+            "speaker": [
+                {
+                    "organization": "Acme Org",
+                    "short_bio": "Hello " "world",
+                    "user_account": self.user.id,
+                }
+            ],
         }
 
-        response = self.client.put(self.url, payload, format="json")
+        response = self.client.patch(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Check user updated

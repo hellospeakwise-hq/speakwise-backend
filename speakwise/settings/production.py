@@ -1,7 +1,11 @@
 """Production settings for speakwise."""
 
+from dotenv import load_dotenv
+
 from .base import *  # noqa: E402,F403,F401
 from .base import BASE_DIR  # noqa: E402
+
+load_dotenv()
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # Do not provide an insecure fallback in production.

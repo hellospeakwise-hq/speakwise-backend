@@ -74,11 +74,18 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return data
 
 
-class UserProfileSerializer(serializers.Serializer):
+class UserProfileSerializer(UserSerializer):
     """Serializer for user profile."""
 
-    user = UserSerializer()
-    speaker = SpeakerProfileSerializer()
+    speaker = SpeakerProfileSerializer(
+        source="speakers_profile_user", many=True, required=False
+    )
+
+    class Meta:
+        """meta options."""
+
+        model = User
+        exclude = ["password"]
 
 
 class LogoutSerializer(serializers.Serializer):

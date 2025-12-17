@@ -3,9 +3,6 @@
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.generics import (
-    ListCreateAPIView,
-)
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
@@ -23,19 +20,25 @@ from speakers.serializers import (
 from users.models import User
 
 
-@extend_schema(
-    request=SpeakerProfileSerializer,
-    responses=SpeakerProfileSerializer(many=True),
-)
-class SpeakerProfileListCreateView(ListCreateAPIView):
-    """View to list and create speaker profiles.
+class SpeakerProfileListCreateView(APIView):
+    """View to list and create speaker profiles."""
 
-    This view allows users to view a list of speaker profiles and create a new one.
-    """
-
-    queryset = SpeakerProfile.objects.all()
-    serializer_class = SpeakerProfileSerializer
     permission_classes = [AllowAny]
+
+    @extend_schema(responses=SpeakerProfileSerializer(many=True))
+    def get(self, request):
+        """List all speaker profiles."""
+        speaker_profiles = SpeakerProfile.objects.all()
+        serializer = SpeakerProfileSerializer(speaker_profiles, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
+    def post(self, request):
+        """Create a new speaker profile."""
+        serializer = SpeakerProfileSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(

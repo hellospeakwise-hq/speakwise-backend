@@ -1,5 +1,6 @@
 """speaker serializers."""
 
+from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from jsonschema import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
@@ -44,7 +45,6 @@ class SpeakerExperiencesSerializer(ModelSerializer):
     def create(self, validated_data) -> SpeakerExperiences:
         """Create speaker experience with validation."""
         event_date = validated_data.get("event_date")
-        print(validated_data)
         if event_date is None:
             raise ValidationError("Event date is required.")
         speaker = self.context["request"].user.speakers_profile_user.first()
@@ -75,3 +75,33 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
             if obj.user_account.first_name and obj.user_account.last_name
             else obj.user_account.username
         )
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        """Update speaker profile objects."""
+        social_data = validated_data.pop("social_links", [])
+        skill_data = validated_data.pop("skill_tag", [])
+
+        instance = super().update(instance, validated_data)
+
+        for item in skill_data:
+            tag_id = item.get("id")
+            if tag_id:
+                SpeakerSkillTag.objects.filter(id=tag_id).update(
+                    **{k: v for k, v in item.items() if k != "id"}
+                )
+                tag = SpeakerSkillTag.objects.get(id=tag_id)
+            else:
+                tag = SpeakerSkillTag.objects.create(**item)
+            instance.skill_tag.add(tag)
+
+        for item in social_data:
+            link_id = item.get("id")
+            if link_id:
+                SpeakerSocialLinks.objects.filter(id=link_id, speaker=instance).update(
+                    **{k: v for k, v in item.items() if k != "id"}
+                )
+            else:
+                SpeakerSocialLinks.objects.create(speaker=instance, **item)
+
+        return instance

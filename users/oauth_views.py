@@ -18,7 +18,7 @@ def get_github_session():
     """Return a GitHub OAuth2Session."""
     return OAuth2Session(
         settings.GITHUB_CLIENT_ID,
-        redirect_uri=settings.OAUTH2_REDIRECT_URI,
+        redirect_uri=settings.GITHUB_REDIRECT_URI,
         scope=["public_repo", "read:user", "user:email"],
     )
 
@@ -27,7 +27,7 @@ def get_google_session():
     """Return a Google OAuth2Session."""
     return OAuth2Session(
         settings.GOOGLE_CLIENT_ID,
-        redirect_uri=settings.OAUTH2_REDIRECT_URI,
+        redirect_uri=settings.GOOGLE_REDIRECT_URI,
         scope=[
             "openid",
             "email",
@@ -71,16 +71,23 @@ def github_callback(request):
     email = user_info.get("email")
     username = user_info.get("login")
     if not email:
+        emails_res = github.get("https://api.github.com/user/emails").json()
+        primary_emails = [
+            e["email"] for e in emails_res if e.get("primary") and e.get("verified")
+        ]
+        if primary_emails:
+            email = primary_emails[0]
+        elif emails_res:
+            email = emails_res[0].get("email")
+
+    if not email:
         return Response({"error": "Email not found from GitHub"}, status=400)
 
-    # Find or create user
     user = User.objects.filter(email=email).first()
     if not user:
         user = User.objects.create(email=email, username=username)
 
-    # Generate Tokens
     refresh = RefreshToken.for_user(user)
-    # Add extra payload if needed, similar to LoginBaseClass
     refresh.payload.update(UserSerializer(user).data)
 
     return Response(

@@ -13,25 +13,36 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from users.models import User
 from users.serializers import UserSerializer
 
-# OAuth2Session for GitHub
-github = OAuth2Session(
-    settings.GITHUB_CLIENT_ID,
-    redirect_uri=settings.OAUTH2_REDIRECT_URI,
-    scope=["public_repo", "read:user", "user:email"],
-)
 
-# OAuth2Session for Google
-google = OAuth2Session(
-    settings.GOOGLE_CLIENT_ID,
-    redirect_uri=settings.OAUTH2_REDIRECT_URI,
-    scope=["openid", "email", "profile"],
-)
+def get_github_session():
+    """Return a GitHub OAuth2Session."""
+    return OAuth2Session(
+        settings.GITHUB_CLIENT_ID,
+        redirect_uri=settings.OAUTH2_REDIRECT_URI,
+        scope=["public_repo", "read:user", "user:email"],
+    )
+
+
+def get_google_session():
+    """Return a Google OAuth2Session."""
+    return OAuth2Session(
+        settings.GOOGLE_CLIENT_ID,
+        redirect_uri=settings.OAUTH2_REDIRECT_URI,
+        scope=[
+            "openid",
+            "email",
+            "profile",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
+        ],
+    )
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def github_login(request):
     """View to handle GitHub login."""
+    github = get_github_session()
     authorization_url, state = github.authorization_url(
         "https://github.com/login/oauth/authorize"
     )
@@ -44,7 +55,12 @@ def github_login(request):
 def github_callback(request):
     """View to handle GitHub callback."""
     code = request.GET.get("code")
+    state = request.GET.get("state")
 
+    if not state or state != request.session.get("oauth_state"):
+        return Response({"error": "Invalid state parameter"}, status=400)
+
+    github = get_github_session()
     github.fetch_token(
         "https://github.com/login/oauth/access_token",
         client_secret=settings.GITHUB_CLIENT_SECRET,
@@ -58,9 +74,9 @@ def github_callback(request):
         return Response({"error": "Email not found from GitHub"}, status=400)
 
     # Find or create user
-    user, created = User.objects.get_or_create(
-        email=email, defaults={"username": username}
-    )
+    user = User.objects.filter(email=email).first()
+    if not user:
+        user = User.objects.create(email=email, username=username)
 
     # Generate Tokens
     refresh = RefreshToken.for_user(user)
@@ -81,8 +97,9 @@ def github_callback(request):
 @permission_classes([AllowAny])
 def google_login(request):
     """View to handle Google login."""
+    google = get_google_session()
     authorization_url, state = google.authorization_url(
-        "https://accounts.google.com/o/oauth2/auth",
+        "https://accounts.google.com/o/oauth2/v2/auth",
         access_type="offline",
         prompt="select_account",
     )
@@ -95,7 +112,12 @@ def google_login(request):
 def google_callback(request):
     """View to handle Google callback."""
     code = request.GET.get("code")
+    state = request.GET.get("state")
 
+    if not state or state != request.session.get("oauth_state"):
+        return Response({"error": "Invalid state parameter"}, status=400)
+
+    google = get_google_session()
     google.fetch_token(
         "https://oauth2.googleapis.com/token",
         client_secret=settings.GOOGLE_CLIENT_SECRET,
@@ -106,9 +128,9 @@ def google_callback(request):
     username = user_info.get("name")
 
     # Find or create user
-    user, created = User.objects.get_or_create(
-        email=email, defaults={"username": username}
-    )
+    user = User.objects.filter(email=email).first()
+    if not user:
+        user = User.objects.create(email=email, username=username)
 
     # Generate Tokens
     refresh = RefreshToken.for_user(user)

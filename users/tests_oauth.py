@@ -22,9 +22,10 @@ class OAuthTests(TestCase):
         self.google_login_url = reverse("users:google-login")
         self.google_callback_url = reverse("users:google-callback")
 
-    @patch("users.oauth_views.github")
-    def test_github_login_redirect(self, mock_github):
+    @patch("users.oauth_views.get_github_session")
+    def test_github_login_redirect(self, mock_get_session):
         """Test GitHub login redirection."""
+        mock_github = mock_get_session.return_value
         mock_github.authorization_url.return_value = (
             "https://github.com/login/oauth/authorize?state=test",
             "test_state",
@@ -36,9 +37,10 @@ class OAuthTests(TestCase):
         )
         self.assertEqual(self.client.session["oauth_state"], "test_state")
 
-    @patch("users.oauth_views.github")
-    def test_github_callback_success(self, mock_github):
+    @patch("users.oauth_views.get_github_session")
+    def test_github_callback_success(self, mock_get_session):
         """Test GitHub callback success."""
+        mock_github = mock_get_session.return_value
         # Mock session state
         session = self.client.session
         session["oauth_state"] = "test_state"
@@ -65,9 +67,11 @@ class OAuthTests(TestCase):
         # Verify profile created
         self.assertTrue(SpeakerProfile.objects.filter(user_account=user).exists())
 
-    @patch("users.oauth_views.github")
-    def test_github_callback_invalid_state(self, mock_github):
+    @patch("users.oauth_views.get_github_session")
+    def test_github_callback_invalid_state(self, mock_get_session):
         """Test GitHub callback with invalid state."""
+        # No need to mock github here as it should fail before using it,
+        # but the view calls get_github_session() so we mock it.
         session = self.client.session
         session["oauth_state"] = "test_state"
         session.save()
@@ -78,23 +82,25 @@ class OAuthTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"], "Invalid state parameter")
 
-    @patch("users.oauth_views.google")
-    def test_google_login_redirect(self, mock_google):
+    @patch("users.oauth_views.get_google_session")
+    def test_google_login_redirect(self, mock_get_session):
         """Test Google login redirection."""
+        mock_google = mock_get_session.return_value
         mock_google.authorization_url.return_value = (
-            "https://accounts.google.com/o/oauth2/auth?state=test",
+            "https://accounts.google.com/o/oauth2/v2/auth?state=test",
             "test_state",
         )
         response = self.client.get(self.google_login_url)
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
         self.assertEqual(
-            response.url, "https://accounts.google.com/o/oauth2/auth?state=test"
+            response.url, "https://accounts.google.com/o/oauth2/v2/auth?state=test"
         )
         self.assertEqual(self.client.session["oauth_state"], "test_state")
 
-    @patch("users.oauth_views.google")
-    def test_google_callback_success(self, mock_google):
+    @patch("users.oauth_views.get_google_session")
+    def test_google_callback_success(self, mock_get_session):
         """Test Google callback success."""
+        mock_google = mock_get_session.return_value
         session = self.client.session
         session["oauth_state"] = "test_state"
         session.save()

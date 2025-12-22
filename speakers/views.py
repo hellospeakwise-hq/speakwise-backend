@@ -42,7 +42,7 @@ class SpeakerProfileListCreateView(APIView):
 
 
 @extend_schema(
-    request=SpeakerSocialLinksSerializer, responses=SpeakerSocialLinksSerializer
+    request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer
 )
 class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker profile.

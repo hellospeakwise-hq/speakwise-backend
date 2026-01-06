@@ -15,7 +15,6 @@ from speakers.models import SpeakerExperiences, SpeakerProfile
 from speakers.serializers import (
     SpeakerExperiencesSerializer,
     SpeakerProfileSerializer,
-    SpeakerSocialLinksSerializer,
 )
 from users.models import User
 
@@ -41,9 +40,7 @@ class SpeakerProfileListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(
-    request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer
-)
+@extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
 class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker profile.
 

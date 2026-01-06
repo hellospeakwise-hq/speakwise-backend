@@ -1,5 +1,7 @@
 """Organizations app models."""
 
+import uuid
+
 from django.db import models
 
 from base.models import TimeStampedModel
@@ -12,6 +14,9 @@ ORGANIZATION_UPLOAD_DIR = "organizations/logos/"
 class Organization(TimeStampedModel):
     """Model representing an organization."""
 
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, unique=True
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     email = models.EmailField(unique=True)
@@ -21,6 +26,7 @@ class Organization(TimeStampedModel):
     created_by = models.ForeignKey(
         User, on_delete=models.CASCADE, null=True, related_name="created_organizations"
     )
+    slug = models.SlugField(max_length=255, blank=True, null=True)
 
     class Meta:
         """Meta class for Organization model."""
@@ -36,6 +42,7 @@ class Organization(TimeStampedModel):
 class OrganizationMembership(TimeStampedModel):
     """Model representing membership of a user in an organization."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True)
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="organization_memberships"
     )

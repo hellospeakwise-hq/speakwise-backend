@@ -49,7 +49,7 @@ jobs:
               source venv/bin/activate
 
               # Install/update dependencies
-              pip install -r requirements.txt
+              pip install -r requirements/production.txt
 
               # Create production environment file from GitHub secrets
               echo "⚙️ Setting up production environment variables..."

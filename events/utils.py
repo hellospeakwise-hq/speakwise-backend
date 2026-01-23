@@ -10,7 +10,7 @@ def create_event_payload(request):
     try:
         user = request.user
         membership = OrganizationMembership.objects.get(user=user)
-        if membership.is_admins() or membership.is_organizers():
+        if membership.is_admin() or membership.is_organizer():
             organization = membership.organization
         else:
             raise Http404("User does not have permission to create an event.")

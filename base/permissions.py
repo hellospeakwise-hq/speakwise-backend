@@ -12,10 +12,11 @@ class IsOrganizationAdmin(BasePermission):
         """Check if the user has admin permissions for the organization."""
         if request.user and request.user.is_authenticated:
             try:
-                membership = OrganizationMembership.objects.filter(
-                    user=request.user
-                ).first()
-                return membership.is_admins()
+                return (
+                    OrganizationMembership.objects.filter(user=request.user)
+                    .first()
+                    .is_admin()
+                )
             except OrganizationMembership.DoesNotExist:
                 return False
         return False
@@ -28,10 +29,11 @@ class IsOrganizationMember(BasePermission):
         """Check if the user has member permissions for the organization."""
         if request.user and request.user.is_authenticated:
             try:
-                membership = OrganizationMembership.objects.filter(
-                    user=request.user
-                ).first()
-                return membership.is_active
+                return (
+                    OrganizationMembership.objects.filter(user=request.user)
+                    .first()
+                    .is_member()
+                )
             except OrganizationMembership.DoesNotExist:
                 return False
         return False
@@ -44,10 +46,11 @@ class IsOrganizationOrganizer(BasePermission):
         """Check if the user has organizer permissions for the organization."""
         if request.user and request.user.is_authenticated:
             try:
-                membership = OrganizationMembership.objects.filter(
-                    user=request.user
-                ).first()
-                return membership.is_organizers()
+                return (
+                    OrganizationMembership.objects.filter(user=request.user)
+                    .first()
+                    .is_organizer()
+                )
             except OrganizationMembership.DoesNotExist:
                 return False
         return False

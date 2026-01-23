@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
 from django.contrib.auth import logout
-from django.http import Http404
+from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,7 +25,6 @@ from users.serializers import (
 from users.services import EmailService
 
 
-@extend_schema(responses=UserSerializer)
 class UserCreateView(CreateAPIView):
     """User create view."""
 
@@ -58,14 +57,7 @@ class UserLogoutView(APIView):
 
 
 class LoginBaseClass(ABC, LoginView):
-    """This class inherits the LoginView from the rest_auth package.
-    Django rest auth lib does not support the refresh token
-    logic. However,restframework_simplejwt does. Rest auth was
-    used because it's based off all-auth which can be used for
-    social logins as well as signing in with either username or
-    password(of which simplejwt does not support). The two libraries
-    were combined to give the required results.
-    """
+    """This class inherits the LoginView from the rest_auth package."""
 
     def get_extra_payload(self) -> dict:
         """This method is used to add extra payload to the refresh token."""
@@ -153,44 +145,22 @@ class PasswordResetConfirmView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class RetrieveUpdateAuthenticatedUserView(APIView):
+class RetrieveUpdateAuthenticatedUserView(RetrieveUpdateAPIView):
     """View to retrieve and update the authenticated user's details."""
 
     permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileSerializer
 
-    def get_object(self, pk):
+    def get_object(self):
         """Get the authenticated user."""
-        try:
-            return User.objects.get(pk=pk)
-        except User.DoesNotExist as err:
-            raise Http404 from err
-
-    @extend_schema(responses=UserProfileSerializer)
-    def get(self, request):
-        """Retrieve the authenticated user's details."""
-        user = self.get_object(request.user.pk)
-        serializer = UserProfileSerializer(user)
-        return Response(serializer.data)
-
-    @extend_schema(responses=UserProfileSerializer, request=UserProfileSerializer)
-    def patch(self, request):
-        """Update the authenticated user's details."""
-        user = self.get_object(request.user.pk)
-        serializer = UserProfileSerializer(user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        return self.request.user
 
 
-class UsersListView(APIView):
+class UsersListView(ListAPIView):
     """View to list all users."""
 
     permission_classes = [IsAuthenticated]
-
-    @extend_schema(responses=UserSerializer(many=True))
-    def get(self, request):
-        """List all users."""
-        users = User.objects.all()
-        user_filters = UserFilter(request.GET, queryset=users)
-        serializer = UserSerializer(user_filters.qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = UserFilter

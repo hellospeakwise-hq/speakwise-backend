@@ -1,6 +1,5 @@
 """attendees views."""
 
-from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -10,7 +9,6 @@ from rest_framework.generics import (
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from attendees.models import Attendance, AttendeeProfile
 from attendees.serializers import (
@@ -82,59 +80,20 @@ def verify_attendee(request):
     )
 
 
-class CreateAttendanceByFileUploadView(APIView):
+class CreateAttendanceByFileUploadView(ListCreateAPIView):
     """Attendee list create view."""
 
     permission_classes = [IsOrganizationAdmin]
-
-    def get(self, request):
-        """Return all attendance objects."""
-        attendance = Attendance.objects.all()
-        serializer = AttendanceSerializer(attendance, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @extend_schema(request=AttendanceSerializer, responses=AttendanceSerializer)
-    def post(self, request):
-        """Create attendance by file upload."""
-        serializer = AttendanceSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    queryset = Attendance.objects.all()
+    serializer_class = AttendanceSerializer
 
 
-class AttendanceDetailView(APIView):
+class AttendanceDetailView(RetrieveUpdateDestroyAPIView):
     """get attendance detail view."""
 
     permission_classes = [IsOrganizationOrganizer]
-
-    def get_object(self, pk):
-        """Get attendance object."""
-        try:
-            return Attendance.objects.get(pk=pk)
-        except Attendance.DoesNotExist as err:
-            raise Http404 from err
-
-    @extend_schema(responses=AttendanceSerializer)
-    def get(self, request, pk):
-        """Get attendance detail."""
-        attendance = self.get_object(pk)
-        serializer = AttendanceSerializer(attendance)
-        return Response(serializer.data)
-
-    @extend_schema(request=AttendanceSerializer)
-    def patch(self, request, pk):
-        """Update attendance detail."""
-        attendance = self.get_object(pk)
-        serializer = AttendanceSerializer(attendance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-    @extend_schema(responses={204: None})
-    def delete(self, request, pk):
-        """Delete attendance detail."""
-        attendance = self.get_object(pk)
-        attendance.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    queryset = Attendance.objects.all()
+    serializer_class = AttendanceSerializer
 
 
 @api_view(["POST"])

@@ -62,7 +62,7 @@ class OrganizationModelTest(TestCase):
             added_by=self.user,
         )
 
-        self.assertTrue(admin_user, membership.is_admins())
+        self.assertTrue(membership.is_admin())
 
     def test_get_organizers(self):
         """Test getting all active organization members."""
@@ -76,7 +76,7 @@ class OrganizationModelTest(TestCase):
             added_by=self.user,
         )
 
-        self.assertTrue(member_user, membership.is_member())
+        self.assertTrue(membership.is_member())
 
     def test_is_admin(self):
         """Test checking if a user is an admin."""

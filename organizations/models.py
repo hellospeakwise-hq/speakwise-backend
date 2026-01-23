@@ -58,15 +58,17 @@ class OrganizationMembership(TimeStampedModel):
         unique_together = ("organization", "user")
         ordering = ["-created_at"]
 
-    def is_admins(self):
-        """Get all admin members of the organization."""
+    def is_admin(self):
+        """Check if the user is an admin of the organization."""
         if self.is_active:
             return self.role == OrganizationRole.ADMIN.value
+        return False
 
-    def is_organizers(self):
-        """Get all active members of the organization."""
+    def is_organizer(self):
+        """Check if the user is an organizer of the organization."""
         if self.is_active:
             return self.role == OrganizationRole.ORGANIZER.value
+        return False
 
     def is_member(self):
         """Check if a user is a member of the organization."""

@@ -28,12 +28,30 @@ class SpeakerRequestListView(APIView):
     permission_classes = [AllowAny]
     serializer_class = SpeakerRequestSerializer
 
-    def get_objects(self, organizer):
-        """Get speaker requests by organizer."""
+    def get_objects(self, organizer, organization_id=None):
+        """Get speaker requests by organizer.
+
+        Args:
+            organizer: The user making the request
+            organization_id: Optional organization ID to filter by
+        """
         try:
-            org = OrganizationMembership.objects.get(user=organizer).organization
-            return SpeakerRequest.objects.filter(organizer=org)
-        except SpeakerRequest.DoesNotExist as err:
+            # If organization_id is provided, use it directly
+            if organization_id:
+                # Verify user is a member of this organization
+                membership = OrganizationMembership.objects.filter(
+                    user=organizer, organization_id=organization_id
+                ).first()
+                if membership:
+                    return SpeakerRequest.objects.filter(organizer_id=organization_id)
+                else:
+                    return SpeakerRequest.objects.none()
+
+            # Otherwise, get requests for all organizations the user is a member of
+            memberships = OrganizationMembership.objects.filter(user=organizer)
+            org_ids = memberships.values_list("organization_id", flat=True)
+            return SpeakerRequest.objects.filter(organizer_id__in=org_ids)
+        except Exception as err:
             raise Http404 from err
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
@@ -46,7 +64,8 @@ class SpeakerRequestListView(APIView):
         Returns:
             Response: A list of speaker requests.
         """
-        speaker_requests = self.get_objects(request.user)
+        organization_id = request.GET.get("organization")
+        speaker_requests = self.get_objects(request.user, organization_id)
         serializer = SpeakerRequestSerializer(speaker_requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

@@ -194,21 +194,21 @@ class SpeakerSkillTagListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get_speaker(self, pk):
+    def get_speaker(self, pk: int):
         """Get speaker by id."""
         try:
-            return SpeakerProfile.objects.get(pk=pk)
+            return SpeakerProfile.objects.get(id=pk)
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
-    def get(self, request, pk):
+    def get(self, request, pk: int) -> Response:
         """Get skill tags of a speaker."""
         speaker = self.get_speaker(pk)
         skills = SpeakerSkillTag.objects.filter(speaker=speaker)
         serializer = SpeakerSkillTagSerializer(skills, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def post(self, request, pk):
+    def post(self, request, pk: int) -> Response:
         """Create a speaker skill tag."""
         speaker = self.get_speaker(pk)
         serializer = SpeakerSkillTagSerializer(
@@ -233,20 +233,20 @@ class SpeakerSkillTagDetailView(APIView):
             return [IsAuthenticated()]
         return [AllowAny()]
 
-    def get_object(self, pk):
+    def get_object(self, pk: int):
         """Get a speaker skill tag object."""
         try:
             return SpeakerSkillTag.objects.get(pk=pk)
         except SpeakerSkillTag.DoesNotExist as err:
             raise Http404 from err
 
-    def get(self, request, pk=None):
+    def get(self, request, pk: int = None) -> Response:
         """Get a speaker skill tag."""
         skill = self.get_object(pk)
         serializer = SpeakerSkillTagSerializer(skill)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def patch(self, request, pk=None):
+    def patch(self, request, pk: int = None) -> Response:
         """Update a speaker skill tag object."""
         skill = self.get_object(pk)
         if skill.speaker == self.request.user:
@@ -256,7 +256,7 @@ class SpeakerSkillTagDetailView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, pk):
+    def delete(self, pk: int = None) -> Response:
         """Delete a speaker skill object."""
         skill = self.get_object(pk)
         if skill.speaker == self.request.user:

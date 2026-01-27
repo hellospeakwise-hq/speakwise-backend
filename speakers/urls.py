@@ -33,12 +33,12 @@ urlpatterns = [
         name="public_speaker_experiences",
     ),
     path(
-        "speakers/<pk>/skill-tags/",
+        "speakers/<int:pk>/skill-tags/",
         views.SpeakerSkillTagListView.as_view(),
         name="speaker_skill_tags_list",
     ),
     path(
-        "speakers/skill-tags/<pk>/",
+        "speakers/skill-tags/<int:pk>/",
         views.SpeakerSkillTagDetailView.as_view(),
         name="speaker_skill_tag_detail",
     ),

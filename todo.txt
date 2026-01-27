@@ -1,0 +1,3 @@
+skill tag endpoint
+talk review endpoint
+cache images

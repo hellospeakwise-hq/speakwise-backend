@@ -19,6 +19,12 @@ class SpeakerSkillTag(TimeStampedModel):
         blank=True, null=True, help_text="A brief description of the skill"
     )
     duration = models.PositiveIntegerField(null=True, help_text="years of experience")
+    speaker = models.ForeignKey(
+        "speakers.SpeakerProfile",
+        related_name="skill_tags",
+        on_delete=models.DO_NOTHING,
+        null=True,
+    )
 
     def __str__(self):
         """String representation of the speaker skill."""
@@ -74,9 +80,6 @@ class SpeakerProfile(TimeStampedModel):
     long_bio = models.TextField(blank=True, null=True)
     country = models.CharField(max_length=255, blank=True)
     avatar = models.ImageField(upload_to=SPEAKERS_UPLOAD_DIR, blank=True)
-    skill_tag = models.ManyToManyField(
-        SpeakerSkillTag, blank=True, related_name="speakers_profile_skill_tags"
-    )
 
     def __str__(self):
         """String representation of the speaker profile."""

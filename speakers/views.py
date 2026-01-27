@@ -11,27 +11,31 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from speakers.models import SpeakerExperiences, SpeakerProfile
+from speakers.models import SpeakerExperiences, SpeakerProfile, SpeakerSkillTag
 from speakers.serializers import (
     SpeakerExperiencesSerializer,
     SpeakerProfileSerializer,
+    SpeakerSkillTagSerializer,
 )
 from users.models import User
 
 
+@extend_schema(
+    request=SpeakerProfileSerializer,
+    responses=SpeakerProfileSerializer,
+    tags=["Speaker Profile"],
+)
 class SpeakerProfileListCreateView(APIView):
     """View to list and create speaker profiles."""
 
     permission_classes = [AllowAny]
 
-    @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
         """List all speaker profiles."""
         speaker_profiles = SpeakerProfile.objects.all()
         serializer = SpeakerProfileSerializer(speaker_profiles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
     def post(self, request):
         """Create a new speaker profile."""
         serializer = SpeakerProfileSerializer(data=request.data)
@@ -40,7 +44,11 @@ class SpeakerProfileListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
+@extend_schema(
+    request=SpeakerProfileSerializer,
+    responses=SpeakerProfileSerializer,
+    tags=["Speaker Profile"],
+)
 class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker profile.
 
@@ -88,6 +96,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
 @extend_schema(
     request=SpeakerExperiencesSerializer,
     responses=SpeakerExperiencesSerializer(many=True),
+    tags=["Speaker Experiences"],
 )
 class SpeakerExperiencesListCreateView(APIView):
     """View to list and create speaker experiences.
@@ -117,7 +126,9 @@ class SpeakerExperiencesListCreateView(APIView):
 
 
 @extend_schema(
-    request=SpeakerExperiencesSerializer, responses=SpeakerExperiencesSerializer
+    request=SpeakerExperiencesSerializer,
+    responses=SpeakerExperiencesSerializer,
+    tags=["Speaker Experiences"],
 )
 class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker experience.
@@ -158,14 +169,100 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    responses=SpeakerExperiencesSerializer(many=True), tags=["Speaker Experiences"]
+)
 class PublicSpeakerExperiencesListView(APIView):
     """View to list all speaker experiences."""
 
     permission_classes = [AllowAny]
 
-    @extend_schema(responses=SpeakerExperiencesSerializer(many=True))
     def get(self, request, pk):
         """List all speaker experiences."""
         speaker_experiences = SpeakerExperiences.objects.filter(speaker=pk)
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    request=SpeakerSkillTagSerializer,
+    responses=SpeakerSkillTagSerializer,
+    tags=["Speaker Skill Tag"],
+)
+class SpeakerSkillTagListView(APIView):
+    """speaker skills view."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_speaker(self, pk):
+        """Get speaker by id."""
+        try:
+            return SpeakerProfile.objects.get(pk=pk)
+        except SpeakerProfile.DoesNotExist as err:
+            raise Http404 from err
+
+    def get(self, request, pk):
+        """Get skill tags of a speaker."""
+        speaker = self.get_speaker(pk)
+        skills = SpeakerSkillTag.objects.filter(speaker=speaker)
+        serializer = SpeakerSkillTagSerializer(skills, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, pk):
+        """Create a speaker skill tag."""
+        speaker = self.get_speaker(pk)
+        serializer = SpeakerSkillTagSerializer(
+            data=request.data, context={"speaker": speaker}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    request=SpeakerSkillTagSerializer,
+    responses=SpeakerSkillTagSerializer,
+    tags=["Speaker Skill Tag"],
+)
+class SpeakerSkillTagDetailView(APIView):
+    """speaker skills detail view."""
+
+    def get_permissions(self):
+        """Get permissions."""
+        if self.request.method in ["POST", "GET", "PATCH"]:
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def get_object(self, pk):
+        """Get a speaker skill tag object."""
+        try:
+            return SpeakerSkillTag.objects.get(pk=pk)
+        except SpeakerSkillTag.DoesNotExist as err:
+            raise Http404 from err
+
+    def get(self, request, pk=None):
+        """Get a speaker skill tag."""
+        skill = self.get_object(pk)
+        serializer = SpeakerSkillTagSerializer(skill)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, pk=None):
+        """Update a speaker skill tag object."""
+        skill = self.get_object(pk)
+        if skill.speaker == self.request.user:
+            serializer = SpeakerSkillTagSerializer(data=skill, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, pk):
+        """Delete a speaker skill object."""
+        skill = self.get_object(pk)
+        if skill.speaker == self.request.user:
+            skill.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"Err": "Cannot delete skill tag of another user"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )

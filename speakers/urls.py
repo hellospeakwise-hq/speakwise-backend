@@ -32,4 +32,14 @@ urlpatterns = [
         views.PublicSpeakerExperiencesListView.as_view(),
         name="public_speaker_experiences",
     ),
+    path(
+        "speakers/<int:pk>/skill-tags/",
+        views.SpeakerSkillTagListView.as_view(),
+        name="speaker_skill_tags_list",
+    ),
+    path(
+        "speakers/skill-tags/<int:pk>/",
+        views.SpeakerSkillTagDetailView.as_view(),
+        name="speaker_skill_tag_detail",
+    ),
 ]

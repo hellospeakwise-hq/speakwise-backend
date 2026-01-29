@@ -1,7 +1,11 @@
 """OAuth views."""
 
+import os
+
 from django.conf import settings
+from django.http import Http404
 from django.shortcuts import redirect
+from django.utils.http import urlencode
 from requests_oauthlib import OAuth2Session
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -12,6 +16,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import User
 from users.serializers import UserSerializer
+
+frontend_url = os.environ.get("FRONTEND_REDIRECT_URL")
 
 
 def get_github_session():
@@ -90,14 +96,16 @@ def github_callback(request):
     refresh = RefreshToken.for_user(user)
     refresh.payload.update(UserSerializer(user).data)
 
-    return Response(
-        {
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "user": UserSerializer(user).data,
-            "message": "Login successful",
-        }
-    )
+    # return frontend redirect url
+    if not frontend_url:
+        raise Http404("FRONTEND_REDIRECT_URL not found!")
+
+    params = {
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+        "user": UserSerializer(user).data,
+    }
+    return redirect(f"{frontend_url}?{urlencode(params)}")
 
 
 @api_view(["GET"])
@@ -143,11 +151,13 @@ def google_callback(request):
     refresh = RefreshToken.for_user(user)
     refresh.payload.update(UserSerializer(user).data)
 
-    return Response(
-        {
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "user": UserSerializer(user).data,
-            "message": "Login successful",
-        }
-    )
+    # return frontend redirect url
+    if not frontend_url:
+        raise Http404("FRONTEND_URL not found!")
+
+    params = {
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+        "user": UserSerializer(user).data,
+    }
+    return redirect(f"{frontend_url}?{urlencode(params)}")

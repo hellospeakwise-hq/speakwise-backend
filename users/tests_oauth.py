@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from speakers.models import SpeakerProfile
+from users import oauth_views as oauth_views
 from users.models import User
 
 
@@ -21,6 +22,8 @@ class OAuthTests(TestCase):
         self.github_callback_url = reverse("users:github-callback")
         self.google_login_url = reverse("users:google-login")
         self.google_callback_url = reverse("users:google-callback")
+        # Ensure callbacks will redirect instead of raising Http404
+        oauth_views.frontend_url = "http://test-frontend"
 
     @patch("users.oauth_views.get_github_session")
     def test_github_login_redirect(self, mock_get_session):
@@ -51,27 +54,19 @@ class OAuthTests(TestCase):
         mock_github.get.return_value.json.side_effect = [
             {"email": "test@github.com", "login": "githubuser"},  # user info
         ]
-
+        # Trigger the callback view which should create the user
         response = self.client.get(
-            self.github_callback_url,
-            {"code": "code", "state": "test_state", "role": "speaker"},
+            self.github_callback_url, {"code": "code", "state": "test_state"}
         )
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["user"]["email"], "test@github.com")
-
-        # Verify user created
         user = User.objects.get(email="test@github.com")
         self.assertEqual(user.username, "githubuser")
-
-        # Verify profile created
         self.assertTrue(SpeakerProfile.objects.filter(user_account=user).exists())
 
     @patch("users.oauth_views.get_github_session")
     def test_github_callback_invalid_state(self, mock_get_session):
         """Test GitHub callback with invalid state."""
-        # No need to mock github here as it should fail before using it,
-        # but the view calls get_github_session() so we mock it.
         session = self.client.session
         session["oauth_state"] = "test_state"
         session.save()
@@ -110,13 +105,11 @@ class OAuthTests(TestCase):
             "email": "test@google.com",
             "name": "Google User",
         }
-
+        # Trigger the callback view which should create the user
         response = self.client.get(
             self.google_callback_url, {"code": "code", "state": "test_state"}
         )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["user"]["email"], "test@google.com")
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
 
         user = User.objects.get(email="test@google.com")
         self.assertEqual(user.username, "Google User")

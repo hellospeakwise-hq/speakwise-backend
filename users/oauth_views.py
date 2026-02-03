@@ -9,8 +9,6 @@ from requests_oauthlib import OAuth2Session
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
-# No UserRoleChoices import as requested
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import User
@@ -99,6 +97,7 @@ def github_callback(request):
         {
             "access": str(refresh.access_token),
             "refresh": str(refresh),
+            "user": UserSerializer(user).data,
         }
     )
     return redirect(f"{frontend_url}?{params}")
@@ -138,12 +137,10 @@ def google_callback(request):
     email = user_info.get("email")
     username = user_info.get("name")
 
-    # Find or create user
     user = User.objects.filter(email=email).first()
     if not user:
         user = User.objects.create(email=email, username=username)
 
-    # Generate Tokens
     refresh = RefreshToken.for_user(user)
     refresh.payload.update(UserSerializer(user).data)
 
@@ -151,6 +148,7 @@ def google_callback(request):
         {
             "access": str(refresh.access_token),
             "refresh": str(refresh),
+            "user": UserSerializer(user).data,
         }
     )
     return redirect(f"{frontend_url}?{params}")

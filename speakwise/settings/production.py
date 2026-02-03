@@ -17,7 +17,12 @@ if not SECRET_KEY:
 DEBUG = False
 
 
-ALLOWED_HOSTS = ["10.114.0.2", "apis.speak-wise.live"]
+ALLOWED_HOSTS = [
+    "apis.speak-wise.live",
+    "speak-wise.live",
+    "www.speak-wise.live",
+    "https://www.speak-wise.live",
+]
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -25,11 +30,11 @@ ALLOWED_HOSTS = ["10.114.0.2", "apis.speak-wise.live"]
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DATABASE_NAME"),
-        "USER": os.environ.get("DATABASE_USER"),
-        "PASSWORD": os.environ.get("DATABASE_PASSWORD"),
-        "HOST": os.environ.get("DATABASE_HOST"),
-        "PORT": os.environ.get("DATABASE_PORT"),
+        "NAME": os.environ.get("DB_NAME"),
+        "USER": os.environ.get("DB_USER"),
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
+        "HOST": os.environ.get("DB_HOST"),
+        "PORT": os.environ.get("DB_PORT"),
     }
 }
 

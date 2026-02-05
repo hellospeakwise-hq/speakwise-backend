@@ -25,7 +25,7 @@ from users.serializers import (
 from users.services import EmailService
 
 
-@extend_schema(responses=UserSerializer)
+@extend_schema(responses=UserSerializer, tags=["User Authentication"])
 class UserCreateView(CreateAPIView):
     """User create view."""
 
@@ -34,12 +34,14 @@ class UserCreateView(CreateAPIView):
     permission_classes = [AllowAny]
 
 
+@extend_schema(
+    request=LogoutSerializer, responses={205: None}, tags=["User Authentication"]
+)
 class UserLogoutView(APIView):
     """User logout view."""
 
     serializer_class = LogoutSerializer
 
-    @extend_schema(request=LogoutSerializer, responses={205: None})
     def post(self, request):
         """Logout user."""
         serializer = self.serializer_class(data=request.data)
@@ -57,6 +59,7 @@ class UserLogoutView(APIView):
             )
 
 
+@extend_schema(tags=["User Authentication"])
 class LoginBaseClass(ABC, LoginView):
     """This class inherits the LoginView from the rest_auth package.
     Django rest auth lib does not support the refresh token
@@ -95,6 +98,7 @@ class LoginBaseClass(ABC, LoginView):
         return Response(data)
 
 
+@extend_schema(tags=["User Authentication"])
 class UserLoginView(LoginBaseClass):
     """Login view for speaker."""
 
@@ -108,14 +112,17 @@ class UserLoginView(LoginBaseClass):
         return UserSerializer(self.user).data
 
 
-@extend_schema(responses=PasswordResetRequestSerializer)
+@extend_schema(
+    request=PasswordResetRequestSerializer,
+    responses={200: None},
+    tags=["Password Reset"],
+)
 class PasswordResetRequestView(APIView):
     """Password request view for users."""
 
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
 
-    @extend_schema(request=PasswordResetRequestSerializer, responses={200: None})
     def post(self, request):
         """Request password reset for email."""
         serializer = self.serializer_class(data=request.data)
@@ -132,7 +139,7 @@ class PasswordResetRequestView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(responses=PasswordResetConfirmSerializer)
+@extend_schema(responses=PasswordResetConfirmSerializer, tags=["Password Reset"])
 class PasswordResetConfirmView(APIView):
     """Password request confirm view."""
 
@@ -153,6 +160,11 @@ class PasswordResetConfirmView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    responses=UserProfileSerializer,
+    request=UserProfileSerializer,
+    tags=["User Profile"],
+)
 class RetrieveUpdateAuthenticatedUserView(APIView):
     """View to retrieve and update the authenticated user's details."""
 
@@ -172,7 +184,6 @@ class RetrieveUpdateAuthenticatedUserView(APIView):
         serializer = UserProfileSerializer(user)
         return Response(serializer.data)
 
-    @extend_schema(responses=UserProfileSerializer, request=UserProfileSerializer)
     def patch(self, request):
         """Update the authenticated user's details."""
         user = self.get_object(request.user.pk)
@@ -182,12 +193,12 @@ class RetrieveUpdateAuthenticatedUserView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(responses=UserSerializer(many=True), tags=["User Profile"])
 class UsersListView(APIView):
     """View to list all users."""
 
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(responses=UserSerializer(many=True))
     def get(self, request):
         """List all users."""
         users = User.objects.all()

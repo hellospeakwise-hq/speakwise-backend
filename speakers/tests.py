@@ -25,7 +25,7 @@ class TestSpeakerProfile(TestCase):
             email="user@mail.com",
             password="testpass123",
         )
-        self.skill_tag = SpeakerSkillTag.objects.create(
+        self.skill_tags = SpeakerSkillTag.objects.create(
             name="Django", description="Web framework", duration=5
         )
 
@@ -36,7 +36,7 @@ class TestSpeakerProfile(TestCase):
             organization="Test Org",
             country="Test Country",
         )
-        self.speaker_profile.skill_tag.set([self.skill_tag])
+        self.speaker_profile.skill_tag.set([self.skill_tags])
         self.speaker_social_link = SpeakerSocialLinks.objects.create(
             speaker=self.speaker_profile,
             name="Twitter",
@@ -63,17 +63,17 @@ class TestSpeakerProfile(TestCase):
         assert data["user_account"] == self.user.id
         assert data["organization"] == "Test Org"
         assert data["country"] == "Test Country"
-        assert len(data["skill_tag"]) == 1
-        assert data["skill_tag"][0]["id"] == self.skill_tag.id
+        assert len(data["skill_tags"]) == 1
+        assert data["skill_tags"][0]["id"] == self.skill_tags.id
         assert len(data["social_links"]) == 1
         assert data["social_links"][0]["name"] == "Twitter"
         assert data["social_links"][0]["link"] == "https://twitter.com/testuser"
 
     def test_speaker_skill_tag_creation(self):
         """Test speaker skill tag creation."""
-        assert self.skill_tag.name == "Django"
-        assert self.skill_tag.description == "Web framework"
-        assert self.skill_tag.duration == 5
+        assert self.skill_tags.name == "Django"
+        assert self.skill_tags.description == "Web framework"
+        assert self.skill_tags.duration == 5
 
     def test_speaker_social_links_creation(self):
         """Test speaker social links creation."""

@@ -1,5 +1,7 @@
 """speakers models."""
 
+from itertools import count
+
 from django.db import models
 from django.utils.text import slugify
 
@@ -87,12 +89,44 @@ class SpeakerProfile(TimeStampedModel):
         """String representation of the speaker profile."""
         return self.user_account.username
 
+    def _base_slug(self) -> str:
+        """Build a base slug from available user info with sensible fallbacks."""
+        first = (self.user_account.first_name or "").strip()
+        last = (self.user_account.last_name or "").strip()
+        name = f"{first} {last}".strip()
+        if s := slugify(name):
+            return s
+        if s := slugify(self.user_account.username):
+            return s
+        return str(self.user_account.id)
+
+    def _generate_unique_slug(self) -> str:
+        """Generate a unique slug, appending numeric suffix when needed."""
+        base = self._base_slug()
+        candidate = base
+        for i in count(2):
+            exists = (
+                SpeakerProfile.objects.filter(slug=candidate)
+                .exclude(pk=self.pk)
+                .exists()
+            )
+            if not exists:
+                return candidate
+            candidate = f"{base}-{i}"
+        return "default-slug"
+
     def save(self, *args, **kwargs):
-        """Save speaker profile."""
-        self.slug = slugify(
-            str(f"{self.user_account.first_name}_" f"{self.user_account.last_name}")
-        )
+        """Set slug once when empty and keep it stable across updates."""
+        if not self.slug:
+            self.slug = self._generate_unique_slug()
         super().save(*args, **kwargs)
+
+    @property
+    def skill_tag(self):
+        """Compatibility alias: access reverse FK manager as `skill_tag`.
+        Tests expect `speaker_profile.skill_tag` to behave like a related manager.
+        """
+        return self.skill_tags
 
 
 class SpeakerSocialLinks(SocialLinks):

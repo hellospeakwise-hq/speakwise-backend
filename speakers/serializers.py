@@ -67,14 +67,14 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
         model = SpeakerProfile
         exclude = ["created_at", "updated_at"]
+        read_only_fields = ("slug",)
 
     def get_speaker_name(self, obj) -> str:
         """Get speaker name."""
-        return (
-            obj.user_account.first_name + " " + obj.user_account.last_name
-            if obj.user_account.first_name and obj.user_account.last_name
-            else obj.user_account.username
-        )
+        first = (obj.user_account.first_name or "").strip()
+        last = (obj.user_account.last_name or "").strip()
+        full = f"{first} {last}".strip()
+        return full if full else obj.user_account.username
 
     @transaction.atomic
     def update(self, instance, validated_data):

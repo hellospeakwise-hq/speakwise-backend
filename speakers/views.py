@@ -164,7 +164,7 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
 
 
 class PublicSpeakerExperiencesListView(APIView):
-    """View to list all speaker experiences."""
+    """Public view to list experiences for a given speaker slug."""
 
     permission_classes = [AllowAny]
 
@@ -173,8 +173,11 @@ class PublicSpeakerExperiencesListView(APIView):
         tags=["speaker experiences (public view)"],
     )
     def get(self, request, slug: str = None):
-        """List all speaker experiences."""
-        speaker_experiences = SpeakerExperiences.objects.filter(speaker=slug)
+        """List all speaker experiences for the provided speaker slug.
+
+        If the slug does not match any speaker, an empty list is returned.
+        """
+        speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -211,7 +214,7 @@ class PrivateSpeakerExperienceRetrieveUpdateDestroyView(APIView):
     def get_object(self, pk: int, speaker: User):
         """Get speaker experience by primary key and user."""
         try:
-            return SpeakerExperiences.objects.get(pk=pk, speaker=speaker)
+            return SpeakerExperiences.objects.get(pk=pk, speaker__user_account=speaker)
         except SpeakerExperiences.DoesNotExist as err:
             raise Http404 from err
 
@@ -244,24 +247,21 @@ class PrivateSpeakerExperienceRetrieveUpdateDestroyView(APIView):
 
 @extend_schema(tags=["speaker skill tags"])
 class SpeakerSkillTagsListView(APIView):
-    """View to list all speaker experiences."""
+    """List and create skill tags for the authenticated user's speaker profile."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
-    def get_objects(self, pk):
-        """List all speaker experiences by primary key and user."""
-        try:
-            return SpeakerSkillTag.objects.filter(speaker=pk)
-        except SpeakerExperiences.DoesNotExist as err:
-            raise Http404 from err
+    def get_objects(self, user: User):
+        """Return all skill tags for the given user's speaker profile."""
+        return SpeakerSkillTag.objects.filter(speaker__user_account=user)
 
     @extend_schema(
         responses=SpeakerSkillTagSerializer(many=True),
         request=SpeakerSkillTagSerializer,
     )
     def get(self, request):
-        """List all speaker experiences."""
-        skill_tags = self.get_objects(request.user.pk)
+        """List all skill tags for the authenticated user."""
+        skill_tags = self.get_objects(request.user)
         serializer = SpeakerSkillTagSerializer(skill_tags, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -269,24 +269,30 @@ class SpeakerSkillTagsListView(APIView):
         responses=SpeakerSkillTagSerializer, request=SpeakerSkillTagSerializer
     )
     def post(self, request):
-        """Create a new speaker experience for the authenticated user."""
+        """Create a new skill tag for the authenticated user's speaker profile."""
         serializer = SpeakerSkillTagSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            speaker_profile = request.user.speakers_profile_user.first()
+            if speaker_profile is None:
+                return Response(
+                    {"detail": "Speaker profile not found for user."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            serializer.save(speaker=speaker_profile)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(tags=["speaker skill tags"])
 class SpeakerSkillTagsDetailView(APIView):
-    """View to list all speaker experiences by primary key and user."""
+    """Retrieve, update, and delete a skill tag owned by the authenticated user."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self, pk: int, speaker: User):
-        """Get speaker skill tags by primary key and user."""
+        """Get a speaker skill tag by primary key and user."""
         try:
-            return SpeakerSkillTag.objects.get(pk=pk, speaker=speaker)
+            return SpeakerSkillTag.objects.get(pk=pk, speaker__user_account=speaker)
         except SpeakerSkillTag.DoesNotExist as err:
             raise Http404 from err
 

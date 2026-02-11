@@ -18,6 +18,7 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
+    path("api/docs/redoc/", SpectacularRedocView.as_view(), name="redoc"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/", include("speakers.urls", namespace="speakers")),
     path("api/", include("attendees.urls", namespace="attendees")),

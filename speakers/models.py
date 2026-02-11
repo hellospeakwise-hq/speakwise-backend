@@ -1,6 +1,7 @@
 """speakers models."""
 
 from django.db import models
+from django.utils.text import slugify
 
 from base.models import SocialLinks, TimeStampedModel
 from users.models import User
@@ -19,6 +20,12 @@ class SpeakerSkillTag(TimeStampedModel):
         blank=True, null=True, help_text="A brief description of the skill"
     )
     duration = models.PositiveIntegerField(null=True, help_text="years of experience")
+    speaker = models.ForeignKey(
+        "speakers.SpeakerProfile",
+        on_delete=models.DO_NOTHING,
+        related_name="skill_tags",
+        null=True,
+    )
 
     def __str__(self):
         """String representation of the speaker skill."""
@@ -74,13 +81,18 @@ class SpeakerProfile(TimeStampedModel):
     long_bio = models.TextField(blank=True, null=True)
     country = models.CharField(max_length=255, blank=True)
     avatar = models.ImageField(upload_to=SPEAKERS_UPLOAD_DIR, blank=True)
-    skill_tag = models.ManyToManyField(
-        SpeakerSkillTag, blank=True, related_name="speakers_profile_skill_tags"
-    )
+    slug = models.SlugField(unique=True)
 
     def __str__(self):
         """String representation of the speaker profile."""
         return self.user_account.username
+
+    def save(self, *args, **kwargs):
+        """Save speaker profile."""
+        self.slug = slugify(
+            str(f"{self.user_account.first_name}_" f"{self.user_account.last_name}")
+        )
+        super().save(*args, **kwargs)
 
 
 class SpeakerSocialLinks(SocialLinks):

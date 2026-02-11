@@ -30,7 +30,7 @@ class SpeakerSkillTagSerializer(ModelSerializer):
         """meta options."""
 
         model = SpeakerSkillTag
-        exclude = ["created_at", "updated_at"]
+        exclude = ["created_at", "updated_at", "speaker"]
 
 
 class SpeakerExperiencesSerializer(ModelSerializer):
@@ -56,7 +56,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     """speaker profile serializers."""
 
     social_links = SpeakerSocialLinksSerializer(many=True, required=False)
-    skill_tag = SpeakerSkillTagSerializer(many=True, required=False)
+    skill_tags = SpeakerSkillTagSerializer(many=True, required=False)
     speaker_name = SerializerMethodField()
     experiences = SpeakerExperiencesSerializer(
         many=True, read_only=True, required=False

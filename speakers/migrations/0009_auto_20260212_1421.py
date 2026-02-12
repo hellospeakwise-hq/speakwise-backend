@@ -8,12 +8,11 @@ def generate_unique_slugs(apps, schema_editor):
     SpeakerProfile = apps.get_model('speakers', 'SpeakerProfile')
     
     for profile in SpeakerProfile.objects.all():
-        base_value = getattr(profile, 'name', 'speaker') 
+        base_value = getattr(profile, 'user_account__first_name', 'user_account__last_name') 
         if not base_value:
-            base_value = 'speaker'
+            base_value = profile.user_account.username
             
-        unique_id = uuid.uuid4().hex[:6]
-        profile.slug = slugify(f"{base_value}-{unique_id}")
+        profile.slug = slugify(f"{base_value}")
         profile.save(update_fields=['slug'])
 
 class Migration(migrations.Migration):

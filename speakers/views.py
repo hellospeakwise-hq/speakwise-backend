@@ -11,10 +11,11 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from speakers.models import SpeakerExperiences, SpeakerProfile
+from speakers.models import SpeakerExperiences, SpeakerProfile, SpeakerSkillTag
 from speakers.serializers import (
     SpeakerExperiencesSerializer,
     SpeakerProfileSerializer,
+    SpeakerSkillTagSerializer,
 )
 from users.models import User
 
@@ -48,6 +49,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """
 
     SAFE_METHODS = ["GET", "HEAD", "OPTIONS"]
+    lookup_field = "slug"
 
     def get_permissions(self):
         """Get permissions based on request method."""
@@ -55,22 +57,22 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
             return [AllowAny()]
         return [IsAuthenticated()]
 
-    def get_object(self, pk):
+    def get_object(self, slug: str):
         """Get speaker profile by ID."""
         try:
-            return SpeakerProfile.objects.get(id=pk)
+            return SpeakerProfile.objects.get(slug=slug)
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
-    def get(self, request, pk):
+    def get(self, request, slug: str):
         """Retrieve a specific speaker profile by ID."""
-        speaker_profile = self.get_object(pk)
+        speaker_profile = self.get_object(slug)
         serializer = SpeakerProfileSerializer(speaker_profile)
         return Response(serializer.data)
 
-    def patch(self, request, pk):
+    def patch(self, request, slug: str):
         """Update a specific speaker profile by ID."""
-        speaker_profile = self.get_object(pk)
+        speaker_profile = self.get_object(slug)
         serializer = SpeakerProfileSerializer(
             speaker_profile, data=request.data, partial=True
         )
@@ -78,9 +80,9 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, pk):
+    def delete(self, request, slug: str):
         """Delete a specific speaker profile by ID."""
-        speaker_profile = self.get_object(pk)
+        speaker_profile = self.get_object(slug)
         speaker_profile.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -88,6 +90,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
 @extend_schema(
     request=SpeakerExperiencesSerializer,
     responses=SpeakerExperiencesSerializer(many=True),
+    tags=["speaker experiences"],
 )
 class SpeakerExperiencesListCreateView(APIView):
     """View to list and create speaker experiences.
@@ -117,7 +120,9 @@ class SpeakerExperiencesListCreateView(APIView):
 
 
 @extend_schema(
-    request=SpeakerExperiencesSerializer, responses=SpeakerExperiencesSerializer
+    request=SpeakerExperiencesSerializer,
+    responses=SpeakerExperiencesSerializer,
+    tags=["speaker experiences"],
 )
 class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker experience.
@@ -159,13 +164,162 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
 
 
 class PublicSpeakerExperiencesListView(APIView):
-    """View to list all speaker experiences."""
+    """Public view to list experiences for a given speaker slug."""
 
     permission_classes = [AllowAny]
 
-    @extend_schema(responses=SpeakerExperiencesSerializer(many=True))
-    def get(self, request, pk):
-        """List all speaker experiences."""
-        speaker_experiences = SpeakerExperiences.objects.filter(speaker=pk)
+    @extend_schema(
+        responses=SpeakerExperiencesSerializer(many=True),
+        tags=["speaker experiences (public view)"],
+    )
+    def get(self, request, slug: str = None):
+        """List all speaker experiences for the provided speaker slug.
+
+        If the slug does not match any speaker, an empty list is returned.
+        """
+        speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=["speaker experiences (private view)"],
+)
+class PrivateSpeakerExperienceListView(APIView):
+    """View to list all speaker experiences."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses=SpeakerExperiencesSerializer(many=True),
+        request=SpeakerExperiencesSerializer,
+    )
+    def post(self, request):
+        """Create a new speaker experience for the authenticated user."""
+        serializer = SpeakerExperiencesSerializer(
+            data=request.data, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(tags=["speaker experiences (private view)"])
+class PrivateSpeakerExperienceRetrieveUpdateDestroyView(APIView):
+    """View to retrieve, update, and delete a speaker experience."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk: int, speaker: User):
+        """Get speaker experience by primary key and user."""
+        try:
+            return SpeakerExperiences.objects.get(pk=pk, speaker__user_account=speaker)
+        except SpeakerExperiences.DoesNotExist as err:
+            raise Http404 from err
+
+    @extend_schema(responses=SpeakerExperiencesSerializer)
+    def get(self, request, pk: int) -> Response:
+        """Retrieve a specific speaker experience by ID."""
+        speaker_experience = self.get_object(pk, request.user)
+        serializer = SpeakerExperiencesSerializer(speaker_experience)
+        return Response(serializer.data)
+
+    @extend_schema(responses=SpeakerExperiencesSerializer)
+    def patch(self, request, pk: int) -> Response:
+        """Update a speaker experience by ID."""
+        speaker_experience = self.get_object(pk, request.user)
+        serializer = SpeakerExperiencesSerializer(
+            speaker_experience, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(responses={200: None})
+    def delete(self, request, pk: int) -> Response:
+        """Delete a speaker's experience by ID."""
+        speaker_experience = self.get_object(pk, request.user)
+        speaker_experience.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(tags=["speaker skill tags"])
+class SpeakerSkillTagsListView(APIView):
+    """List and create skill tags for the authenticated user's speaker profile."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_objects(self, user: User):
+        """Return all skill tags for the given user's speaker profile."""
+        return SpeakerSkillTag.objects.filter(speaker__user_account=user)
+
+    @extend_schema(
+        responses=SpeakerSkillTagSerializer(many=True),
+        request=SpeakerSkillTagSerializer,
+    )
+    def get(self, request):
+        """List all skill tags for the authenticated user."""
+        skill_tags = self.get_objects(request.user)
+        serializer = SpeakerSkillTagSerializer(skill_tags, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        responses=SpeakerSkillTagSerializer, request=SpeakerSkillTagSerializer
+    )
+    def post(self, request):
+        """Create a new skill tag for the authenticated user's speaker profile."""
+        serializer = SpeakerSkillTagSerializer(data=request.data)
+        if serializer.is_valid():
+            speaker_profile = request.user.speakers_profile_user.first()
+            if speaker_profile is None:
+                return Response(
+                    {"detail": "Speaker profile not found for user."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            serializer.save(speaker=speaker_profile)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(tags=["speaker skill tags"])
+class SpeakerSkillTagsDetailView(APIView):
+    """Retrieve, update, and delete a skill tag owned by the authenticated user."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk: int, speaker: User):
+        """Get a speaker skill tag by primary key and user."""
+        try:
+            return SpeakerSkillTag.objects.get(pk=pk, speaker__user_account=speaker)
+        except SpeakerSkillTag.DoesNotExist as err:
+            raise Http404 from err
+
+    @extend_schema(responses=SpeakerSkillTagSerializer)
+    def get(self, request, pk: int) -> Response:
+        """Retrieve a specific speaker skill tag by primary key and user."""
+        speaker_skill_tag = self.get_object(pk, request.user)
+        serializer = SpeakerSkillTagSerializer(speaker_skill_tag)
+        return Response(serializer.data)
+
+    @extend_schema(
+        responses=SpeakerSkillTagSerializer, request=SpeakerSkillTagSerializer
+    )
+    def patch(self, request, pk: int) -> Response:
+        """Update a specific speaker skill tag by primary key and user."""
+        speaker_skill_tag = self.get_object(pk, request.user)
+        serializer = SpeakerSkillTagSerializer(
+            speaker_skill_tag, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(responses={200: None})
+    def delete(self, request, pk: int) -> Response:
+        """Delete a specific speaker skill tag by primary key and user."""
+        speaker_skill_tag = self.get_object(pk, request.user)
+        speaker_skill_tag.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

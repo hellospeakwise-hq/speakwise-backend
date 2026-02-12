@@ -15,7 +15,7 @@ class User(AbstractUser):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False, db_index=True
     )
-    fist_name = models.CharField(max_length=255, help_text="Fist name", null=True)
+    first_name = models.CharField(max_length=255, help_text="Fist name", null=True)
     last_name = models.CharField(max_length=255, help_text="Last name", null=True)
     username = models.CharField(
         _("username"), max_length=150, unique=True, db_index=True

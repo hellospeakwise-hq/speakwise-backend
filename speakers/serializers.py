@@ -30,7 +30,7 @@ class SpeakerSkillTagSerializer(ModelSerializer):
         """meta options."""
 
         model = SpeakerSkillTag
-        exclude = ["created_at", "updated_at"]
+        exclude = ["created_at", "updated_at", "speaker"]
 
 
 class SpeakerExperiencesSerializer(ModelSerializer):
@@ -56,7 +56,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     """speaker profile serializers."""
 
     social_links = SpeakerSocialLinksSerializer(many=True, required=False)
-    skill_tag = SpeakerSkillTagSerializer(many=True, required=False)
+    skill_tags = SpeakerSkillTagSerializer(many=True, required=False)
     speaker_name = SerializerMethodField()
     experiences = SpeakerExperiencesSerializer(
         many=True, read_only=True, required=False
@@ -67,14 +67,14 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
         model = SpeakerProfile
         exclude = ["created_at", "updated_at"]
+        read_only_fields = ("slug",)
 
     def get_speaker_name(self, obj) -> str:
         """Get speaker name."""
-        return (
-            obj.user_account.first_name + " " + obj.user_account.last_name
-            if obj.user_account.first_name and obj.user_account.last_name
-            else obj.user_account.username
-        )
+        first = (obj.user_account.first_name or "").strip()
+        last = (obj.user_account.last_name or "").strip()
+        full = f"{first} {last}".strip()
+        return full if full else obj.user_account.username
 
     @transaction.atomic
     def update(self, instance, validated_data):

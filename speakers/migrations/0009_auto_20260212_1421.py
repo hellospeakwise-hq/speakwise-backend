@@ -8,7 +8,7 @@ def generate_unique_slugs(apps, schema_editor):
     SpeakerProfile = apps.get_model('speakers', 'SpeakerProfile')
     
     for profile in SpeakerProfile.objects.all():
-        base_value = getattr(profile, 'user_account__first_name', 'user_account__last_name') 
+        base_value = f"{profile.user_account.first_name}_{profile.user_account.last_name}".strip()
         if not base_value:
             base_value = profile.user_account.username
             

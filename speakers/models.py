@@ -83,7 +83,7 @@ class SpeakerProfile(TimeStampedModel):
     long_bio = models.TextField(blank=True, null=True)
     country = models.CharField(max_length=255, blank=True)
     avatar = models.ImageField(upload_to=SPEAKERS_UPLOAD_DIR, blank=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(blank=True, null=True)
 
     def __str__(self):
         """String representation of the speaker profile."""

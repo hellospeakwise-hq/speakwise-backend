@@ -1,5 +1,6 @@
 """OAuth views."""
 
+import json
 import os
 from urllib.parse import urlencode
 
@@ -97,10 +98,10 @@ def github_callback(request):
         {
             "access": str(refresh.access_token),
             "refresh": str(refresh),
-            "user": UserSerializer(user).data,
+            "user": json.dumps(UserSerializer(user).data),  # ← FIXED: Convert dict to JSON string
         }
     )
-    return redirect(f"{frontend_url}?{params}")
+    return redirect(f"{frontend_url}/auth/callback?{params}")  # ← FIXED: Added /auth/callback
 
 
 @api_view(["GET"])
@@ -148,7 +149,7 @@ def google_callback(request):
         {
             "access": str(refresh.access_token),
             "refresh": str(refresh),
-            "user": UserSerializer(user).data,
+            "user": json.dumps(UserSerializer(user).data),  # ← Convert dict to JSON string
         }
     )
-    return redirect(f"{frontend_url}?{params}")
+    return redirect(f"{frontend_url}/auth/callback?{params}")  #  Added /auth/callback

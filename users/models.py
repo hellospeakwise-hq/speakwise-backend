@@ -22,6 +22,10 @@ class User(AbstractUser):
     )
     email = models.EmailField(_("email address"), unique=True, db_index=True)
     nationality = models.CharField(max_length=255, help_text="Nationality", null=True)
+    can_review_talks = models.BooleanField(
+        default=False,
+        help_text="Grants permission to review talk proposals",
+    )
 
     objects = UserManager()
     USERNAME_FIELD = "email"

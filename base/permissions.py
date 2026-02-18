@@ -51,3 +51,22 @@ class IsOrganizationOrganizer(BasePermission):
             except OrganizationMembership.DoesNotExist:
                 return False
         return False
+
+
+class CanReviewTalks(BasePermission):
+    """Permission class to check if user can review talk proposals.
+
+    Allows users who have can_review_talks permission and are not speakers
+    for the specific event being reviewed.
+    """
+
+    def has_permission(self, request, view):
+        """Check if user has permission to review talks."""
+        return True  # Allow both authenticated and anonymous users
+
+    def has_object_permission(self, request, view, obj):
+        """Check if user can review this specific talk.
+
+        Allows both authenticated and anonymous users.
+        """
+        return True

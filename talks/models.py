@@ -3,7 +3,6 @@
 from django.db import models
 
 from base.models import TimeStampedModel
-from events.models import Event
 from speakers.models import SpeakerProfile
 from talks.choices import TalkCategoryChoices
 
@@ -40,10 +39,26 @@ class Talks(TimeStampedModel):
         upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
     )
 
-    event = models.ForeignKey(
-        Event, on_delete=models.CASCADE, related_name="talk_event"
+    event = models.CharField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
+    is_public = models.BooleanField(
+        default=False,
+        help_text="When True, the talk proposal is visible for review by others",
     )
 
     def __str__(self):
         """Str."""
         return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug and self.title:
+            from django.utils.text import slugify
+
+            base_slug = slugify(self.title)
+            slug = base_slug
+            counter = 1
+            while Talks.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)

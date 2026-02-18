@@ -29,7 +29,9 @@ class EmailService:
         token_generator = PasswordResetTokenGenerator()
         token = token_generator.make_token(user)
 
-        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        reset_url = (
+            f"{settings.FRONTEND_URL}/reset-password?token={token}&email={user.email}"
+        )
 
         subject = (
             f"Password Reset Request - {getattr(settings, 'SITE_NAME', 'SpeakWise')}"

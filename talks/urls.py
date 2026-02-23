@@ -13,4 +13,9 @@ urlpatterns = [
         views.TalkRetrieveUpdateDestroyView.as_view(),
         name="talk-detail",
     ),
+    path(
+        "talks/<int:talk_id>/talk-review-comments/",
+        views.TalkReviewCommentListCreateView.as_view(),
+        name="talk-review-comment-list",
+    ),
 ]

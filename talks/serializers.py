@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from talks.models import Session, Talks
+from talks.models import Session, TalkReviewComment, Talks
 
 
 class SessionSerializer(serializers.ModelSerializer):
@@ -35,3 +35,13 @@ class TalkSerializer(serializers.ModelSerializer):
             + " "
             + obj.speaker.user_account.last_name
         )
+
+
+class TalkReviewCommentSerializer(serializers.ModelSerializer):
+    """Talk review comment serializer."""
+
+    class Meta:
+        """Meta options."""
+
+        model = TalkReviewComment
+        exclude = ("created_at", "updated_at")

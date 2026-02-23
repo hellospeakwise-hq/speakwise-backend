@@ -310,6 +310,7 @@ class SpeakerSkillTagsViewsTests(APITestCase):
 # SpeakerFollow model tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class SpeakerFollowModelTests(TestCase):
     """Tests for the SpeakerFollow model."""
 
@@ -356,6 +357,7 @@ class SpeakerFollowModelTests(TestCase):
     def test_unique_together_prevents_duplicate_follow(self):
         """A user cannot follow the same speaker twice."""
         from django.db import IntegrityError
+
         from speakers.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
@@ -388,6 +390,7 @@ class SpeakerFollowModelTests(TestCase):
 # ─────────────────────────────────────────────────────────────────────────────
 # SpeakerProfileSerializer — followers_count & is_following fields
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class SpeakerProfileSerializerFollowFieldsTests(TestCase):
     """Test that SpeakerProfileSerializer exposes follow-related fields."""
@@ -437,6 +440,7 @@ class SpeakerProfileSerializerFollowFieldsTests(TestCase):
     def test_is_following_true_for_follower(self):
         """is_following is True for an authenticated user who follows the speaker."""
         from django.test import RequestFactory
+
         from speakers.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
@@ -465,6 +469,7 @@ class SpeakerProfileSerializerFollowFieldsTests(TestCase):
 # ─────────────────────────────────────────────────────────────────────────────
 # SpeakerFollowView API tests  —  GET / POST / DELETE  /speakers/<slug>/follow/
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class SpeakerFollowViewTests(APITestCase):
     """Tests for SpeakerFollowView (follow / unfollow / status)."""
@@ -626,6 +631,7 @@ class SpeakerFollowViewTests(APITestCase):
 # SpeakerFollowersListView API tests  —  GET  /speakers/<slug>/followers/
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class SpeakerFollowersListViewTests(APITestCase):
     """Tests for SpeakerFollowersListView (public follower list)."""
 
@@ -687,9 +693,6 @@ class SpeakerFollowersListViewTests(APITestCase):
 
     def test_followers_list_invalid_slug_returns_404(self):
         """Invalid slug returns 404."""
-        url = reverse(
-            "speakers:speaker_followers_list", kwargs={"slug": "ghost-slug"}
-        )
+        url = reverse("speakers:speaker_followers_list", kwargs={"slug": "ghost-slug"})
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
-

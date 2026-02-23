@@ -11,7 +11,12 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from speakers.models import SpeakerExperiences, SpeakerFollow, SpeakerProfile, SpeakerSkillTag
+from speakers.models import (
+    SpeakerExperiences,
+    SpeakerFollow,
+    SpeakerProfile,
+    SpeakerSkillTag,
+)
 from speakers.serializers import (
     SpeakerExperiencesSerializer,
     SpeakerFollowSerializer,
@@ -349,7 +354,15 @@ class SpeakerFollowView(APIView):
             raise Http404 from err
 
     @extend_schema(
-        responses={200: {"type": "object", "properties": {"is_following": {"type": "boolean"}, "followers_count": {"type": "integer"}}}},
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "is_following": {"type": "boolean"},
+                    "followers_count": {"type": "integer"},
+                },
+            }
+        },
     )
     def get(self, request, slug: str) -> Response:
         """Check if the authenticated user is following this speaker."""
@@ -363,7 +376,15 @@ class SpeakerFollowView(APIView):
         )
 
     @extend_schema(
-        responses={201: {"type": "object", "properties": {"detail": {"type": "string"}, "followers_count": {"type": "integer"}}},},
+        responses={
+            201: {
+                "type": "object",
+                "properties": {
+                    "detail": {"type": "string"},
+                    "followers_count": {"type": "integer"},
+                },
+            },
+        },
     )
     def post(self, request, slug: str) -> Response:
         """Follow a speaker. Returns 201 on success, 400 if already following."""
@@ -382,12 +403,23 @@ class SpeakerFollowView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(
-            {"detail": "Successfully followed speaker.", "followers_count": speaker.followers_count},
+            {
+                "detail": "Successfully followed speaker.",
+                "followers_count": speaker.followers_count,
+            },
             status=status.HTTP_201_CREATED,
         )
 
     @extend_schema(
-        responses={200: {"type": "object", "properties": {"detail": {"type": "string"}, "followers_count": {"type": "integer"}}}},
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "detail": {"type": "string"},
+                    "followers_count": {"type": "integer"},
+                },
+            }
+        },
     )
     def delete(self, request, slug: str) -> Response:
         """Unfollow a speaker. Returns 200 on success, 400 if not following."""
@@ -401,7 +433,10 @@ class SpeakerFollowView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(
-            {"detail": "Successfully unfollowed speaker.", "followers_count": speaker.followers_count},
+            {
+                "detail": "Successfully unfollowed speaker.",
+                "followers_count": speaker.followers_count,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -423,7 +458,9 @@ class SpeakerFollowersListView(APIView):
     def get(self, request, slug: str) -> Response:
         """List all users following the given speaker."""
         speaker = self.get_speaker(slug)
-        follows = SpeakerFollow.objects.filter(speaker=speaker).select_related("follower")
+        follows = SpeakerFollow.objects.filter(speaker=speaker).select_related(
+            "follower"
+        )
         serializer = SpeakerFollowSerializer(follows, many=True)
         return Response(
             {"followers_count": speaker.followers_count, "followers": serializer.data},

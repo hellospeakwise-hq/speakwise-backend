@@ -19,6 +19,7 @@ from users.serializers import (
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    UserLoginSerializer,
     UserProfileSerializer,
     UserSerializer,
 )
@@ -95,6 +96,7 @@ class LoginBaseClass(ABC, LoginView):
         return Response(data)
 
 
+@extend_schema(request=UserLoginSerializer, responses=UserSerializer)
 class UserLoginView(LoginBaseClass):
     """Login view for speaker."""
 

@@ -304,3 +304,392 @@ class SpeakerSkillTagsViewsTests(APITestCase):
         # DELETE other's tag -> 404
         res = self.client.delete(other_detail_url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpeakerFollow model tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SpeakerFollowModelTests(TestCase):
+    """Tests for the SpeakerFollow model."""
+
+    def setUp(self):
+        """Create two users and one speaker profile."""
+        User = get_user_model()
+        self.speaker_user = User.objects.create(
+            username="speaker_one",
+            email="speaker@example.com",
+            password="pass123",
+        )
+        self.follower_user = User.objects.create(
+            username="follower_one",
+            email="follower@example.com",
+            password="pass123",
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.speaker_user,
+            organization="TestOrg",
+            short_bio="Short bio.",
+        )
+
+    def test_follow_creation(self):
+        """A SpeakerFollow record is created correctly."""
+        from speakers.models import SpeakerFollow
+
+        follow = SpeakerFollow.objects.create(
+            follower=self.follower_user,
+            speaker=self.profile,
+        )
+        self.assertEqual(follow.follower, self.follower_user)
+        self.assertEqual(follow.speaker, self.profile)
+        self.assertIn(self.follower_user.username, str(follow))
+
+    def test_followers_count_property(self):
+        """followers_count reflects the number of SpeakerFollow records."""
+        from speakers.models import SpeakerFollow
+
+        self.assertEqual(self.profile.followers_count, 0)
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        self.assertEqual(self.profile.followers_count, 1)
+
+    def test_unique_together_prevents_duplicate_follow(self):
+        """A user cannot follow the same speaker twice."""
+        from django.db import IntegrityError
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        with self.assertRaises(IntegrityError):
+            SpeakerFollow.objects.create(
+                follower=self.follower_user, speaker=self.profile
+            )
+
+    def test_follow_deleted_on_user_delete(self):
+        """Deleting a user cascades to their SpeakerFollow records."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        self.assertEqual(SpeakerFollow.objects.count(), 1)
+
+        self.follower_user.delete()
+        self.assertEqual(SpeakerFollow.objects.count(), 0)
+
+    def test_follow_deleted_on_speaker_profile_delete(self):
+        """Deleting a speaker profile cascades to its SpeakerFollow records."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        self.assertEqual(SpeakerFollow.objects.count(), 1)
+
+        self.profile.delete()
+        self.assertEqual(SpeakerFollow.objects.count(), 0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpeakerProfileSerializer — followers_count & is_following fields
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SpeakerProfileSerializerFollowFieldsTests(TestCase):
+    """Test that SpeakerProfileSerializer exposes follow-related fields."""
+
+    def setUp(self):
+        """Create speaker and follower users."""
+        User = get_user_model()
+        self.speaker_user = User.objects.create(
+            username="ser_speaker",
+            email="ser_speaker@example.com",
+            password="pass123",
+        )
+        self.follower_user = User.objects.create(
+            username="ser_follower",
+            email="ser_follower@example.com",
+            password="pass123",
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.speaker_user,
+            organization="Serializer Org",
+        )
+
+    def test_followers_count_is_zero_initially(self):
+        """followers_count is 0 when no one follows."""
+        serializer = SpeakerProfileSerializer(
+            instance=self.profile, context={"request": None}
+        )
+        self.assertEqual(serializer.data["followers_count"], 0)
+
+    def test_followers_count_increments_after_follow(self):
+        """followers_count reflects actual follow records."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        serializer = SpeakerProfileSerializer(
+            instance=self.profile, context={"request": None}
+        )
+        self.assertEqual(serializer.data["followers_count"], 1)
+
+    def test_is_following_false_when_no_request(self):
+        """is_following is False when no request context is provided."""
+        serializer = SpeakerProfileSerializer(
+            instance=self.profile, context={"request": None}
+        )
+        self.assertFalse(serializer.data["is_following"])
+
+    def test_is_following_true_for_follower(self):
+        """is_following is True for an authenticated user who follows the speaker."""
+        from django.test import RequestFactory
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+
+        request = RequestFactory().get("/")
+        request.user = self.follower_user
+
+        serializer = SpeakerProfileSerializer(
+            instance=self.profile, context={"request": request}
+        )
+        self.assertTrue(serializer.data["is_following"])
+
+    def test_is_following_false_for_non_follower(self):
+        """is_following is False for an authenticated user who does not follow."""
+        from django.test import RequestFactory
+
+        request = RequestFactory().get("/")
+        request.user = self.follower_user  # has NOT followed
+
+        serializer = SpeakerProfileSerializer(
+            instance=self.profile, context={"request": request}
+        )
+        self.assertFalse(serializer.data["is_following"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpeakerFollowView API tests  —  GET / POST / DELETE  /speakers/<slug>/follow/
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SpeakerFollowViewTests(APITestCase):
+    """Tests for SpeakerFollowView (follow / unfollow / status)."""
+
+    def setUp(self):
+        """Create speaker user, follower user, and speaker profile."""
+        self.client = APIClient()
+        User = get_user_model()
+
+        self.speaker_user = User.objects.create(
+            username="view_speaker",
+            email="view_speaker@example.com",
+            password="pass123",
+        )
+        self.follower_user = User.objects.create(
+            username="view_follower",
+            email="view_follower@example.com",
+            password="pass123",
+        )
+        self.other_user = User.objects.create(
+            username="view_other",
+            email="view_other@example.com",
+            password="pass123",
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.speaker_user,
+            organization="View Org",
+        )
+        self.follow_url = reverse(
+            "speakers:speaker_follow", kwargs={"slug": self.profile.slug}
+        )
+
+    # ── Authentication guard ────────────────────────────────────────────────
+
+    def test_unauthenticated_get_returns_401(self):
+        """GET /follow/ requires authentication."""
+        res = self.client.get(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unauthenticated_post_returns_401(self):
+        """POST /follow/ requires authentication."""
+        res = self.client.post(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unauthenticated_delete_returns_401(self):
+        """DELETE /follow/ requires authentication."""
+        res = self.client.delete(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # ── GET — check follow status ────────────────────────────────────────────
+
+    def test_get_follow_status_not_following(self):
+        """GET returns is_following=False when user has not followed."""
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.get(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(res.data["is_following"])
+        self.assertEqual(res.data["followers_count"], 0)
+
+    def test_get_follow_status_is_following(self):
+        """GET returns is_following=True after the user followed."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.get(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data["is_following"])
+        self.assertEqual(res.data["followers_count"], 1)
+
+    def test_get_follow_status_invalid_slug_returns_404(self):
+        """GET with an invalid slug returns 404."""
+        self.client.force_authenticate(self.follower_user)
+        url = reverse("speakers:speaker_follow", kwargs={"slug": "no-such-speaker"})
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    # ── POST — follow ────────────────────────────────────────────────────────
+
+    def test_post_follow_creates_record(self):
+        """POST creates a SpeakerFollow record and returns 201."""
+        from speakers.models import SpeakerFollow
+
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.post(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["followers_count"], 1)
+        self.assertTrue(
+            SpeakerFollow.objects.filter(
+                follower=self.follower_user, speaker=self.profile
+            ).exists()
+        )
+
+    def test_post_follow_twice_returns_400(self):
+        """POST a second time returns 400 'already following'."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.post(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("already following", res.data["detail"].lower())
+
+    def test_post_self_follow_returns_400(self):
+        """A speaker cannot follow their own profile."""
+        self.client.force_authenticate(self.speaker_user)
+        res = self.client.post(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("cannot follow yourself", res.data["detail"].lower())
+
+    def test_post_follow_updates_followers_count(self):
+        """followers_count in the response reflects the new total."""
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.post(self.follow_url)
+        self.assertEqual(res.data["followers_count"], 1)
+
+        # A second user follows as well
+        self.client.force_authenticate(self.other_user)
+        res = self.client.post(self.follow_url)
+        self.assertEqual(res.data["followers_count"], 2)
+
+    # ── DELETE — unfollow ────────────────────────────────────────────────────
+
+    def test_delete_unfollow_removes_record(self):
+        """DELETE removes the SpeakerFollow record and returns 200."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.delete(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["followers_count"], 0)
+        self.assertFalse(
+            SpeakerFollow.objects.filter(
+                follower=self.follower_user, speaker=self.profile
+            ).exists()
+        )
+
+    def test_delete_unfollow_when_not_following_returns_400(self):
+        """DELETE when not following returns 400 'not following'."""
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.delete(self.follow_url)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("not following", res.data["detail"].lower())
+
+    def test_delete_unfollow_decrements_followers_count(self):
+        """followers_count drops by 1 after unfollowing."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
+        SpeakerFollow.objects.create(follower=self.other_user, speaker=self.profile)
+
+        self.client.force_authenticate(self.follower_user)
+        res = self.client.delete(self.follow_url)
+        self.assertEqual(res.data["followers_count"], 1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpeakerFollowersListView API tests  —  GET  /speakers/<slug>/followers/
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SpeakerFollowersListViewTests(APITestCase):
+    """Tests for SpeakerFollowersListView (public follower list)."""
+
+    def setUp(self):
+        """Create users, a speaker profile, and a few follow records."""
+        self.client = APIClient()
+        User = get_user_model()
+
+        self.speaker_user = User.objects.create(
+            username="list_speaker",
+            email="list_speaker@example.com",
+            password="pass123",
+        )
+        self.follower_a = User.objects.create(
+            username="follower_a",
+            email="follower_a@example.com",
+            password="pass123",
+        )
+        self.follower_b = User.objects.create(
+            username="follower_b",
+            email="follower_b@example.com",
+            password="pass123",
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.speaker_user,
+            organization="List Org",
+        )
+        self.list_url = reverse(
+            "speakers:speaker_followers_list", kwargs={"slug": self.profile.slug}
+        )
+
+    def test_followers_list_is_public(self):
+        """Unauthenticated users can view the followers list."""
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_followers_list_empty_initially(self):
+        """Empty followers list returns count=0 and empty list."""
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["followers_count"], 0)
+        self.assertEqual(res.data["followers"], [])
+
+    def test_followers_list_shows_all_followers(self):
+        """All follower records appear in the response."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.follower_a, speaker=self.profile)
+        SpeakerFollow.objects.create(follower=self.follower_b, speaker=self.profile)
+
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["followers_count"], 2)
+        self.assertEqual(len(res.data["followers"]), 2)
+
+        usernames = {f["follower_username"] for f in res.data["followers"]}
+        self.assertIn("follower_a", usernames)
+        self.assertIn("follower_b", usernames)
+
+    def test_followers_list_invalid_slug_returns_404(self):
+        """Invalid slug returns 404."""
+        url = reverse(
+            "speakers:speaker_followers_list", kwargs={"slug": "ghost-slug"}
+        )
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+

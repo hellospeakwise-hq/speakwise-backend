@@ -128,6 +128,11 @@ class SpeakerProfile(TimeStampedModel):
         """
         return self.skill_tags
 
+    @property
+    def followers_count(self) -> int:
+        """Return the number of users following this speaker."""
+        return self.followers.count()
+
 
 class SpeakerSocialLinks(SocialLinks):
     """speaker social link model."""
@@ -139,3 +144,29 @@ class SpeakerSocialLinks(SocialLinks):
     def __str__(self):
         """String rep of speakwise social."""
         return self.name
+
+
+class SpeakerFollow(TimeStampedModel):
+    """Model to track which users follow which speaker profiles."""
+
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="following_speakers",
+        help_text="The user who is following the speaker.",
+    )
+    speaker = models.ForeignKey(
+        SpeakerProfile,
+        on_delete=models.CASCADE,
+        related_name="followers",
+        help_text="The speaker profile being followed.",
+    )
+
+    class Meta:
+        """Ensure a user can only follow a speaker once."""
+
+        unique_together = ("follower", "speaker")
+
+    def __str__(self):
+        """String representation of a follow relationship."""
+        return f"{self.follower.username} → {self.speaker}"

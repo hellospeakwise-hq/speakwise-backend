@@ -22,6 +22,7 @@ ALLOWED_HOSTS = [
     "speak-wise.live",
     "www.speak-wise.live",
     "https://www.speak-wise.live",
+    "64.23.141.40"
 ]
 
 # Database

@@ -360,6 +360,7 @@ class SpeakerFollowView(APIView):
                 "properties": {
                     "is_following": {"type": "boolean"},
                     "followers_count": {"type": "integer"},
+                    "following_count": {"type": "integer"},
                 },
             }
         },
@@ -370,8 +371,13 @@ class SpeakerFollowView(APIView):
         is_following = SpeakerFollow.objects.filter(
             follower=request.user, speaker=speaker
         ).exists()
+        following_count = SpeakerFollow.objects.filter(follower=request.user).count()
         return Response(
-            {"is_following": is_following, "followers_count": speaker.followers_count},
+            {
+                "is_following": is_following,
+                "followers_count": speaker.followers_count,
+                "following_count": following_count,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -382,6 +388,7 @@ class SpeakerFollowView(APIView):
                 "properties": {
                     "detail": {"type": "string"},
                     "followers_count": {"type": "integer"},
+                    "following_count": {"type": "integer"},
                 },
             },
         },
@@ -402,10 +409,12 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are already following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        following_count = SpeakerFollow.objects.filter(follower=request.user).count()
         return Response(
             {
                 "detail": "Successfully followed speaker.",
                 "followers_count": speaker.followers_count,
+                "following_count": following_count,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -417,6 +426,7 @@ class SpeakerFollowView(APIView):
                 "properties": {
                     "detail": {"type": "string"},
                     "followers_count": {"type": "integer"},
+                    "following_count": {"type": "integer"},
                 },
             }
         },
@@ -432,10 +442,12 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are not following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        following_count = SpeakerFollow.objects.filter(follower=request.user).count()
         return Response(
             {
                 "detail": "Successfully unfollowed speaker.",
                 "followers_count": speaker.followers_count,
+                "following_count": following_count,
             },
             status=status.HTTP_200_OK,
         )

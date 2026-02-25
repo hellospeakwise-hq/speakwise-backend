@@ -1,5 +1,7 @@
 """talks models."""
 
+import uuid
+
 from django.db import models
 
 from base.models import TimeStampedModel
@@ -47,3 +49,27 @@ class Talks(TimeStampedModel):
     def __str__(self):
         """Str."""
         return self.title
+
+
+class TalkReviewComment(TimeStampedModel):
+    """Talk review comment model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    talk = models.ForeignKey(
+        "talks.Talks",
+        on_delete=models.CASCADE,
+        related_name="talk_review_comments",
+        db_index=True,
+        null=True,
+    )
+    comment = models.TextField(help_text="Comment on talk.")
+
+    def __str__(self):
+        """Str."""
+        return f"{self.talk.title} - {self.comment[:50]}..."
+
+    class Meta:
+        """meta options."""
+
+        verbose_name = "Talk Review Comment"
+        verbose_name_plural = "Talk Review Comments"

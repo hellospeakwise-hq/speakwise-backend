@@ -49,7 +49,9 @@ class EmailService:
                 fail_silently=False,
             )
 
-            logger.info(f"Password reset email sent successfully to user ID: {user.id}")
+            logger.info(
+                "Password reset email sent successfully to user ID: %s", user.id
+            )
 
         except Exception as e:
             logger.error(f"Failed to send password reset email to {user.email}: {e}")

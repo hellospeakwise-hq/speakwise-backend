@@ -42,7 +42,8 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     def validate_email(self, value) -> str:
         """Validate that the provided email is associated with a user."""
         try:
-            User.objects.get(email=value)
+            user = User.objects.get(email=value)
+            self.context["user"] = user
         except User.DoesNotExist:
             raise serializers.ValidationError(
                 "No user is associated with this email address."

@@ -2,7 +2,7 @@
 
 from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
-from jsonschema import ValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
 from speakers.models import (
@@ -113,20 +113,11 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     def update(self, instance, validated_data):
         """Update speaker profile objects."""
         social_data = validated_data.pop("social_links", [])
-        skill_data = validated_data.pop("skill_tag", [])
 
         instance = super().update(instance, validated_data)
-
-        for item in skill_data:
-            tag_id = item.get("id")
-            if tag_id:
-                SpeakerSkillTag.objects.filter(id=tag_id).update(
-                    **{k: v for k, v in item.items() if k != "id"}
-                )
-                tag = SpeakerSkillTag.objects.get(id=tag_id)
-            else:
-                tag = SpeakerSkillTag.objects.create(**item)
-            instance.skill_tag.add(tag)
+        # NOTE: skill_tags nested updates are handled automatically by
+        # WritableNestedModelSerializer via update_or_create_reverse_relations().
+        # No manual loop needed here.
 
         for item in social_data:
             link_id = item.get("id")

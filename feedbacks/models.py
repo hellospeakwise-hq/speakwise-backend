@@ -1,12 +1,13 @@
 """Models for the feedback app."""
 
+# Create your models here.
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-# Create your models here.
 from base.models import TimeStampedModel
 from speakers.models import SpeakerProfile
 
-RATE_VALIDATION_REGEX = []
+RATING_VALIDATORS = [MinValueValidator(1), MaxValueValidator(10)]
 
 
 class Feedback(TimeStampedModel):
@@ -19,27 +20,27 @@ class Feedback(TimeStampedModel):
         related_name="speaker_feedback",
     )
     overall_rating = models.IntegerField(
-        validators=RATE_VALIDATION_REGEX,
+        validators=RATING_VALIDATORS,
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     engagement = models.IntegerField(
-        validators=RATE_VALIDATION_REGEX,
+        validators=RATING_VALIDATORS,
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     clarity = models.IntegerField(
-        validators=RATE_VALIDATION_REGEX,
+        validators=RATING_VALIDATORS,
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     content_depth = models.IntegerField(
-        validators=RATE_VALIDATION_REGEX,
+        validators=RATING_VALIDATORS,
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     speaker_knowledge = models.IntegerField(
-        validators=RATE_VALIDATION_REGEX,
+        validators=RATING_VALIDATORS,
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     practical_relevance = models.IntegerField(
-        validators=RATE_VALIDATION_REGEX,
+        validators=RATING_VALIDATORS,
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     comments = models.TextField(max_length=2000, blank=True, null=True)

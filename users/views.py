@@ -120,18 +120,18 @@ class PasswordResetRequestView(APIView):
     @extend_schema(request=PasswordResetRequestSerializer, responses={200: None})
     def post(self, request):
         """Request password reset for email."""
-        serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data["email"]
-            user = User.objects.get(email=email)
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.context["user"]
 
-            EmailService.send_password_reset_email(user, request)
+        EmailService.send_password_reset_email(user, request)
 
-            return Response(
-                {"detail": "Password reset email sent successfully."},
-                status=status.HTTP_200_OK,
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Password reset email sent successfully."},
+            status=status.HTTP_200_OK,
+        )
 
 
 @extend_schema(responses=PasswordResetConfirmSerializer)
@@ -144,15 +144,16 @@ class PasswordResetConfirmView(APIView):
     @extend_schema(request=PasswordResetConfirmSerializer, responses={200: None})
     def post(self, request):
         """Confirm password reset."""
-        serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            user = serializer.context["user"]  # User set in serializer's validate
-            user.set_password(serializer.validated_data["new_password"])
-            user.save()
-            return Response(
-                {"detail": "Password reset successfully."}, status=status.HTTP_200_OK
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.context["user"]  # User set in serializer's validate
+        user.set_password(serializer.validated_data["new_password"])
+        user.save()
+        return Response(
+            {"detail": "Password reset successfully."}, status=status.HTTP_200_OK
+        )
 
 
 class RetrieveUpdateAuthenticatedUserView(APIView):

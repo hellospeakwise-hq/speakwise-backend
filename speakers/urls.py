@@ -41,6 +41,18 @@ urlpatterns = [
         views.PublicSpeakerExperiencesListView.as_view(),
         name="public_speaker_experiences",
     ),
+    # Follow / unfollow a speaker (requires auth) + check follow status
+    path(
+        "speakers/<slug:slug>/follow/",
+        views.SpeakerFollowView.as_view(),
+        name="speaker_follow",
+    ),
+    # List all followers for a speaker (public)
+    path(
+        "speakers/<slug:slug>/followers/",
+        views.SpeakerFollowersListView.as_view(),
+        name="speaker_followers_list",
+    ),
     # Single speaker profile by slug (keep last)
     path(
         "speakers/<slug:slug>/",

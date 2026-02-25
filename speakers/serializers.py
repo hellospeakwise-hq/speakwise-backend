@@ -7,6 +7,7 @@ from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
 from speakers.models import (
     SpeakerExperiences,
+    SpeakerFollow,
     SpeakerProfile,
     SpeakerSkillTag,
     SpeakerSocialLinks,
@@ -52,6 +53,23 @@ class SpeakerExperiencesSerializer(ModelSerializer):
         return super().create(validated_data)
 
 
+class SpeakerFollowSerializer(ModelSerializer):
+    """Serializer for the SpeakerFollow model."""
+
+    follower_username = SerializerMethodField()
+
+    class Meta:
+        """meta options."""
+
+        model = SpeakerFollow
+        fields = ["id", "follower", "follower_username", "created_at"]
+        read_only_fields = ["id", "follower", "follower_username", "created_at"]
+
+    def get_follower_username(self, obj) -> str:
+        """Return the username of the follower."""
+        return obj.follower.username
+
+
 class SpeakerProfileSerializer(WritableNestedModelSerializer):
     """speaker profile serializers."""
 
@@ -61,6 +79,8 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     experiences = SpeakerExperiencesSerializer(
         many=True, read_only=True, required=False
     )
+    followers_count = SerializerMethodField()
+    is_following = SerializerMethodField()
 
     class Meta:
         """meta options."""
@@ -75,6 +95,19 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         last = (obj.user_account.last_name or "").strip()
         full = f"{first} {last}".strip()
         return full if full else obj.user_account.username
+
+    def get_followers_count(self, obj) -> int:
+        """Return total number of followers for this speaker."""
+        return obj.followers_count
+
+    def get_is_following(self, obj) -> bool:
+        """Return True if the current authenticated user follows this speaker."""
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return SpeakerFollow.objects.filter(
+                follower=request.user, speaker=obj
+            ).exists()
+        return False
 
     @transaction.atomic
     def update(self, instance, validated_data):

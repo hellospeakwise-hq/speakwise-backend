@@ -822,4 +822,3 @@ class FollowingCountFixTests(APITestCase):
             instance=self.profile_b, context={"request": None}
         )
         self.assertEqual(serializer.data["following_count"], 0)
-

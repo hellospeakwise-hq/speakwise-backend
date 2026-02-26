@@ -371,7 +371,10 @@ class SpeakerFollowView(APIView):
         is_following = SpeakerFollow.objects.filter(
             follower=request.user, speaker=speaker
         ).exists()
-        following_count = SpeakerFollow.objects.filter(follower=request.user).count()
+        # following_count = how many speakers THIS speaker follows (not the logged-in user)
+        following_count = SpeakerFollow.objects.filter(
+            follower=speaker.user_account
+        ).count()
         return Response(
             {
                 "is_following": is_following,
@@ -409,7 +412,10 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are already following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        following_count = SpeakerFollow.objects.filter(follower=request.user).count()
+        # following_count = how many speakers THIS speaker follows (not the logged-in user)
+        following_count = SpeakerFollow.objects.filter(
+            follower=speaker.user_account
+        ).count()
         return Response(
             {
                 "detail": "Successfully followed speaker.",
@@ -442,7 +448,10 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are not following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        following_count = SpeakerFollow.objects.filter(follower=request.user).count()
+        # following_count = how many speakers THIS speaker follows (not the logged-in user)
+        following_count = SpeakerFollow.objects.filter(
+            follower=speaker.user_account
+        ).count()
         return Response(
             {
                 "detail": "Successfully unfollowed speaker.",

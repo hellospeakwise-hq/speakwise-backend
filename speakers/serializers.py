@@ -80,6 +80,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         many=True, read_only=True, required=False
     )
     followers_count = SerializerMethodField()
+    following_count = SerializerMethodField()
     is_following = SerializerMethodField()
 
     class Meta:
@@ -99,6 +100,10 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     def get_followers_count(self, obj) -> int:
         """Return total number of followers for this speaker."""
         return obj.followers_count
+
+    def get_following_count(self, obj) -> int:
+        """Return how many speakers this speaker follows (their following count)."""
+        return SpeakerFollow.objects.filter(follower=obj.user_account).count()
 
     def get_is_following(self, obj) -> bool:
         """Return True if the current authenticated user follows this speaker."""

@@ -22,7 +22,7 @@ ALLOWED_HOSTS = [
     "speak-wise.live",
     "www.speak-wise.live",
     "https://www.speak-wise.live",
-    "64.23.141.40",
+    "159.65.58.240",
 ]
 
 # Database
@@ -66,7 +66,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_REDIRECT_EXEMPT = []
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True

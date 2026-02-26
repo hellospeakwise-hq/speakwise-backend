@@ -8,7 +8,7 @@ class TimeStampedModel(models.Model):
     """time stamped model."""
 
     created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         """meta options."""
@@ -19,8 +19,8 @@ class TimeStampedModel(models.Model):
 class SocialLinks(TimeStampedModel):
     """social links model."""
 
-    name = models.CharField(null=True, max_length=255, unique=True)
-    link = models.URLField(null=True, max_length=255, unique=True)
+    name = models.CharField(null=True, max_length=255)
+    link = models.URLField(null=True, max_length=255)
 
     class Meta:
         """meta options."""

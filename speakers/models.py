@@ -24,7 +24,7 @@ class SpeakerSkillTag(TimeStampedModel):
     duration = models.PositiveIntegerField(null=True, help_text="years of experience")
     speaker = models.ForeignKey(
         "speakers.SpeakerProfile",
-        on_delete=models.DO_NOTHING,
+        on_delete=models.CASCADE,
         related_name="skill_tags",
         null=True,
     )
@@ -71,10 +71,8 @@ class SpeakerProfile(TimeStampedModel):
     user_account = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="speakers_profile_user"
     )
-    events_spoken = models.ForeignKey(
+    events_spoken = models.ManyToManyField(
         "events.Event",
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
         related_name="speakers",
     )
@@ -144,6 +142,11 @@ class SpeakerSocialLinks(SocialLinks):
     def __str__(self):
         """String rep of speakwise social."""
         return self.name
+
+    class Meta:
+        """meta options."""
+
+        unique_together = ("speaker", "name")
 
 
 class SpeakerFollow(TimeStampedModel):

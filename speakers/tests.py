@@ -696,3 +696,130 @@ class SpeakerFollowersListViewTests(APITestCase):
         url = reverse("speakers:speaker_followers_list", kwargs={"slug": "ghost-slug"})
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# following_count bug-fix tests
+# Verifies that following_count always reflects the VIEWED speaker's count,
+# not the logged-in user's count.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class FollowingCountFixTests(APITestCase):
+    """Regression tests for the following_count bug fix.
+
+    Before the fix, following_count returned how many speakers the
+    *logged-in user* follows — instead of how many the *viewed speaker* follows.
+    These tests assert the corrected behaviour across GET, POST, and DELETE.
+    """
+
+    def setUp(self):
+        """Create three users (A, B, C) and matching speaker profiles."""
+        self.client = APIClient()
+        User = get_user_model()
+
+        self.user_a = User.objects.create(
+            username="user_a", email="a@example.com", password="pass"
+        )
+        self.user_b = User.objects.create(
+            username="user_b", email="b@example.com", password="pass"
+        )
+        self.user_c = User.objects.create(
+            username="user_c", email="c@example.com", password="pass"
+        )
+
+        self.profile_a = SpeakerProfile.objects.create(
+            user_account=self.user_a, organization="Org A"
+        )
+        self.profile_b = SpeakerProfile.objects.create(
+            user_account=self.user_b, organization="Org B"
+        )
+        self.profile_c = SpeakerProfile.objects.create(
+            user_account=self.user_c, organization="Org C"
+        )
+
+        # speaker_a's follow URL
+        self.follow_a_url = reverse(
+            "speakers:speaker_follow", kwargs={"slug": self.profile_a.slug}
+        )
+
+    # ── GET /speakers/<slug>/follow/ ────────────────────────────────────────
+
+    def test_get_following_count_reflects_viewed_speaker_not_logged_in_user(self):
+        """GET following_count = views speaker's following count, not caller's."""
+        from speakers.models import SpeakerFollow
+
+        # user_a follows profile_b and profile_c (profile_a follows 2)
+        SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_b)
+        SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_c)
+
+        # user_b follows nobody (0 following), but we authenticate as user_b
+        # and hit the profile_a view endpoint
+        self.client.force_authenticate(self.user_b)
+        res = self.client.get(self.follow_a_url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # Must show profile_a's following count (2), NOT user_b's following count (0)
+        self.assertEqual(res.data["following_count"], 2)
+
+    # ── POST /speakers/<slug>/follow/ ───────────────────────────────────────
+
+    def test_post_following_count_reflects_viewed_speaker_not_logged_in_user(self):
+        """POST following_count = viewed speaker's following count, not caller's."""
+        from speakers.models import SpeakerFollow
+
+        # user_a follows profile_c (profile_a's following count = 1)
+        SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_c)
+
+        # user_b follows nobody → authenticate as user_b and follow profile_a
+        self.client.force_authenticate(self.user_b)
+        res = self.client.post(self.follow_a_url)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        # following_count should be profile_a's count (1), NOT user_b's (0)
+        self.assertEqual(res.data["following_count"], 1)
+        # followers_count of profile_a should now be 1 (user_b just followed)
+        self.assertEqual(res.data["followers_count"], 1)
+
+    # ── DELETE /speakers/<slug>/follow/ ─────────────────────────────────────
+
+    def test_delete_following_count_reflects_viewed_speaker_not_logged_in_user(self):
+        """DELETE following_count = viewed speaker's following count, not caller's."""
+        from speakers.models import SpeakerFollow
+
+        # user_a follows profile_b and profile_c (profile_a's following count = 2)
+        SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_b)
+        SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_c)
+
+        # user_b follows profile_a, then unfollows
+        SpeakerFollow.objects.create(follower=self.user_b, speaker=self.profile_a)
+        self.client.force_authenticate(self.user_b)
+        res = self.client.delete(self.follow_a_url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # following_count should be profile_a's count (2), NOT user_b's (0)
+        self.assertEqual(res.data["following_count"], 2)
+        # followers_count of profile_a should now be 0
+        self.assertEqual(res.data["followers_count"], 0)
+
+    # ── Serializer ───────────────────────────────────────────────────────────
+
+    def test_serializer_exposes_following_count(self):
+        """SpeakerProfileSerializer now includes following_count field."""
+        from speakers.models import SpeakerFollow
+
+        SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_b)
+
+        serializer = SpeakerProfileSerializer(
+            instance=self.profile_a, context={"request": None}
+        )
+        self.assertIn("following_count", serializer.data)
+        self.assertEqual(serializer.data["following_count"], 1)
+
+    def test_serializer_following_count_zero_when_speaker_follows_nobody(self):
+        """following_count is 0 when the speaker follows no one."""
+        serializer = SpeakerProfileSerializer(
+            instance=self.profile_b, context={"request": None}
+        )
+        self.assertEqual(serializer.data["following_count"], 0)
+

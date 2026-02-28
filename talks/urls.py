@@ -13,9 +13,20 @@ urlpatterns = [
         views.TalkRetrieveUpdateDestroyView.as_view(),
         name="talk-detail",
     ),
+    # Public endpoints
     path(
-        "talks/<int:talk_id>/talk-review-comments/",
-        views.TalkReviewCommentListCreateView.as_view(),
-        name="talk-review-comment-list",
+        "talks/<slug:slug>/reviews/",
+        views.TalkReviewSubmitView.as_view(),
+        name="talk-review-submit",
+    ),
+    path(
+        "talks/<slug:slug>/",
+        views.PublicTalkDetailView.as_view(),
+        name="talk-public-detail",
+    ),
+    path(
+        "speakers/<slug:slug>/talks/",
+        views.SpeakerPublicTalksView.as_view(),
+        name="speaker-public-talks",
     ),
 ]

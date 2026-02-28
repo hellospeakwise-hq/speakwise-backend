@@ -66,6 +66,9 @@ class TestTalkSerializer(TestCase):
                 "presentation_files",
                 "event",
                 "speaker_name",
+                "slug",
+                "is_public",
+                "is_reviewable",
             },
         )
 
@@ -128,7 +131,7 @@ class TestTalkReviewComment(TestCase):
         )
         self.comment = "This is a review comment for the talk."
         self.talk_review_comment = TalkReviewComment.objects.create(
-            comment=self.comment, talk=self.talk
+            comment=self.comment, talk=self.talk, rating=5
         )
 
     def test_talk_review_comment_create(self):

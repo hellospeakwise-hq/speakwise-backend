@@ -4,30 +4,30 @@ from django.test import TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
-from talks.views import TalkReviewCommentListCreateView
+from talks.views import TalkReviewSubmitView
 
 
-class TestTalkReviewCommentListCreateViewURL(TestCase):
-    """test talk review comment list create view url."""
+class TestTalkReviewSubmitViewURL(TestCase):
+    """test talk review submit view url."""
 
     def setUp(self):
         """Set up test data."""
         self.client = APIClient()
-        # use a dummy talk_id when reversing; the reverse function doesn't query the DB
-        self.talk_id = 1
+        # use a dummy slug when reversing; the reverse function doesn't query the DB
+        self.slug = "test-slug-123"
         self.url = reverse(
-            "talks:talk-review-comment-list",
-            kwargs={"talk_id": self.talk_id},
+            "talks:talk-review-submit",
+            kwargs={"slug": self.slug},
         )
 
-    def test_talk_review_comment_list_create_view_url(self):
+    def test_talk_review_submit_view_url(self):
         """Test url."""
-        expected = f"/api/talks/{self.talk_id}/talk-review-comments/"
+        expected = f"/api/talks/{self.slug}/reviews/"
         self.assertEqual(self.url, expected)
 
-    def test_talk_review_comment_list_create_view_resolves(self):
+    def test_talk_review_submit_view_resolves(self):
         """Test url resolves to correct view."""
-        view = resolve(f"/api/talks/{self.talk_id}/talk-review-comments/")
-        self.assertEqual(view.func.view_class, TalkReviewCommentListCreateView)
-        self.assertEqual(view.view_name, "talks:talk-review-comment-list")
-        self.assertEqual(view.url_name, "talk-review-comment-list")
+        view = resolve(f"/api/talks/{self.slug}/reviews/")
+        self.assertEqual(view.func.view_class, TalkReviewSubmitView)
+        self.assertEqual(view.view_name, "talks:talk-review-submit")
+        self.assertEqual(view.url_name, "talk-review-submit")

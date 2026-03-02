@@ -27,6 +27,7 @@ class TalkSerializer(serializers.ModelSerializer):
 
         model = Talks
         exclude = ("created_at", "updated_at")
+        read_only_fields = ["slug", "speaker_name"]
 
     def get_speaker_name(self, obj) -> str:
         """Get speaker name."""

@@ -2,7 +2,10 @@
 
 import uuid
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.crypto import get_random_string
+from django.utils.text import slugify
 
 from base.models import TimeStampedModel
 from events.models import Event
@@ -42,6 +45,10 @@ class Talks(TimeStampedModel):
         upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
     )
 
+    slug = models.SlugField(unique=True, max_length=255, null=True, blank=True)
+    is_public = models.BooleanField(default=False)
+    is_reviewable = models.BooleanField(default=True)
+
     event = models.ForeignKey(
         Event, on_delete=models.CASCADE, related_name="talk_event"
     )
@@ -49,6 +56,25 @@ class Talks(TimeStampedModel):
     def __str__(self):
         """Str."""
         return self.title
+
+    def _generate_unique_slug(self) -> str:
+        """Generate a unique slug, appending random string for entropy."""
+        base_slug = slugify(self.title) if self.title else "talk"
+        random_suffix = get_random_string(length=5).lower()
+        candidate = f"{base_slug}-{random_suffix}"
+
+        # In the extremely rare case of a collision, try again
+        while Talks.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+            random_suffix = get_random_string(length=5).lower()
+            candidate = f"{base_slug}-{random_suffix}"
+
+        return candidate
+
+    def save(self, *args, **kwargs):
+        """Set slug once when empty."""
+        if not self.slug:
+            self.slug = self._generate_unique_slug()
+        super().save(*args, **kwargs)
 
 
 class TalkReviewComment(TimeStampedModel):
@@ -61,6 +87,10 @@ class TalkReviewComment(TimeStampedModel):
         related_name="talk_review_comments",
         db_index=True,
         null=True,
+    )
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Rating from 1 to 5.",
     )
     comment = models.TextField(help_text="Comment on talk.")
 

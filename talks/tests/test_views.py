@@ -7,12 +7,12 @@ from rest_framework.test import APIClient
 from events.models import Country, Event, Location
 from speakers.models import SpeakerProfile
 from talks.models import Talks
-from talks.views import TalkReviewCommentListCreateView
+from talks.views import TalkReviewSubmitView
 from users.models import User
 
 
-class TestTalkReviewCommentListCreateView(TestCase):
-    """test talk review comment list create view."""
+class TestTalkReviewSubmitView(TestCase):
+    """test talk review submit view."""
 
     def setUp(self):
         """Set up test data."""
@@ -45,10 +45,10 @@ class TestTalkReviewCommentListCreateView(TestCase):
             ),
         )
         self.url = reverse(
-            "talks:talk-review-comment-list",
-            kwargs={"talk_id": self.talk.id},
+            "talks:talk-review-submit",
+            kwargs={"slug": self.talk.slug},
         )
-        self.view = TalkReviewCommentListCreateView.as_view()
+        self.view = TalkReviewSubmitView.as_view()
 
     def test_talk_review_comment_list_create_view_get(self):
         """Test get request."""
@@ -57,6 +57,10 @@ class TestTalkReviewCommentListCreateView(TestCase):
 
     def test_talk_review_comment_list_create_view_post(self):
         """Test post request."""
-        payload = {"talk": self.talk.id, "comment": "This is a test comment."}
+        payload = {
+            "talk": self.talk.id,
+            "rating": 5,
+            "comment": "This is a test comment.",
+        }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, 201)

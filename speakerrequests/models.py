@@ -34,7 +34,7 @@ class EmailRequests(TimeStampedModel):
     """request sent through email."""
 
     id = models.UUIDField(
-        primary_key=True, unique=True, editable=False, default=uuid.uuid4()
+        primary_key=True, unique=True, editable=False, default=uuid.uuid4
     )
     event = models.CharField(max_length=255)
     location = models.CharField(max_length=255)

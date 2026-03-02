@@ -50,7 +50,11 @@ class Talks(TimeStampedModel):
     is_reviewable = models.BooleanField(default=True)
 
     event = models.ForeignKey(
-        Event, on_delete=models.CASCADE, related_name="talk_event"
+        Event,
+        on_delete=models.CASCADE,
+        related_name="talk_event",
+        null=True,
+        blank=True,
     )
 
     def __str__(self):

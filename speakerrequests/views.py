@@ -1,17 +1,21 @@
 """speaker request views."""
 
+from django.db.models import Q
 from django.http.response import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from organizations.models import OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
-from speakerrequests.filters import SpeakerRequestFilter
-from speakerrequests.models import SpeakerRequest
-from speakerrequests.serializers import SpeakerRequestSerializer
+from speakerrequests.filters import EmailRequestsFilter, SpeakerRequestFilter
+from speakerrequests.models import EmailRequests, SpeakerRequest
+from speakerrequests.serializers import (
+    EmailRequestsSerializer,
+    SpeakerRequestSerializer,
+)
 from speakerrequests.utils import (
     send_request_accepted_email,
     send_speaker_request_declined_email,
@@ -233,16 +237,95 @@ class SpeakerRequestAcceptView(APIView):
         serializer.save()
         # send email notification to speaker if request is accepted or declined
         (
-            send_request_accepted_email(
+            send_request_accepted_email.enqueue(
                 speaker_email=serializer.instance.speaker.user_account.email,
                 event_name=serializer.instance.event.title,
                 speaker_name=serializer.instance.speaker.user_account.email,
             )
             if serializer.instance.status == RequestStatusChoices.ACCEPTED.value
-            else send_speaker_request_declined_email(
+            else send_speaker_request_declined_email.enqueue(
                 speaker_email=serializer.instance.speaker.user_account.email,
                 event_name=serializer.instance.event.title,
                 speaker_name=serializer.instance.speaker.user_account.email,
             )
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    request=EmailRequestsSerializer,
+    responses=EmailRequestsSerializer,
+    tags=["speaker email-request"],
+)
+class SpeakerEmailRequestListView(APIView):
+    """Speaker request sent via email."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, user):
+        """Get email requests sent or received by the user."""
+        return EmailRequests.objects.filter(Q(request_from=user) | Q(request_to=user))
+
+    def get(self, request):
+        """Return request sent or received by the authenticated user."""
+        email_requests = self.get_object(request.user)
+        email_request_filter = EmailRequestsFilter(request.GET, queryset=email_requests)
+        serializer = EmailRequestsSerializer(email_request_filter.qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Create a new request sent via email."""
+        # reconstruct request data
+        speaker_id = request.data.get("speaker_id")
+        if not speaker_id:
+            return Response(
+                {"speaker_id": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.data["request_to"] = speaker_id
+        request.data["request_from"] = request.user.id
+
+        # validate and save request data
+        serializer = EmailRequestsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # send the request via email if the recipient exists
+        if serializer.instance.request_to:
+            send_speaker_request_email.enqueue(
+                speaker_email=serializer.instance.request_to.email,
+                event_name=serializer.instance.event,
+                organizer_name=serializer.instance.request_from.username,
+                message=serializer.instance.message,
+            )
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    request=EmailRequestsSerializer,
+    responses={200: None},
+    tags=["speaker email-request"],
+)
+class SpeakerEmailRequestDetailView(APIView):
+    """Detail view of Speaker request sent through email."""
+
+    def get_object(self, pk):
+        """Get object by pk."""
+        try:
+            return EmailRequests.objects.get(pk=pk, request_to=self.request.user)
+        except EmailRequests.DoesNotExist as err:
+            raise Http404 from err
+
+    def patch(self, request, pk=None):
+        """Update status of a specific speaker request."""
+        email_request = self.get_object(pk)
+        new_status = request.data.get("status")
+        if new_status != email_request.status:
+            email_request.status = new_status
+            email_request.save()
+            return Response(
+                EmailRequestsSerializer(email_request).data, status=status.HTTP_200_OK
+            )
+        return Response(status=status.HTTP_200_OK)

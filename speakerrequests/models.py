@@ -1,10 +1,13 @@
 """speaker request model."""
 
+import uuid
+
 from django.db import models
 
 from base.models import TimeStampedModel
 from speakerrequests.choices import RequestStatusChoices
 from speakers.models import SpeakerProfile
+from users.models import User
 
 
 class SpeakerRequest(TimeStampedModel):
@@ -25,3 +28,35 @@ class SpeakerRequest(TimeStampedModel):
     def __str__(self):
         """Str."""
         return f"{self.speaker.user_account.username} request"
+
+
+class EmailRequests(TimeStampedModel):
+    """request sent through email."""
+
+    id = models.UUIDField(
+        primary_key=True, unique=True, editable=False, default=uuid.uuid4()
+    )
+    event = models.CharField(max_length=255)
+    location = models.CharField(max_length=255)
+    request_from = models.ForeignKey(
+        User,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        related_name="speaker_requests",
+    )
+    request_to = models.ForeignKey(
+        User,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        related_name="speaker_requests_received",
+    )
+    message = models.TextField(null=False)
+    status = models.CharField(
+        max_length=225,
+        choices=RequestStatusChoices.choices,
+        default=RequestStatusChoices.PENDING,
+    )
+
+    def __str__(self):
+        """Str."""
+        return f"{self.request_from.username} requests {self.request_to.username}"

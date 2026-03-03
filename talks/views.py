@@ -10,6 +10,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.throttling import AnonRateThrottle
 
 from talks.filters import TalksFilter
 from talks.models import TalkReviewComment, Talks
@@ -26,13 +27,24 @@ class TalkListCreateView(ListCreateAPIView):
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = TalksFilter
 
+    def get_queryset(self):
+        """Filter talks by the authenticated user if modifying."""
+        if self.request.user.is_authenticated:
+            return Talks.objects.filter(speaker__user_account=self.request.user)
+        return Talks.objects.none()
+
 
 class TalkRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     """retrieve, update and destroy view for talks."""
 
-    queryset = Talks.objects.all()
     serializer_class = TalkSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        """Filter talks by the authenticated user if modifying."""
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return Talks.objects.all()
+        return Talks.objects.filter(speaker__user_account=self.request.user)
 
 
 class PublicTalkDetailView(RetrieveAPIView):
@@ -61,11 +73,12 @@ class TalkReviewSubmitView(ListCreateAPIView):
 
     serializer_class = TalkReviewCommentSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
 
     def get_queryset(self):
         """Filter comments by the parent talk slug from the URL."""
         slug = self.kwargs.get("slug")
-        return TalkReviewComment.objects.filter(talk__slug=slug)
+        return TalkReviewComment.objects.filter(talk__slug=slug, talk__is_public=True)
 
     def perform_create(self, serializer):
         """Set the talk on creation and validate it is reviewable."""

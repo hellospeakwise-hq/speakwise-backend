@@ -172,14 +172,16 @@ class RetrieveUpdateAuthenticatedUserView(APIView):
     def get(self, request):
         """Retrieve the authenticated user's details."""
         user = self.get_object(request.user.pk)
-        serializer = UserProfileSerializer(user)
+        serializer = UserProfileSerializer(user, context={"request": request})
         return Response(serializer.data)
 
     @extend_schema(responses=UserProfileSerializer, request=UserProfileSerializer)
     def patch(self, request):
         """Update the authenticated user's details."""
         user = self.get_object(request.user.pk)
-        serializer = UserProfileSerializer(user, data=request.data, partial=True)
+        serializer = UserProfileSerializer(
+            user, data=request.data, partial=True, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

@@ -3,6 +3,7 @@
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
@@ -29,7 +30,11 @@ from users.models import User
 class SpeakerProfileListCreateView(APIView):
     """View to list and create speaker profiles."""
 
-    permission_classes = [AllowAny]
+    def get_permissions(self):
+        """Get permissions depending on the request method."""
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
@@ -83,6 +88,9 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     def patch(self, request, slug: str):
         """Update a specific speaker profile by ID."""
         speaker_profile = self.get_object(slug)
+        if speaker_profile.user_account != request.user:
+            raise PermissionDenied("You do not have permission to edit this profile.")
+        
         serializer = SpeakerProfileSerializer(
             speaker_profile, data=request.data, partial=True
         )
@@ -93,6 +101,9 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     def delete(self, request, slug: str):
         """Delete a specific speaker profile by ID."""
         speaker_profile = self.get_object(slug)
+        if speaker_profile.user_account != request.user:
+            raise PermissionDenied("You do not have permission to delete this profile.")
+        
         speaker_profile.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

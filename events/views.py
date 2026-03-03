@@ -3,6 +3,7 @@
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,12 +12,17 @@ from base.permissions import IsOrganizationAdmin
 from events.models import Event
 from events.serializers import EventSerializer
 from events.utils import create_event_payload
+from organizations.models import OrganizationMembership
 
 
 class EventListView(APIView):
     """event list view."""
 
-    permission_classes = [AllowAny]
+    def get_permissions(self):
+        """Get permissions."""
+        if self.request.method in ["GET"]:
+            return [AllowAny()]
+        return [IsOrganizationAdmin()]
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
@@ -67,6 +73,16 @@ class EventDetailView(APIView):
     def patch(self, request, pk, *args, **kwargs):
         """Update event detail."""
         event = self.get_object(pk)
+        
+        if event.organizer:
+            membership = OrganizationMembership.objects.filter(
+                organization=event.organizer, user=request.user
+            ).first()
+            if not membership or not membership.is_admins():
+                raise PermissionDenied("You must be an admin of this event's organization.")
+        else:
+            raise PermissionDenied("Cannot modify events without an organization.")
+
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -77,5 +93,15 @@ class EventDetailView(APIView):
     def delete(self, request, pk, *args, **kwargs):
         """Delete event."""
         event = self.get_object(pk)
+        
+        if event.organizer:
+            membership = OrganizationMembership.objects.filter(
+                organization=event.organizer, user=request.user
+            ).first()
+            if not membership or not membership.is_admins():
+                raise PermissionDenied("You must be an admin of this event's organization.")
+        else:
+            raise PermissionDenied("Cannot delete events without an organization.")
+
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

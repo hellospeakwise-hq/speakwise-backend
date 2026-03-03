@@ -70,6 +70,84 @@ class SpeakerFollowSerializer(ModelSerializer):
         return obj.follower.username
 
 
+class FollowerDetailSerializer(ModelSerializer):
+    """Rich serializer returning speaker profile info for followers/following lists."""
+
+    username = SerializerMethodField()
+    full_name = SerializerMethodField()
+    avatar = SerializerMethodField()
+    slug = SerializerMethodField()
+    short_bio = SerializerMethodField()
+    country = SerializerMethodField()
+    organization = SerializerMethodField()
+
+    class Meta:
+        """meta options."""
+
+        model = SpeakerFollow
+        fields = [
+            "id",
+            "username",
+            "full_name",
+            "avatar",
+            "slug",
+            "short_bio",
+            "country",
+            "organization",
+            "created_at",
+        ]
+
+    def _get_profile(self, user):
+        """Get the SpeakerProfile for a user, if it exists."""
+        return SpeakerProfile.objects.filter(user_account=user).first()
+
+    def _get_user(self, obj):
+        """Get the relevant user depending on context (follower or following)."""
+        context_type = self.context.get("type", "followers")
+        if context_type == "following":
+            return obj.speaker.user_account
+        return obj.follower
+
+    def get_username(self, obj) -> str:
+        """Return the username."""
+        return self._get_user(obj).username
+
+    def get_full_name(self, obj) -> str:
+        """Return the full name (None-safe)."""
+        user = self._get_user(obj)
+        first = (user.first_name or "").strip()
+        last = (user.last_name or "").strip()
+        full = f"{first} {last}".strip()
+        return full or user.username
+
+    def get_avatar(self, obj):
+        """Return the avatar URL."""
+        profile = self._get_profile(self._get_user(obj))
+        if profile and profile.avatar:
+            return profile.avatar.url
+        return None
+
+    def get_slug(self, obj):
+        """Return the speaker profile slug."""
+        profile = self._get_profile(self._get_user(obj))
+        return profile.slug if profile else None
+
+    def get_short_bio(self, obj) -> str:
+        """Return the short bio."""
+        profile = self._get_profile(self._get_user(obj))
+        return profile.short_bio if profile else ""
+
+    def get_country(self, obj) -> str:
+        """Return the country."""
+        profile = self._get_profile(self._get_user(obj))
+        return profile.country if profile else ""
+
+    def get_organization(self, obj) -> str:
+        """Return the organization."""
+        profile = self._get_profile(self._get_user(obj))
+        return profile.organization if profile else ""
+
+
 class SpeakerProfileSerializer(WritableNestedModelSerializer):
     """speaker profile serializers."""
 

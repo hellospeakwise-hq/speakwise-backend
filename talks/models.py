@@ -64,12 +64,12 @@ class Talks(TimeStampedModel):
     def _generate_unique_slug(self) -> str:
         """Generate a unique slug, appending random string for entropy."""
         base_slug = slugify(self.title) if self.title else "talk"
-        random_suffix = get_random_string(length=5).lower()
+        random_suffix = get_random_string(length=12).lower()
         candidate = f"{base_slug}-{random_suffix}"
 
         # In the extremely rare case of a collision, try again
         while Talks.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
-            random_suffix = get_random_string(length=5).lower()
+            random_suffix = get_random_string(length=12).lower()
             candidate = f"{base_slug}-{random_suffix}"
 
         return candidate

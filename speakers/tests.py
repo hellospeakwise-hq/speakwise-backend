@@ -687,7 +687,7 @@ class SpeakerFollowersListViewTests(APITestCase):
         self.assertEqual(res.data["followers_count"], 2)
         self.assertEqual(len(res.data["followers"]), 2)
 
-        usernames = {f["follower_username"] for f in res.data["followers"]}
+        usernames = {f["username"] for f in res.data["followers"]}
         self.assertIn("follower_a", usernames)
         self.assertIn("follower_b", usernames)
 

@@ -18,8 +18,8 @@ from speakers.models import (
     SpeakerSkillTag,
 )
 from speakers.serializers import (
+    FollowerDetailSerializer,
     SpeakerExperiencesSerializer,
-    SpeakerFollowSerializer,
     SpeakerProfileSerializer,
     SpeakerSkillTagSerializer,
 )
@@ -475,15 +475,49 @@ class SpeakerFollowersListView(APIView):
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
-    @extend_schema(responses=SpeakerFollowSerializer(many=True))
+    @extend_schema(responses=FollowerDetailSerializer(many=True))
     def get(self, request, slug: str) -> Response:
         """List all users following the given speaker."""
         speaker = self.get_speaker(slug)
         follows = SpeakerFollow.objects.filter(speaker=speaker).select_related(
             "follower"
         )
-        serializer = SpeakerFollowSerializer(follows, many=True)
+        serializer = FollowerDetailSerializer(
+            follows, many=True, context={"type": "followers"}
+        )
         return Response(
             {"followers_count": speaker.followers_count, "followers": serializer.data},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["speaker follow"])
+class SpeakerFollowingListView(APIView):
+    """List all speakers that a given speaker follows (public)."""
+
+    permission_classes = [AllowAny]
+
+    def get_speaker(self, slug: str) -> SpeakerProfile:
+        """Get speaker profile by slug."""
+        try:
+            return SpeakerProfile.objects.get(slug=slug)
+        except SpeakerProfile.DoesNotExist as err:
+            raise Http404 from err
+
+    @extend_schema(responses=FollowerDetailSerializer(many=True))
+    def get(self, request, slug: str) -> Response:
+        """List all speakers that the given speaker follows."""
+        speaker = self.get_speaker(slug)
+        follows = SpeakerFollow.objects.filter(
+            follower=speaker.user_account
+        ).select_related("speaker", "speaker__user_account")
+        serializer = FollowerDetailSerializer(
+            follows, many=True, context={"type": "following"}
+        )
+        return Response(
+            {
+                "following_count": follows.count(),
+                "following": serializer.data,
+            },
             status=status.HTTP_200_OK,
         )

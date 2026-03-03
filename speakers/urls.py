@@ -53,6 +53,12 @@ urlpatterns = [
         views.SpeakerFollowersListView.as_view(),
         name="speaker_followers_list",
     ),
+    # List all speakers that a speaker follows (public)
+    path(
+        "speakers/<slug:slug>/following/",
+        views.SpeakerFollowingListView.as_view(),
+        name="speaker_following_list",
+    ),
     # Single speaker profile by slug (keep last)
     path(
         "speakers/<slug:slug>/",

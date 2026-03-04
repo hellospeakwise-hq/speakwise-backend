@@ -2,7 +2,7 @@
 
 from django_filters import rest_framework as filters
 
-from speakerrequests.models import EmailRequests, SpeakerRequest
+from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 
 
 class SpeakerRequestFilter(filters.FilterSet):
@@ -30,5 +30,5 @@ class EmailRequestsFilter(filters.FilterSet):
     class Meta:
         """meta options."""
 
-        model = EmailRequests
+        model = SpeakerEmailRequests
         fields = ["request_from", "request_to", "event"]

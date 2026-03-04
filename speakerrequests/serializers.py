@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from speakerrequests.models import EmailRequests, SpeakerRequest
+from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 
 
 class SpeakerRequestSerializer(serializers.ModelSerializer):
@@ -21,7 +21,7 @@ class EmailRequestsSerializer(serializers.ModelSerializer):
     class Meta:
         """Meta class for email request serializer."""
 
-        model = EmailRequests
+        model = SpeakerEmailRequests
         exclude = ["created_at", "updated_at"]
 
     def validate(self, attrs):

@@ -4,6 +4,8 @@ from django.db.models import Q
 from django.http.response import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.exceptions import NotFound
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,7 +13,7 @@ from rest_framework.views import APIView
 from organizations.models import OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.filters import EmailRequestsFilter, SpeakerRequestFilter
-from speakerrequests.models import EmailRequests, SpeakerRequest
+from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.serializers import (
     EmailRequestsSerializer,
     SpeakerRequestSerializer,
@@ -264,7 +266,12 @@ class SpeakerEmailRequestListView(APIView):
 
     def get_object(self, user):
         """Get email requests sent or received by the user."""
-        return EmailRequests.objects.filter(Q(request_from=user) | Q(request_to=user))
+        try:
+            return SpeakerEmailRequests.objects.filter(
+                Q(request_from=user) | Q(request_to=user)
+            )
+        except SpeakerEmailRequests.DoesNotExist:
+            return NotFound
 
     def get(self, request):
         """Return request sent or received by the authenticated user."""
@@ -311,21 +318,19 @@ class SpeakerEmailRequestListView(APIView):
 class SpeakerEmailRequestDetailView(APIView):
     """Detail view of Speaker request sent through email."""
 
-    def get_object(self, pk):
-        """Get object by pk."""
-        try:
-            return EmailRequests.objects.get(pk=pk, request_to=self.request.user)
-        except EmailRequests.DoesNotExist as err:
-            raise Http404 from err
-
     def patch(self, request, pk=None):
         """Update status of a specific speaker request."""
-        email_request = self.get_object(pk)
+        email_request = get_object_or_404(
+            SpeakerEmailRequests,
+            pk=pk,
+            request_to=request.user,
+        )
         new_status = request.data.get("status")
         if new_status != email_request.status:
             email_request.status = new_status
             email_request.save()
             return Response(
-                EmailRequestsSerializer(email_request).data, status=status.HTTP_200_OK
+                EmailRequestsSerializer(email_request).data,
+                status=status.HTTP_200_OK,
             )
         return Response(status=status.HTTP_200_OK)

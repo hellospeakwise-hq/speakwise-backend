@@ -30,7 +30,7 @@ class SpeakerRequest(TimeStampedModel):
         return f"{self.speaker.user_account.username} request"
 
 
-class EmailRequests(TimeStampedModel):
+class SpeakerEmailRequests(TimeStampedModel):
     """request sent through email."""
 
     id = models.UUIDField(

@@ -33,7 +33,7 @@ urlpatterns = [
         name="speaker_email_requests_list_create",
     ),
     path(
-        "speaker-requests/email-requests/<pk>/",
+        "speaker-requests/email-requests/<uuid:pk>/",
         views.SpeakerEmailRequestDetailView.as_view(),
         name="speaker_email_request_retrieve_update",
     ),

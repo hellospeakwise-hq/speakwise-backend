@@ -202,11 +202,13 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
     def test_update_with_speaker_profile(self):
         """Test updating user details along with speaker profile."""
         self.client.force_authenticate(self.user)
+        sp = SpeakerProfile.objects.filter(user_account=self.user).first()
         payload = {
             "first_name": "Speaker",
             "last_name": "One",
             "speaker": [
                 {
+                    "id": sp.id if sp else None,
                     "organization": "Acme Org",
                     "short_bio": "Hello " "world",
                     "user_account": self.user.id,

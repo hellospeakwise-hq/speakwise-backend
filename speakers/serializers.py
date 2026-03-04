@@ -166,7 +166,24 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
         model = SpeakerProfile
         exclude = ["created_at", "updated_at"]
-        read_only_fields = ("slug",)
+        read_only_fields = ("slug", "user_account")
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create a speaker profile."""
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            if SpeakerProfile.objects.filter(user_account=request.user).exists():
+                raise ValidationError(
+                    {"detail": "Speaker profile already exists for this user."}
+                )
+            validated_data["user_account"] = request.user
+        else:
+            raise ValidationError(
+                {"detail": "Must be authenticated to create a profile."}
+            )
+
+        return super().create(validated_data)
 
     def get_speaker_name(self, obj) -> str:
         """Get speaker name."""

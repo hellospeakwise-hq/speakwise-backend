@@ -18,8 +18,8 @@ urlpatterns = [
         name="organization-detail",
     ),
     path(
-        "organizations/<int:pk>/members/",
-        views.OrganizationMembersView.as_view(),
-        name="organization-members-list",
+        "organizations/<str:slug>/members/",
+        views.OrganizationMembershipListCreateDeleteView.as_view(),
+        name="organization-members-list-create-delete",
     ),
 ]

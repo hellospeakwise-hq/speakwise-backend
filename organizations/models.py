@@ -1,6 +1,7 @@
 """Organizations app models."""
 
 from django.db import models
+from django.utils.text import slugify
 
 from base.models import TimeStampedModel
 from organizations.choices import OrganizationRole
@@ -23,6 +24,7 @@ class Organization(TimeStampedModel):
     created_by = models.ForeignKey(
         User, on_delete=models.CASCADE, null=True, related_name="created_organizations"
     )
+    slug = models.SlugField(max_length=255, unique=True, null=True)
 
     class Meta:
         """Meta class for Organization model."""
@@ -33,6 +35,12 @@ class Organization(TimeStampedModel):
     def __str__(self):
         """String representation of the organization."""
         return self.name
+
+    def save(self, *args, **kwargs):
+        """Save the organization."""
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
 
 class OrganizationMembership(TimeStampedModel):

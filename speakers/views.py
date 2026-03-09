@@ -90,7 +90,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         speaker_profile = self.get_object(slug)
         if speaker_profile.user_account != request.user:
             raise PermissionDenied("You do not have permission to edit this profile.")
-        
+
         serializer = SpeakerProfileSerializer(
             speaker_profile, data=request.data, partial=True
         )
@@ -103,7 +103,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         speaker_profile = self.get_object(slug)
         if speaker_profile.user_account != request.user:
             raise PermissionDenied("You do not have permission to delete this profile.")
-        
+
         speaker_profile.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

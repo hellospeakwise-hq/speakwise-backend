@@ -42,7 +42,7 @@ class TalkRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         """Filter talks by the authenticated user if modifying."""
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
             return Talks.objects.all()
         return Talks.objects.filter(speaker__user_account=self.request.user)
 

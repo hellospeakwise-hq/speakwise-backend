@@ -73,13 +73,15 @@ class EventDetailView(APIView):
     def patch(self, request, pk, *args, **kwargs):
         """Update event detail."""
         event = self.get_object(pk)
-        
+
         if event.organizer:
             membership = OrganizationMembership.objects.filter(
                 organization=event.organizer, user=request.user
             ).first()
             if not membership or not membership.is_admins():
-                raise PermissionDenied("You must be an admin of this event's organization.")
+                raise PermissionDenied(
+                    "You must be an admin of this event's organization."
+                )
         else:
             raise PermissionDenied("Cannot modify events without an organization.")
 
@@ -93,13 +95,15 @@ class EventDetailView(APIView):
     def delete(self, request, pk, *args, **kwargs):
         """Delete event."""
         event = self.get_object(pk)
-        
+
         if event.organizer:
             membership = OrganizationMembership.objects.filter(
                 organization=event.organizer, user=request.user
             ).first()
             if not membership or not membership.is_admins():
-                raise PermissionDenied("You must be an admin of this event's organization.")
+                raise PermissionDenied(
+                    "You must be an admin of this event's organization."
+                )
         else:
             raise PermissionDenied("Cannot delete events without an organization.")
 

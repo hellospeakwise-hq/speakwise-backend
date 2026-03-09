@@ -74,12 +74,14 @@ class OrganizationDetailView(APIView):
     def patch(self, request, pk: int) -> Response:
         """Update an organization."""
         organization = self.get_object(pk)
-        
+
         membership = OrganizationMembership.objects.filter(
             organization=organization, user=request.user
         ).first()
         if not membership or not membership.is_admins():
-            raise PermissionDenied("You do not have permission to edit this organization.")
+            raise PermissionDenied(
+                "You do not have permission to edit this organization."
+            )
 
         serializer = OrganizationSerializer(
             organization, data=request.data, partial=True, context={"request": request}
@@ -93,12 +95,14 @@ class OrganizationDetailView(APIView):
     def delete(self, request, pk: int) -> Response:
         """Delete an organization."""
         organization = self.get_object(pk)
-        
+
         membership = OrganizationMembership.objects.filter(
             organization=organization, user=request.user
         ).first()
         if not membership or not membership.is_admins():
-            raise PermissionDenied("You do not have permission to delete this organization.")
+            raise PermissionDenied(
+                "You do not have permission to delete this organization."
+            )
 
         organization.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

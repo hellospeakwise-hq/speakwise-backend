@@ -174,10 +174,14 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             if SpeakerProfile.objects.filter(user_account=request.user).exists():
-                raise ValidationError({"detail": "Speaker profile already exists for this user."})
+                raise ValidationError(
+                    {"detail": "Speaker profile already exists for this user."}
+                )
             validated_data["user_account"] = request.user
         else:
-            raise ValidationError({"detail": "Must be authenticated to create a profile."})
+            raise ValidationError(
+                {"detail": "Must be authenticated to create a profile."}
+            )
 
         return super().create(validated_data)
 

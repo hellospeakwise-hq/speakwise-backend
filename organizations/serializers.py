@@ -16,7 +16,14 @@ class OrganizationMembershipSerializer(serializers.ModelSerializer):
 
         model = OrganizationMembership
         exclude = ["created_at", "updated_at"]
-        read_only_fields = ["id", "username"]
+        read_only_fields = [
+            "id",
+            "username",
+            "role",
+            "is_active",
+            "organization",
+            "added_by",
+        ]
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -27,6 +34,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
         model = Organization
         exclude = ["created_at", "updated_at"]
+        read_only_fields = ["id", "created_by", "slug"]
 
     def create(self, validated_data):
         """Create a new organization and add the creator as an admin member."""

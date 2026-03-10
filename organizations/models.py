@@ -1,5 +1,7 @@
 """Organizations app models."""
 
+import uuid
+
 from django.db import models
 from django.utils.text import slugify
 
@@ -15,6 +17,9 @@ ORGANIZATION_UPLOAD_DIR = "organizations/logos/"
 class Organization(TimeStampedModel):
     """Model representing an organization."""
 
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, unique=True
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     email = models.EmailField(unique=True)
@@ -46,6 +51,9 @@ class Organization(TimeStampedModel):
 class OrganizationMembership(TimeStampedModel):
     """Model representing membership of a user in an organization."""
 
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, unique=True
+    )
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="organization_memberships"
     )

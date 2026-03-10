@@ -219,12 +219,9 @@ class OrganizationSerializerTest(TestCase):
 
     def test_organization_serializer_with_valid_data(self):
         """Test organization serializer with valid data."""
-        self.organization_data["created_by"] = self.user.id
         serializer = OrganizationSerializer(data=self.organization_data)
         self.assertTrue(serializer.is_valid(raise_exception=True))
-
         self.assertEqual(serializer.data["name"], self.organization_data["name"])
-        self.assertEqual(serializer.data["created_by"], self.user.id)
 
     # Edge Cases for Serializer
     # def test_serializer_with_missing_context(self):
@@ -264,20 +261,12 @@ class OrganizationMembershipSerializerTest(TestCase):
         serializer = OrganizationMembershipSerializer(data=self.membership_data)
         self.assertTrue(serializer.is_valid())
 
-        membership = serializer.save()
+        membership = serializer.save(organization=self.organization, added_by=self.user)
         self.assertEqual(
             membership.organization.id, self.membership_data["organization"]
         )
         self.assertEqual(membership.user.id, self.membership_data["user"])
         self.assertEqual(membership.role, self.membership_data["role"])
-
-    def test_membership_serializer_with_nonexistent_organization(self):
-        """Test membership creation with non-existent organization."""
-        invalid_data = self.membership_data.copy()
-        invalid_data["organization"] = 99999  # Non-existent organization ID
-
-        serializer = OrganizationMembershipSerializer(data=invalid_data)
-        self.assertFalse(serializer.is_valid())
 
     def test_membership_serializer_with_nonexistent_user(self):
         """Test membership creation with non-existent user."""
@@ -296,7 +285,7 @@ class OrganizationMembershipSerializerTest(TestCase):
         serializer = OrganizationMembershipSerializer(data=data_with_readonly)
         self.assertTrue(serializer.is_valid())
 
-        membership = serializer.save()
+        membership = serializer.save(organization=self.organization, added_by=self.user)
         self.assertNotEqual(
             membership.created_at.isoformat(), "2023-01-01T00:00:00+00:00"
         )
@@ -328,7 +317,7 @@ class OrganizationViewsTest(APITestCase):
 
         self.list_create_url = reverse("organizations:organization-list-create")
         self.detail_url = reverse(
-            "organizations:organization-detail", kwargs={"pk": self.organization.pk}
+            "organizations:organization-detail", kwargs={"slug": self.organization.slug}
         )
 
     def test_create_organization(self):
@@ -385,3 +374,78 @@ class OrganizationViewsTest(APITestCase):
         }
         response = self.client.post(self.list_create_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_unauthorized_patch_organization(self):
+        """Test that a non-admin/member user cannot PATCH an organization."""
+        other_user = User.objects.create(
+            username="other", email="other@example.com", password="pwd"
+        )
+        self.client.force_authenticate(user=other_user)
+        data = {"name": "Hacked"}
+        response = self.client.patch(self.detail_url, data=data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthorized_delete_organization(self):
+        """Test that a non-admin/member user cannot DELETE an organization."""
+        other_user = User.objects.create(
+            username="other2", email="other2@example.com", password="pwd"
+        )
+        self.client.force_authenticate(user=other_user)
+        response = self.client.delete(self.detail_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_organizations_filtered(self):
+        """Test that GET /organizations/ only returns organizations the user is a member of."""
+        other_user = User.objects.create(
+            username="other3", email="other3@example.com", password="pwd"
+        )
+        self.client.force_authenticate(user=other_user)
+        response = self.client.get(self.list_create_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_unauthorized_add_member(self):
+        """Test that a non-admin/member user cannot POST a new member."""
+        other_user = User.objects.create(
+            username="other4", email="other4@example.com", password="pwd"
+        )
+        self.client.force_authenticate(user=other_user)
+        new_member = User.objects.create(
+            username="new1", email="new1@example.com", password="pwd"
+        )
+        data = {"user": new_member.id, "role": "MEMBER"}
+        members_url = reverse(
+            "organizations:organization-members-list-create-delete",
+            kwargs={"slug": self.organization.slug},
+        )
+        response = self.client.post(members_url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthorized_delete_member(self):
+        """Test that a non-admin/member user cannot DELETE an existing member."""
+        other_user = User.objects.create(
+            username="other5", email="other5@example.com", password="pwd"
+        )
+        self.client.force_authenticate(user=other_user)
+        member_delete_url = reverse(
+            "organizations:organization-members-delete",
+            kwargs={"org_slug": self.organization.slug, "username": self.user.username},
+        )
+        response = self.client.delete(member_delete_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_mass_assignment_role_ignored(self):
+        """Test that standard users cannot arbitrarily assign roles via API."""
+        new_member = User.objects.create(
+            username="new2", email="new2@example.com", password="pwd"
+        )
+        data = {"user": new_member.id, "role": "ADMIN"}
+        members_url = reverse(
+            "organizations:organization-members-list-create-delete",
+            kwargs={"slug": self.organization.slug},
+        )
+        response = self.client.post(members_url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # Role should default to MEMBER because role is read_only
+        membership = OrganizationMembership.objects.get(user=new_member)
+        self.assertEqual(membership.role, OrganizationRole.MEMBER.value)

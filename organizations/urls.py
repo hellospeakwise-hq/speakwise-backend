@@ -13,13 +13,18 @@ urlpatterns = [
         name="organization-list-create",
     ),
     path(
-        "organizations/<int:pk>/",
+        "organizations/<slug:slug>/",
         views.OrganizationDetailView.as_view(),
         name="organization-detail",
     ),
     path(
-        "organizations/<int:pk>/members/",
-        views.OrganizationMembersView.as_view(),
-        name="organization-members-list",
+        "organizations/<slug:slug>/members/",
+        views.OrganizationMembershipListCreateView.as_view(),
+        name="organization-members-list-create-delete",
+    ),
+    path(
+        "organizations/<slug:org_slug>/members/<str:username>/",
+        views.OrganizationMembershipDeleteView.as_view(),
+        name="organization-members-delete",
     ),
 ]

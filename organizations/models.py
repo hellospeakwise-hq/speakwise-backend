@@ -1,6 +1,9 @@
 """Organizations app models."""
 
+import uuid
+
 from django.db import models
+from django.utils.text import slugify
 
 from base.models import TimeStampedModel
 from organizations.choices import OrganizationRole
@@ -14,6 +17,9 @@ ORGANIZATION_UPLOAD_DIR = "organizations/logos/"
 class Organization(TimeStampedModel):
     """Model representing an organization."""
 
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, unique=True
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     email = models.EmailField(unique=True)
@@ -23,6 +29,7 @@ class Organization(TimeStampedModel):
     created_by = models.ForeignKey(
         User, on_delete=models.CASCADE, null=True, related_name="created_organizations"
     )
+    slug = models.SlugField(max_length=255, unique=True, null=True)
 
     class Meta:
         """Meta class for Organization model."""
@@ -34,10 +41,19 @@ class Organization(TimeStampedModel):
         """String representation of the organization."""
         return self.name
 
+    def save(self, *args, **kwargs):
+        """Save the organization."""
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
 
 class OrganizationMembership(TimeStampedModel):
     """Model representing membership of a user in an organization."""
 
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, unique=True
+    )
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="organization_memberships"
     )

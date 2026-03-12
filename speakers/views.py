@@ -8,11 +8,10 @@ from rest_framework.permissions import (
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
 )
-
-from base.permissions import IsOwner
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.permissions import IsOwner
 from speakers.models import (
     SpeakerExperiences,
     SpeakerFollow,

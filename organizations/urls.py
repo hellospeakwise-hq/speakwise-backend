@@ -23,8 +23,14 @@ urlpatterns = [
         name="organization-members-list-create-delete",
     ),
     path(
+        "organizations/<slug:org_slug>/members/exit/",
+        views.OrganizationMemberExit.as_view(),
+        name="organization-members-exit",
+    ),
+    path(
         "organizations/<slug:org_slug>/members/<str:username>/",
         views.OrganizationMembershipDeleteView.as_view(),
         name="organization-members-delete",
     ),
+
 ]

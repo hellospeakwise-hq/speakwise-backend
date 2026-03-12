@@ -152,3 +152,22 @@ class OrganizationMembershipDeleteView(APIView):
         except OrganizationMembership.DoesNotExist:
             return NotFound(detail="Member not found")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class OrganizationMemberExit(APIView):
+    """allow organization members to exit orgaization."""
+
+    permission_classes = [IsOrganizationMember]
+
+    @extend_schema(responses={200: None})
+    def delete(self, request, org_slug: str) -> Response:
+        """Exit an organization."""
+        organization = get_object_or_404(Organization, slug=org_slug)
+        self.check_object_permissions(request, organization)
+        try:
+            OrganizationMembership.objects.get(
+                organization=organization, user=request.user
+            ).delete()
+        except OrganizationMembership.DoesNotExist:
+            return NotFound(detail="Member not found")
+        return Response(status=status.HTTP_204_NO_CONTENT)
+        

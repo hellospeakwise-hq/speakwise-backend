@@ -38,6 +38,7 @@ class UserCreateView(CreateAPIView):
 class UserLogoutView(APIView):
     """User logout view."""
 
+    permission_classes = [IsAuthenticated]
     serializer_class = LogoutSerializer
 
     @extend_schema(request=LogoutSerializer, responses={205: None})
@@ -99,6 +100,8 @@ class LoginBaseClass(ABC, LoginView):
 @extend_schema(request=UserLoginSerializer, responses=UserSerializer)
 class UserLoginView(LoginBaseClass):
     """Login view for speaker."""
+
+    permission_classes = [AllowAny]
 
     def login(self):
         """Login the speaker."""

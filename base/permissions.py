@@ -89,30 +89,6 @@ class IsOrganizationAdminOrOrganizer(BasePermission):
         ).exists()
 
 
-class IsOrganizationAdmin(BasePermission):
-    """Permission class to check if the user is an admin of the event's organization."""
-
-    def has_permission(self, request, view):
-        """Check the user is authenticated and an admin of at least one organization."""
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and OrganizationMembership.objects.filter(
-                user=request.user, role=OrganizationRole.ADMIN
-            ).exists()
-        )
-
-    def has_object_permission(self, request, view, obj):
-        """Check if the user is an admin of the organization that owns this event."""
-        if not obj.organizer:
-            return False
-        return OrganizationMembership.objects.filter(
-            organization=obj.organizer,
-            user=request.user,
-            role=OrganizationRole.ADMIN,
-        ).exists()
-
-
 class IsOwner(BasePermission):
     """Permission class to check if the authenticated user owns the object."""
 

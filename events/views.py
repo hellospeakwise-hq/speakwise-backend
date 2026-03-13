@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsEventOrganizationAdmin
+from base.permissions import IsOrganizationAdmin
 from events.models import Event
 from events.serializers import EventSerializer
 from events.utils import create_event_payload
@@ -49,7 +49,7 @@ class EventDetailView(APIView):
         """Get permissions."""
         if self.request.method in ["GET"]:
             return [AllowAny()]
-        return [IsEventOrganizationAdmin()]
+        return [IsOrganizationAdmin()]
 
     def get_object(self, pk):
         """Get event object."""

@@ -2,6 +2,7 @@
 
 from rest_framework.permissions import BasePermission
 
+from organizations.choices import OrganizationRole
 from organizations.models import OrganizationMembership
 
 
@@ -14,14 +15,14 @@ class IsOrganizationAdmin(BasePermission):
             request.user
             and request.user.is_authenticated
             and OrganizationMembership.objects.filter(
-                user=request.user, role="ADMIN"
+                user=request.user, role=OrganizationRole.ADMIN
             ).exists()
         )
 
     def has_object_permission(self, request, view, obj):
         """Check if the user has admin permissions for this specific organization."""
         return OrganizationMembership.objects.filter(
-            organization=obj, user=request.user, role="ADMIN"
+            organization=obj, user=request.user, role=OrganizationRole.ADMIN
         ).exists()
 
 
@@ -54,14 +55,14 @@ class IsOrganizationOrganizer(BasePermission):
             request.user
             and request.user.is_authenticated
             and OrganizationMembership.objects.filter(
-                user=request.user, role="ORGANIZER"
+                user=request.user, role=OrganizationRole.ORGANIZER
             ).exists()
         )
 
     def has_object_permission(self, request, view, obj):
         """Check if the user has organizer permissions for this specific organization."""
         return OrganizationMembership.objects.filter(
-            organization=obj, user=request.user, role="ORGANIZER"
+            organization=obj, user=request.user, role=OrganizationRole.ORGANIZER
         ).exists()
 
 
@@ -74,7 +75,8 @@ class IsOrganizationAdminOrOrganizer(BasePermission):
             request.user
             and request.user.is_authenticated
             and OrganizationMembership.objects.filter(
-                user=request.user, role__in=["ADMIN", "ORGANIZER"]
+                user=request.user,
+                role__in=[OrganizationRole.ADMIN, OrganizationRole.ORGANIZER],
             ).exists()
         )
 
@@ -83,11 +85,11 @@ class IsOrganizationAdminOrOrganizer(BasePermission):
         return OrganizationMembership.objects.filter(
             organization=obj,
             user=request.user,
-            role__in=["ADMIN", "ORGANIZER"],
+            role__in=[OrganizationRole.ADMIN, OrganizationRole.ORGANIZER],
         ).exists()
 
 
-class IsEventOrganizationAdmin(BasePermission):
+class IsOrganizationAdmin(BasePermission):
     """Permission class to check if the user is an admin of the event's organization."""
 
     def has_permission(self, request, view):
@@ -96,7 +98,7 @@ class IsEventOrganizationAdmin(BasePermission):
             request.user
             and request.user.is_authenticated
             and OrganizationMembership.objects.filter(
-                user=request.user, role="ADMIN"
+                user=request.user, role=OrganizationRole.ADMIN
             ).exists()
         )
 
@@ -105,7 +107,9 @@ class IsEventOrganizationAdmin(BasePermission):
         if not obj.organizer:
             return False
         return OrganizationMembership.objects.filter(
-            organization=obj.organizer, user=request.user, role="ADMIN"
+            organization=obj.organizer,
+            user=request.user,
+            role=OrganizationRole.ADMIN,
         ).exists()
 
 

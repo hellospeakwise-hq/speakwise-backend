@@ -413,7 +413,7 @@ class OrganizationViewsTest(APITestCase):
         new_member = User.objects.create(
             username="new1", email="new1@example.com", password="pwd"
         )
-        data = {"user": new_member.id, "role": "MEMBER"}
+        data = {"user": new_member.id, "role": OrganizationRole.MEMBER}
         members_url = reverse(
             "organizations:organization-members-list-create-delete",
             kwargs={"slug": self.organization.slug},

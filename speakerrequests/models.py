@@ -25,6 +25,12 @@ class SpeakerRequest(TimeStampedModel):
     )
     message = models.TextField(null=False)
 
+    class Meta:
+        """Meta options for SpeakerRequest."""
+
+        unique_together = ("organizer", "speaker", "event")
+        ordering = ["-created_at"]
+
     def __str__(self):
         """Str."""
         return f"{self.speaker.user_account.username} request"

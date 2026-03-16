@@ -87,10 +87,26 @@ class SpeakerRequestListView(APIView):
         """
         serializer = SpeakerRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # Check for duplicate request (same org, speaker, event)
+        organizer = serializer.validated_data.get("organizer")
+        speaker = serializer.validated_data.get("speaker")
+        event = serializer.validated_data.get("event")
+
+        if SpeakerRequest.objects.filter(
+            organizer=organizer, speaker=speaker, event=event
+        ).exists():
+            return Response(
+                {
+                    "detail": "A speaker request for this speaker and event already exists."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         serializer.save()
 
         # send email notification to speaker
-        send_speaker_request_email(
+        send_speaker_request_email.enqueue(
             speaker_email=serializer.instance.speaker.user_account.email,
             event_name=serializer.instance.event.title,
             organizer_name=serializer.instance.organizer.name,

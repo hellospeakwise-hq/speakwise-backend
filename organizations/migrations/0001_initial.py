@@ -42,7 +42,6 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("is_active", models.BooleanField(default=True)),
-                ("slug", models.SlugField(max_length=255, null=True, unique=True)),
                 (
                     "created_by",
                     models.ForeignKey(

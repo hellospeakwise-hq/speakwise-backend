@@ -3,7 +3,6 @@
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
@@ -12,6 +11,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.permissions import IsOwner
 from speakers.models import (
     SpeakerExperiences,
     SpeakerFollow,
@@ -68,7 +68,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         """Get permissions based on request method."""
         if self.request.method in self.SAFE_METHODS:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsOwner()]
 
     def get_object(self, slug: str):
         """Get speaker profile by ID."""
@@ -88,9 +88,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     def patch(self, request, slug: str):
         """Update a specific speaker profile by ID."""
         speaker_profile = self.get_object(slug)
-        if speaker_profile.user_account != request.user:
-            raise PermissionDenied("You do not have permission to edit this profile.")
-
+        self.check_object_permissions(request, speaker_profile)
         serializer = SpeakerProfileSerializer(
             speaker_profile, data=request.data, partial=True
         )
@@ -101,9 +99,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     def delete(self, request, slug: str):
         """Delete a specific speaker profile by ID."""
         speaker_profile = self.get_object(slug)
-        if speaker_profile.user_account != request.user:
-            raise PermissionDenied("You do not have permission to delete this profile.")
-
+        self.check_object_permissions(request, speaker_profile)
         speaker_profile.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

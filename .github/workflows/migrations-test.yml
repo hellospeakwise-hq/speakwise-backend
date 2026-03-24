@@ -93,7 +93,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements/production.txt
-          pip install psycopg2-binary
+          pip install psycopg2-binary coverage
 
       - name: Wait for PostgreSQL
         run: |
@@ -106,7 +106,7 @@ jobs:
             sleep 1
           done
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           DJANGO_SETTINGS_MODULE: speakwise.settings.local
           DB_NAME: speakwise_test
@@ -115,4 +115,17 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
         run: |
-          python manage.py test
+          coverage run manage.py test
+
+      - name: Coverage comment
+        id: coverage_comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Store Pull Request comment to be posted
+        uses: actions/upload-artifact@v4
+        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
+        with:
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action.txt

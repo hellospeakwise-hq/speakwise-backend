@@ -99,3 +99,29 @@ class OrganizationMembership(TimeStampedModel):
     def __str__(self):
         """String representation of the membership."""
         return f"{self.user.username} - {self.organization.name} ({self.role})"
+
+
+class OrganizationEventSpeaker(TimeStampedModel):
+    """Model representing a speaker for an event organized by an organization."""
+
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, unique=True
+    )
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="event_speakers"
+    )
+    event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.CASCADE,
+        related_name="event_speakers",
+    )
+    speaker = models.ForeignKey(
+        "speakers.SpeakerProfile",
+        on_delete=models.CASCADE,
+        related_name="speaking_events",
+    )
+    is_accepted = models.BooleanField(default=False)
+
+    def __str__(self):
+        """String representation of the event speaker."""
+        return self.speaker.user_account.username

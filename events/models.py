@@ -83,7 +83,7 @@ class Location(TimeStampedModel):
     """location models for events."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    venue = models.CharField(max_length=255, unique=True)
+    venue = models.CharField(max_length=255)
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=255, blank=True)
     state = models.CharField(max_length=255, blank=True)

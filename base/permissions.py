@@ -11,8 +11,12 @@ class IsOrganizationAdmin(BasePermission):
     def has_object_permission(self, request, view, obj):
         """Check if the user has admin permissions for the organization."""
         if request.user and request.user.is_authenticated:
+            organization = obj
+            if hasattr(obj, "organizer"):
+                organization = obj.organizer
+
             return OrganizationMembership.objects.filter(
-                organization=obj, user=request.user, role="ADMIN"
+                organization=organization, user=request.user, role="ADMIN"
             ).exists()
         return False
 
@@ -23,8 +27,12 @@ class IsOrganizationMember(BasePermission):
     def has_object_permission(self, request, view, obj):
         """Check if the user has member permissions for the organization."""
         if request.user and request.user.is_authenticated:
+            organization = obj
+            if hasattr(obj, "organizer"):
+                organization = obj.organizer
+
             return OrganizationMembership.objects.filter(
-                organization=obj, user=request.user, is_active=True
+                organization=organization, user=request.user, is_active=True
             ).exists()
         return False
 
@@ -35,8 +43,12 @@ class IsOrganizationOrganizer(BasePermission):
     def has_object_permission(self, request, view, obj):
         """Check if the user has organizer permissions for the organization."""
         if request.user and request.user.is_authenticated:
+            organization = obj
+            if hasattr(obj, "organizer"):
+                organization = obj.organizer
+
             return OrganizationMembership.objects.filter(
-                organization=obj, user=request.user, role="ORGANIZER"
+                organization=organization, user=request.user, role="ORGANIZER"
             ).exists()
         return False
 
@@ -47,8 +59,12 @@ class IsOrganizationAdminOrOrganizer(BasePermission):
     def has_object_permission(self, request, view, obj):
         """Check if the user has admin or organizer permissions for the organization."""
         if request.user and request.user.is_authenticated:
+            organization = obj
+            if hasattr(obj, "organizer"):
+                organization = obj.organizer
+
             return OrganizationMembership.objects.filter(
-                organization=obj,
+                organization=organization,
                 user=request.user,
                 role__in=["ADMIN", "ORGANIZER"],
             ).exists()

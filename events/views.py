@@ -11,6 +11,7 @@ from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event
 from events.serializers import EventSerializer
 from events.utils import create_event_payload
+from organizations.models import OrganizationMembership
 
 
 class EventListView(APIView):
@@ -26,6 +27,15 @@ class EventListView(APIView):
     def get(self, request, *args, **kwargs):
         """List events."""
         events = Event.objects.all()
+        if request.user.is_authenticated:
+            try:
+                membership = OrganizationMembership.objects.get(user=request.user)
+                events = events.filter(organizer=membership.organization)
+            except OrganizationMembership.DoesNotExist:
+                events = events.filter(is_active=True)
+        else:
+            events = events.filter(is_active=True)
+
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -64,6 +74,7 @@ class EventDetailView(APIView):
     def patch(self, request, slug, *args, **kwargs):
         """Update event detail."""
         event = get_object_or_404(Event, slug=slug)
+        self.check_object_permissions(request, event)
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -74,5 +85,6 @@ class EventDetailView(APIView):
     def delete(self, request, slug, *args, **kwargs):
         """Delete event."""
         event = get_object_or_404(Event, slug=slug)
+        self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

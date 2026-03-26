@@ -44,7 +44,7 @@ class Event(TimeStampedModel):
     website = models.URLField(max_length=255, blank=True, null=True)
     location = models.ForeignKey(
         "Location",
-        on_delete=models.DO_NOTHING,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="event_location",
     )

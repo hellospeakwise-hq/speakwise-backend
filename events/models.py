@@ -14,6 +14,7 @@ EVENT_IMAGE_UPLOAD = "event_images/"
 class Tag(TimeStampedModel):
     """A model for event tags in the SpeakWise application."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     color = models.CharField(max_length=20, default="#007bff")
 
@@ -81,6 +82,7 @@ class Event(TimeStampedModel):
 class Location(TimeStampedModel):
     """location models for events."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     venue = models.CharField(max_length=255, unique=True)
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=255, blank=True)
@@ -104,6 +106,7 @@ class Location(TimeStampedModel):
 class Country(TimeStampedModel):
     """A model for countries in the SpeakWise application."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, null=True, unique=True)
     code = models.CharField(max_length=255, null=True, unique=True)
 

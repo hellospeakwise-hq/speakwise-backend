@@ -17,6 +17,12 @@ ORGANIZATION_UPLOAD_DIR = "organizations/logos/"
 class Organization(TimeStampedModel):
     """Model representing an organization."""
 
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("declined", "Declined"),
+    ]
+
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False, unique=True
     )
@@ -26,6 +32,7 @@ class Organization(TimeStampedModel):
     website = models.URLField(max_length=255, blank=True, null=True)
     logo = models.ImageField(upload_to=ORGANIZATION_UPLOAD_DIR, blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     created_by = models.ForeignKey(
         User, on_delete=models.CASCADE, null=True, related_name="created_organizations"
     )

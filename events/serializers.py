@@ -145,21 +145,33 @@ class EventSerializer(WritableNestedModelSerializer):
     # ------------------------------------------------------------------
 
     def create(self, validated_data):
-        """Create an event, resolving the nested location/country."""
+        """Create an event, resolving the nested location/country and tags."""
+        tags_data = validated_data.pop("tags", [])
         location_data = validated_data.pop("location", None)
         location = _resolve_location(location_data)
         if location:
             validated_data["location"] = location
-        return super().create(validated_data)
+        event = super(WritableNestedModelSerializer, self).create(validated_data)
+        if tags_data:
+            tag_ids = [t.get("id") for t in tags_data if t.get("id")]
+            event.tags.set(Tag.objects.filter(id__in=tag_ids))
+        return event
 
     def update(self, instance, validated_data):
-        """Update an event, resolving the nested location/country."""
+        """Update an event, resolving the nested location/country and tags."""
+        tags_data = validated_data.pop("tags", None)
         location_data = validated_data.pop("location", None)
         if location_data is not None:
             location = _resolve_location(location_data)
             if location:
                 validated_data["location"] = location
-        return super().update(instance, validated_data)
+        instance = super(WritableNestedModelSerializer, self).update(
+            instance, validated_data
+        )
+        if tags_data is not None:
+            tag_ids = [t.get("id") for t in tags_data if t.get("id")]
+            instance.tags.set(Tag.objects.filter(id__in=tag_ids))
+        return instance
 
     def get_date(self, obj) -> str | None:
         """Return a compact date representation for the event.

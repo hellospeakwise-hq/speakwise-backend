@@ -19,10 +19,6 @@ def create_event_payload(request):
     except OrganizationMembership.DoesNotExist as err:
         raise Http404("User is not a member of the organization.") from err
 
-    request.data.update(
-        {
-            "organizer": organization.id,
-        }
-    )
-    payload = request.data
+    payload = request.data.copy()
+    payload["organizer"] = organization.id
     return payload

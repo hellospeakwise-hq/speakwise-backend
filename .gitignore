@@ -87,3 +87,5 @@ celerybeat.pid
 todo.md
 
 test_attendance.csv
+data.json
+datadump.json

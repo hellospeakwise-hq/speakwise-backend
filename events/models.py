@@ -1,7 +1,10 @@
 """Event models."""
 
+import uuid
+
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 
 from base.models import TimeStampedModel
 
@@ -11,6 +14,7 @@ EVENT_IMAGE_UPLOAD = "event_images/"
 class Tag(TimeStampedModel):
     """A model for event tags in the SpeakWise application."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     color = models.CharField(max_length=20, default="#007bff")
 
@@ -22,6 +26,7 @@ class Tag(TimeStampedModel):
 class Event(TimeStampedModel):
     """A model for events in the SpeakWise application."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, unique=True)
     event_nickname = models.CharField(max_length=255, blank=True, default="")
     event_image = models.ImageField(
@@ -36,10 +41,10 @@ class Event(TimeStampedModel):
     description = models.TextField(
         blank=True, default="", help_text="Detailed description for event page"
     )
-    website = models.URLField(max_length=255, blank=True, default="")
+    website = models.URLField(max_length=255, blank=True, null=True)
     location = models.ForeignKey(
         "Location",
-        on_delete=models.DO_NOTHING,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="event_location",
     )
@@ -47,6 +52,7 @@ class Event(TimeStampedModel):
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
     is_active = models.BooleanField(default=False)
     tags = models.ManyToManyField(Tag, related_name="events", blank=True)
+    slug = models.SlugField(max_length=255, unique=True, null=True)
 
     # Add organizer relationship
     organizer = models.ForeignKey(
@@ -54,9 +60,19 @@ class Event(TimeStampedModel):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="organized_events",
+        related_name="events",
         help_text="The organizer who created this event",
     )
+
+    def get_absolute_url(self):
+        """Return the URL to access a particular event instance."""
+        return f"/events/{self.slug}/"
+
+    def save(self, *args, **kwargs):
+        """Create slug before saving the event."""
+        if not self.slug:
+            self.slug = slugify(self.title)
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         """Return a string representation of the model."""
@@ -66,7 +82,8 @@ class Event(TimeStampedModel):
 class Location(TimeStampedModel):
     """location models for events."""
 
-    venue = models.CharField(max_length=255, unique=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    venue = models.CharField(max_length=255)
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=255, blank=True)
     state = models.CharField(max_length=255, blank=True)
@@ -89,8 +106,9 @@ class Location(TimeStampedModel):
 class Country(TimeStampedModel):
     """A model for countries in the SpeakWise application."""
 
-    name = models.CharField(max_length=255, null=True)
-    code = models.CharField(max_length=255, null=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, null=True, unique=True)
+    code = models.CharField(max_length=255, null=True, unique=True)
 
     class Meta:
         """Meta options for the Country model."""

@@ -1,14 +1,13 @@
 """Events views."""
 
-from django.http import Http404
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsOrganizationAdmin
+from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event
 from events.serializers import EventSerializer
 from events.utils import create_event_payload
@@ -22,12 +21,21 @@ class EventListView(APIView):
         """Get permissions."""
         if self.request.method in ["GET"]:
             return [AllowAny()]
-        return [IsOrganizationAdmin()]
+        return [IsOrganizationAdminOrOrganizer()]
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         """List events."""
         events = Event.objects.all()
+        if request.user.is_authenticated:
+            try:
+                membership = OrganizationMembership.objects.get(user=request.user)
+                events = events.filter(organizer=membership.organization)
+            except OrganizationMembership.DoesNotExist:
+                events = events.filter(is_active=True)
+        else:
+            events = events.filter(is_active=True)
+
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -51,40 +59,22 @@ class EventDetailView(APIView):
         """Get permissions."""
         if self.request.method in ["GET"]:
             return [AllowAny()]
-        return [IsOrganizationAdmin()]
-
-    def get_object(self, pk):
-        """Get event object."""
-        try:
-            return Event.objects.get(pk=pk)
-        except Event.DoesNotExist as err:
-            raise Http404 from err
+        return [IsOrganizationAdminOrOrganizer()]
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
-    def get(self, request, pk, *args, **kwargs):
+    def get(self, request, slug, *args, **kwargs):
         """Retrieve event detail."""
-        event = self.get_object(pk)
+        event = get_object_or_404(Event, slug=slug)
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         tags=["Events"], request=EventSerializer, responses={200: EventSerializer}
     )
-    def patch(self, request, pk, *args, **kwargs):
+    def patch(self, request, slug, *args, **kwargs):
         """Update event detail."""
-        event = self.get_object(pk)
-
-        if event.organizer:
-            membership = OrganizationMembership.objects.filter(
-                organization=event.organizer, user=request.user
-            ).first()
-            if not membership or not membership.is_admins():
-                raise PermissionDenied(
-                    "You must be an admin of this event's organization."
-                )
-        else:
-            raise PermissionDenied("Cannot modify events without an organization.")
-
+        event = get_object_or_404(Event, slug=slug)
+        self.check_object_permissions(request, event)
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -92,20 +82,9 @@ class EventDetailView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(tags=["Events"], responses={204: None})
-    def delete(self, request, pk, *args, **kwargs):
+    def delete(self, request, slug, *args, **kwargs):
         """Delete event."""
-        event = self.get_object(pk)
-
-        if event.organizer:
-            membership = OrganizationMembership.objects.filter(
-                organization=event.organizer, user=request.user
-            ).first()
-            if not membership or not membership.is_admins():
-                raise PermissionDenied(
-                    "You must be an admin of this event's organization."
-                )
-        else:
-            raise PermissionDenied("Cannot delete events without an organization.")
-
+        event = get_object_or_404(Event, slug=slug)
+        self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -5,6 +5,9 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django_tasks import task
 
+from events.models import Event
+from organizations.models import OrganizationEventSpeaker
+
 FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://speak-wise.live")
 
 

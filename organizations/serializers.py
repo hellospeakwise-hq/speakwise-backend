@@ -3,7 +3,11 @@
 from rest_framework import serializers
 
 from organizations.choices import OrganizationRole
-from organizations.models import Organization, OrganizationMembership
+from organizations.models import (
+    Organization,
+    OrganizationEventSpeaker,
+    OrganizationMembership,
+)
 
 
 class OrganizationMembershipSerializer(serializers.ModelSerializer):
@@ -50,3 +54,13 @@ class OrganizationSerializer(serializers.ModelSerializer):
                 added_by=user,
             )
         return organization
+
+
+class OrganizationEventSpeakerSerializer(serializers.ModelSerializer):
+    """Serializer for the OrganizationEventSpeaker model."""
+
+    class Meta:
+        """Metaclass for OrganizationEventSpeakerSerializer."""
+
+        model = OrganizationEventSpeaker
+        exclude = ["created_at", "updated_at"]

@@ -1,8 +1,11 @@
 """speaker request utils."""
-
+from celery.events import event
 from django.conf import settings
 from django.core.mail import send_mail
 from django_tasks import task
+
+from events.models import Event
+from organizations.models import OrganizationEventSpeaker
 
 
 @task()
@@ -21,12 +24,13 @@ def send_speaker_request_email(
 
 
 @task()
-def send_request_accepted_email(speaker_email, event_name, speaker_name):
+def send_request_accepted_email(speaker, _event):
     """Send an email notification to the speaker about the accepted speaker request."""
-    subject = f"Your Speaker Request for {event_name} has been Accepted"
+    subject = f"Your Speaker Request for {_event.name} has been Accepted"
     body = (
         f"Hello,\n\n"
-        f"Congratulations! Your speaker request for the event '{event_name}' has been accepted by {speaker_name}.\n\n"
+        f"Congratulations! Your speaker request for the event '{_event.name}' "
+        f"has been accepted.\n\n"
         f"Please log in to your account for more details.\n\n"
         f"Best regards,\n"
         f"The SpeakWise Team"
@@ -34,19 +38,26 @@ def send_request_accepted_email(speaker_email, event_name, speaker_name):
     send_mail(
         subject=subject,
         message=body,
-        recipient_list=[speaker_email],
+        recipient_list=[speaker.email],
         from_email=settings.DEFAULT_FROM_EMAIL,
         fail_silently=False,
     )
+    # add event and speaker to organization event speakers
+    try:
+        OrganizationEventSpeaker.objects.create(organization=_event.organizer,
+                                                event=_event, speaker=speaker)
+    except Exception as e:
+        pass
 
 
 @task()
-def send_speaker_request_declined_email(speaker_email, event_name, speaker_name):
+def send_speaker_request_declined_email(speaker, _event):
     """Send an email notification to the speaker about the declined speaker request."""
-    subject = f"Your Speaker Request for {event_name} has been Declined"
+    subject = f"Your Speaker Request for {_event.name} has been Declined"
     body = (
         f"Hello,\n\n"
-        f"We regret to inform you that your speaker request for the event '{event_name}' has been declined by {speaker_name}.\n\n"
+        f"We regret to inform you that your speaker request for the event '"
+        f"{_event.name}' has been declined.\n\n"
         f"Thank you for your interest, and we encourage you to apply for future events.\n\n"
         f"Best regards,\n"
         f"The SpeakWise Team"
@@ -54,7 +65,7 @@ def send_speaker_request_declined_email(speaker_email, event_name, speaker_name)
     send_mail(
         subject=subject,
         message=body,
-        recipient_list=[speaker_email],
+        recipient_list=[speaker.user_account.email],
         from_email=settings.DEFAULT_FROM_EMAIL,
         fail_silently=False,
     )

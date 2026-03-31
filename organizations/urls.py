@@ -1,4 +1,4 @@
-"""URL configurations for the organizations app."""
+"""URL configurations for the organization app."""
 
 from django.urls import path
 
@@ -21,6 +21,11 @@ urlpatterns = [
         "organizations/<slug:slug>/members/",
         views.OrganizationMembershipListCreateView.as_view(),
         name="organization-members-list-create-delete",
+    ),
+    path(
+        "organization/<slug:org_slug>/<int:event_id>/speakers/",
+        views.OrganizationEventSpeakerListView.as_view(),
+        name="organization-event-speakers",
     ),
     path(
         "organizations/<slug:org_slug>/members/<str:username>/",

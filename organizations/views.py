@@ -164,13 +164,14 @@ class OrganizationEventSpeakerListView(APIView):
 
     permission_classes = [AllowAny]
 
-    def get(self, request, event):
+    @extend_schema(responses={200: OrganizationEventSpeakerSerializer(many=True)})
+    def get(self, request, org_slug: None, event_id=None) -> Response:
         """Retrieve events-speakers for an organization."""
         try:
             speakers = OrganizationEventSpeaker.objects.filter(
-                event=event, organization=event.organizer
+                organization__slug=org_slug, event=event_id
             )
         except OrganizationEventSpeaker.DoesNotExist as err:
-            raise NotFound(detail="Event not found") from err
+            raise NotFound(detail="Speakers not found") from err
         serializer = OrganizationEventSpeakerSerializer(speakers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

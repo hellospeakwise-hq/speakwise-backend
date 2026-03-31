@@ -256,15 +256,13 @@ class SpeakerRequestAcceptView(APIView):
         # send email notification to speaker if request is accepted or declined
         (
             send_request_accepted_email.enqueue(
-                speaker_email=serializer.instance.speaker.user_account.email,
-                event_name=serializer.instance.event.title,
-                speaker_name=serializer.instance.speaker.user_account.email,
+                speaker=serializer.instance.speaker,
+                _event=serializer.instance.event,
             )
             if serializer.instance.status == RequestStatusChoices.ACCEPTED.value
             else send_speaker_request_declined_email.enqueue(
-                speaker_email=serializer.instance.speaker.user_account.email,
-                event_name=serializer.instance.event.title,
-                speaker_name=serializer.instance.speaker.user_account.email,
+                speaker_email=serializer.instance.speaker,
+                event_name=serializer.instance.event,
             )
         )
         return Response(serializer.data, status=status.HTTP_200_OK)

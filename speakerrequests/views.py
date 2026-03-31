@@ -1,7 +1,12 @@
 """Speaker request views."""
 
+<<<<<<< HEAD
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+=======
+from django.db.models import Q
+from django.http.response import Http404
+>>>>>>> 46e772f (work in progres)
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.pagination import PageNumberPagination
@@ -21,7 +26,15 @@ from speakerrequests.serializers import (
     SpeakerRequestRespondSerializer,
     SpeakerRequestSerializer,
 )
+<<<<<<< HEAD
 from speakerrequests.services import SpeakerRequestService
+=======
+from speakerrequests.utils import (
+    send_request_accepted_email,
+    send_speaker_request_declined_email,
+    send_speaker_request_email,
+)
+>>>>>>> 46e772f (work in progres)
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -84,6 +97,7 @@ class OrganizerSpeakerRequestListCreateAPIView(APIView):
                 }
             )
 
+<<<<<<< HEAD
         speaker_request = SpeakerRequestService.create_request(
             organizer=organizer,
             speaker=serializer.validated_data["speaker"],
@@ -93,6 +107,14 @@ class OrganizerSpeakerRequestListCreateAPIView(APIView):
         return Response(
             SpeakerRequestSerializer(speaker_request).data,
             status=status.HTTP_201_CREATED,
+=======
+        # send email notification to speaker
+        send_speaker_request_email.enqueue(
+            speaker_email=serializer.instance.speaker.user_account.email,
+            event_name=serializer.instance.event.title,
+            organizer_name=serializer.instance.organizer.name,
+            message=serializer.instance.message,
+>>>>>>> 46e772f (work in progres)
         )
 
 
@@ -155,6 +177,7 @@ class SpeakerRequestRespondAPIView(APIView):
 
         serializer = SpeakerRequestRespondSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+<<<<<<< HEAD
 
         updated_request = SpeakerRequestService.respond_to_request(
             speaker_request=speaker_request,
@@ -171,25 +194,21 @@ class SpeakerRequestRespondAPIView(APIView):
         discover_url = f"{settings.FRONTEND_URL}/speakers"
 
         if req.status == RequestStatusChoices.ACCEPTED.value:
+=======
+        serializer.save()
+        # send email notification to speaker if request is accepted or declined
+        (
+>>>>>>> 46e772f (work in progres)
             send_request_accepted_email.enqueue(
-                organizer_email=organizer_email,
-                requester_name=requester_name,
-                speaker_name=speaker_name,
-                speaker_title="",
-                event_name=event_name,
-                event_date=event_date,
-                event_location=event_location,
-                speaker_profile_url=speaker_profile_url,
-                dashboard_url=dashboard_url,
+                speaker=serializer.instance.speaker,
+                _event=serializer.instance.event,
             )
-        else:
-            send_request_declined_email.enqueue(
-                organizer_email=organizer_email,
-                requester_name=requester_name,
-                speaker_name=speaker_name,
-                event_name=event_name,
-                discover_url=discover_url,
+            if serializer.instance.status == RequestStatusChoices.ACCEPTED.value
+            else send_speaker_request_declined_email.enqueue(
+                speaker_email=serializer.instance.speaker,
+                event_name=serializer.instance.event,
             )
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 >>>>>>> 6cedfed (fix: use location.venue and set console log level to WARNING)
 
@@ -226,6 +245,7 @@ class SpeakerEmailRequestListCreateAPIView(APIView):
         serializer = EmailRequestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+<<<<<<< HEAD
         email_request = SpeakerRequestService.create_email_request(
             request_from=self.request.user,
             request_to_user=serializer.validated_data["request_to"],
@@ -265,4 +285,32 @@ class SpeakerEmailRequestRespondAPIView(APIView):
         return Response(
             EmailRequestsSerializer(updated_email_request).data,
             status=status.HTTP_200_OK,
+=======
+        # send the request via email if the recipient exists
+        if serializer.instance.request_to:
+            send_speaker_request_email.enqueue(
+                speaker_email=serializer.instance.request_to.email,
+                event_name=serializer.instance.event,
+                organizer_name=serializer.instance.request_from.username,
+                message=serializer.instance.message,
+            )
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    request=EmailRequestsSerializer,
+    responses={200: None},
+    tags=["speaker email-request"],
+)
+class SpeakerEmailRequestDetailView(APIView):
+    """Detail view of Speaker request sent through email."""
+
+    def patch(self, request, pk=None):
+        """Update status of a specific speaker request."""
+        email_request = get_object_or_404(
+            SpeakerEmailRequests,
+            pk=pk,
+            request_to=request.user,
+>>>>>>> 46e772f (work in progres)
         )

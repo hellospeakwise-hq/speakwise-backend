@@ -155,3 +155,24 @@ class OrganizationMembershipDeleteView(APIView):
         except OrganizationMembership.DoesNotExist:
             return NotFound(detail="Member not found")
         return Response(status=status.HTTP_204_NO_CONTENT)
+<<<<<<< HEAD
+=======
+
+
+class OrganizationEventSpeakerListView(APIView):
+    """View to list events and speakers for an organization."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(responses={200: OrganizationEventSpeakerSerializer(many=True)})
+    def get(self, request, org_slug: None, event_id=None) -> Response:
+        """Retrieve events-speakers for an organization."""
+        try:
+            speakers = OrganizationEventSpeaker.objects.filter(
+                organization__slug=org_slug, event=event_id
+            )
+        except OrganizationEventSpeaker.DoesNotExist as err:
+            raise NotFound(detail="Speakers not found") from err
+        serializer = OrganizationEventSpeakerSerializer(speakers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+>>>>>>> 46e772f (work in progres)

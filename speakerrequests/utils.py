@@ -5,9 +5,6 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django_tasks import task
 
-from events.models import Event
-from organizations.models import OrganizationEventSpeaker
-
 FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://speak-wise.live")
 
 
@@ -21,6 +18,15 @@ def _send(subject: str, plain_text: str, html: str, recipient: str) -> None:
         fail_silently=False,
     )
 
+@task()
+def create_event_speaker(speaker, event):
+    """Create an event speaker."""
+    from events.models import EventSpeakers
+    
+    try:
+        EventSpeakers.objects.create(event=event, speaker=speaker)
+    except Exception as err:
+        raise Exception(err) from err
 
 @task()
 def send_speaker_org_request_email(

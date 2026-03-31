@@ -17,7 +17,7 @@ class CountrySerializer(serializers.ModelSerializer):
         exclude = ["created_at", "updated_at"]
         validators = []
         extra_kwargs = {
-            "name": {"validators": []}, 
+            "name": {"validators": []},
             "code": {"validators": []},
         }
 

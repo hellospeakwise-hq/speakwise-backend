@@ -8,10 +8,36 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationAdminOrOrganizer
-from events.models import Event
-from events.serializers import EventSerializer
+from events.models import Event, Tag
+from events.serializers import EventSerializer, TagSerializer
 from events.utils import create_event_payload
 from organizations.models import OrganizationMembership
+
+
+class TagListView(APIView):
+    """List and create event tags."""
+
+    def get_permissions(self):
+        """GET is public; POST requires organizer/admin."""
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsOrganizationAdminOrOrganizer()]
+
+    @extend_schema(tags=["Tags"], responses={200: TagSerializer(many=True)})
+    def get(self, request, *args, **kwargs):
+        """List all tags."""
+        tags = Tag.objects.all().order_by("name")
+        serializer = TagSerializer(tags, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(tags=["Tags"], request=TagSerializer, responses={201: TagSerializer})
+    def post(self, request, *args, **kwargs):
+        """Create a new tag."""
+        serializer = TagSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EventListView(APIView):

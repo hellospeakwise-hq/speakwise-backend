@@ -148,6 +148,7 @@ class EventSerializer(WritableNestedModelSerializer):
     # ------------------------------------------------------------------
 
     def create(self, validated_data):
+        """Create an event, resolving the nested location/country."""
         location_data = validated_data.pop("location", None)
         location = _resolve_location(location_data)
         if location:
@@ -155,6 +156,7 @@ class EventSerializer(WritableNestedModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        """Update an event, resolving the nested location/country."""
         location_data = validated_data.pop("location", None)
         if location_data is not None:
             location = _resolve_location(location_data)

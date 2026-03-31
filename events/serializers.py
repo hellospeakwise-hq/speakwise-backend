@@ -72,8 +72,7 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 def _resolve_location(location_data: dict | None) -> Location | None:
-    """
-    Handles the Country nested inside location using get_or_create so that
+    """Handles the Country nested inside location using get_or_create so that
     picking an already-existing country never raises a unique-constraint error.
     """
     if not location_data:
@@ -92,9 +91,7 @@ def _resolve_location(location_data: dict | None) -> Location | None:
             lookup["code"] = code
 
         if lookup:
-            country, _ = Country.objects.get_or_create(
-                **lookup, defaults=country_data
-            )
+            country, _ = Country.objects.get_or_create(**lookup, defaults=country_data)
 
     # Build location lookup fields (everything except country and the PK)
     city = location_data.get("city", "")

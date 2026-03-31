@@ -23,11 +23,6 @@ urlpatterns = [
         name="organization-members-list-create-delete",
     ),
     path(
-        "organization/<slug:org_slug>/<int:event_id>/speakers/",
-        views.OrganizationEventSpeakerListView.as_view(),
-        name="organization-event-speakers",
-    ),
-    path(
         "organizations/<slug:org_slug>/members/<str:username>/",
         views.OrganizationMembershipDeleteView.as_view(),
         name="organization-members-delete",

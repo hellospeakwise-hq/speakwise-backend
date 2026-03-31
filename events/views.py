@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event, EventSpeakers, Tag
 from events.serializers import EventSerializer, TagSerializer
+from events.models import Event, EventSpeakers
+from events.serializers import EventSerializer
 from events.utils import create_event_payload
 from organizations.models import OrganizationMembership
 
@@ -54,12 +56,10 @@ class EventListView(APIView):
         """List events."""
         events = Event.objects.all()
         if request.user.is_authenticated:
-            user_orgs = OrganizationMembership.objects.filter(
-                user=request.user, is_active=True
-            ).values_list("organization", flat=True)
-            if user_orgs.exists():
-                events = events.filter(organizer__in=user_orgs)
-            else:
+            try:
+                membership = OrganizationMembership.objects.get(user=request.user)
+                events = events.filter(organizer=membership.organization)
+            except OrganizationMembership.DoesNotExist:
                 events = events.filter(is_active=True)
         else:
             events = events.filter(is_active=True)
@@ -122,11 +122,16 @@ class EventSpeakersListView(APIView):
     """get event speakers list view."""
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     def get(self, request, event_slug: str):
+=======
+    def get(self, request, event_slug:str):
+>>>>>>> 8be53aa (push to continue)
         """Retrieve event speakers."""
         speakers = EventSpeakers.objects.filter(event__slug=event_slug)
         serializer = EventSerializer(speakers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+<<<<<<< HEAD
 =======
     POST toggles the speaker_deck_upload_enabled flag.
     When enabling, sends notifications to all accepted speakers.
@@ -173,3 +178,5 @@ class EventSpeakersListView(APIView):
             status=status.HTTP_200_OK,
         )
 >>>>>>> e858683 (refactor: migrate email utilities to tasks.py and reorganize notification logic across modules)
+=======
+>>>>>>> 8be53aa (push to continue)

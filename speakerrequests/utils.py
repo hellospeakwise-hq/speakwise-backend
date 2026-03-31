@@ -1,11 +1,10 @@
 """speaker request utils."""
-from celery.events import event
+
 from django.conf import settings
 from django.core.mail import send_mail
 from django_tasks import task
 
-from events.models import Event
-from organizations.models import OrganizationEventSpeaker
+from events.models import EventSpeakers
 
 
 @task()
@@ -22,6 +21,15 @@ def send_speaker_request_email(
         fail_silently=False,
     )
 
+@task()
+def create_event_speaker(speaker, event):
+    """Create an event speaker."""
+    from events.models import EventSpeakers
+    
+    try:
+        EventSpeakers.objects.create(event=event, speaker=speaker)
+    except Exception as err:
+        raise Exception(err) from err
 
 @task()
 def send_request_accepted_email(speaker, _event):
@@ -43,16 +51,12 @@ def send_request_accepted_email(speaker, _event):
         fail_silently=False,
     )
     # add event and speaker to organization event speakers
-    try:
-        OrganizationEventSpeaker.objects.create(organization=_event.organizer,
-                                                event=_event, speaker=speaker)
-    except Exception as e:
-        pass
+    create_event_speaker.enqueue(speaker=speaker, event=_event)
 
 
 @task()
 def send_speaker_request_declined_email(speaker, _event):
-    """Send an email notification to the speaker about the declined speaker request."""
+    """Send an email notification to the speaker about the declined speaker request."""    
     subject = f"Your Speaker Request for {_event.name} has been Declined"
     body = (
         f"Hello,\n\n"

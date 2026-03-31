@@ -156,6 +156,7 @@ class OrganizationMembershipDeleteView(APIView):
             return NotFound(detail="Member not found")
         return Response(status=status.HTTP_204_NO_CONTENT)
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 
@@ -176,3 +177,5 @@ class OrganizationEventSpeakerListView(APIView):
         serializer = OrganizationEventSpeakerSerializer(speakers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 >>>>>>> 46e772f (work in progres)
+=======
+>>>>>>> 8be53aa (push to continue)

@@ -15,6 +15,38 @@ class CountrySerializer(serializers.ModelSerializer):
 
         model = Country
         exclude = ["created_at", "updated_at"]
+        validators = []
+        extra_kwargs = {
+            "name": {"validators": []}, 
+            "code": {"validators": []},
+        }
+
+    def create(self, validated_data):
+        """Get or create a Country by name (and optionally code)."""
+        name = validated_data.get("name")
+        code = validated_data.get("code")
+        lookup = {}
+        if name:
+            lookup["name"] = name
+        if code and not name:
+            lookup["code"] = code
+        if lookup:
+            country, _ = Country.objects.get_or_create(
+                **lookup,
+                defaults=validated_data,
+            )
+            return country
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """Update a Country, or return an existing one if name/code matches."""
+        name = validated_data.get("name", instance.name)
+        # If name changed to one that already exists, return that existing record
+        if name and name != instance.name:
+            existing = Country.objects.filter(name=name).first()
+            if existing and existing.pk != instance.pk:
+                return existing
+        return super().update(instance, validated_data)
 
 
 class LocationSerializer(WritableNestedModelSerializer):
@@ -39,6 +71,57 @@ class TagSerializer(serializers.ModelSerializer):
         exclude = ["created_at", "updated_at"]
 
 
+def _resolve_location(location_data: dict | None) -> Location | None:
+    """
+    Handles the Country nested inside location using get_or_create so that
+    picking an already-existing country never raises a unique-constraint error.
+    """
+    if not location_data:
+        return None
+
+    country_data = location_data.pop("country", None)
+    country = None
+
+    if country_data:
+        name = country_data.get("name")
+        code = country_data.get("code")
+        lookup = {}
+        if name:
+            lookup["name"] = name
+        elif code:
+            lookup["code"] = code
+
+        if lookup:
+            country, _ = Country.objects.get_or_create(
+                **lookup, defaults=country_data
+            )
+
+    # Build location lookup fields (everything except country and the PK)
+    city = location_data.get("city", "")
+    venue = location_data.get("venue", "")
+    postal_code = location_data.get("postal_code", "")
+    address = location_data.get("address", "")
+
+    # Try to find an existing location that matches country + city + venue
+    existing_qs = Location.objects.filter(country=country, city=city, venue=venue)
+    if existing_qs.exists():
+        location = existing_qs.first()
+        # Update mutable fields in case they changed
+        location.postal_code = postal_code
+        location.address = address
+        location.save(update_fields=["postal_code", "address"])
+        return location
+
+    # Create a new location
+    return Location.objects.create(
+        country=country,
+        city=city,
+        venue=venue,
+        postal_code=postal_code,
+        address=address,
+    )
+
+
 class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
@@ -57,6 +140,27 @@ class EventSerializer(WritableNestedModelSerializer):
 
         model = Event
         exclude = ["created_at", "updated_at"]
+
+    # ------------------------------------------------------------------
+    # Override create/update to resolve location → country via get_or_create
+    # instead of letting drf_writable_nested blindly try to INSERT a country
+    # that already exists.
+    # ------------------------------------------------------------------
+
+    def create(self, validated_data):
+        location_data = validated_data.pop("location", None)
+        location = _resolve_location(location_data)
+        if location:
+            validated_data["location"] = location
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        location_data = validated_data.pop("location", None)
+        if location_data is not None:
+            location = _resolve_location(location_data)
+            if location:
+                validated_data["location"] = location
+        return super().update(instance, validated_data)
 
     def get_date(self, obj) -> str | None:
         """Return a compact date representation for the event.

@@ -118,3 +118,15 @@ class Country(TimeStampedModel):
     def __str__(self):
         """Return a string representation of the model."""
         return self.name
+
+
+class EventSpeakers(TimeStampedModel):
+    """Event speakers model."""
+
+    speaker = models.ForeignKey("speakers.SpeakerProfile", on_delete=models.CASCADE)
+    event = models.ForeignKey("Event", on_delete=models.CASCADE)
+    has_spoken = models.BooleanField(default=False)
+
+    def __str__(self):
+        """Return a string representation of the model."""
+        return f"{self.speaker.user_account.username} - {self.event.title}"

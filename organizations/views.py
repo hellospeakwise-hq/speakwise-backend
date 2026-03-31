@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -15,11 +15,9 @@ from base.permissions import (
 from organizations.filters import OrganizationMembershipFilter
 from organizations.models import (
     Organization,
-    OrganizationEventSpeaker,
     OrganizationMembership,
 )
 from organizations.serializers import (
-    OrganizationEventSpeakerSerializer,
     OrganizationMembershipSerializer,
     OrganizationSerializer,
 )
@@ -157,21 +155,3 @@ class OrganizationMembershipDeleteView(APIView):
         except OrganizationMembership.DoesNotExist:
             return NotFound(detail="Member not found")
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class OrganizationEventSpeakerListView(APIView):
-    """View to list events and speakers for an organization."""
-
-    permission_classes = [AllowAny]
-
-    @extend_schema(responses={200: OrganizationEventSpeakerSerializer(many=True)})
-    def get(self, request, org_slug: None, event_id=None) -> Response:
-        """Retrieve events-speakers for an organization."""
-        try:
-            speakers = OrganizationEventSpeaker.objects.filter(
-                organization__slug=org_slug, event=event_id
-            )
-        except OrganizationEventSpeaker.DoesNotExist as err:
-            raise NotFound(detail="Speakers not found") from err
-        serializer = OrganizationEventSpeakerSerializer(speakers, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)

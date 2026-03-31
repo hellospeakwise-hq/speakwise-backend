@@ -10,4 +10,9 @@ urlpatterns = [
     path("events/tags/", views.TagListView.as_view(), name="tag-list"),
     path("events/", views.EventListView.as_view(), name="event-list-create"),
     path("events/<str:slug>/", views.EventDetailView.as_view(), name="event-detail"),
+    path(
+        "events/<slug:event_slug>/speakers/",
+        views.EventSpeakersListView.as_view(),
+        name="event-speakers-list",
+    ),
 ]

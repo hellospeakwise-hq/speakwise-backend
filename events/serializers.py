@@ -165,7 +165,9 @@ class EventSerializer(WritableNestedModelSerializer):
             location = _resolve_location(location_data)
             if location:
                 validated_data["location"] = location
-        instance = super(WritableNestedModelSerializer, self).update(instance, validated_data)
+        instance = super(WritableNestedModelSerializer, self).update(
+            instance, validated_data
+        )
         if tags_data is not None:
             tag_ids = [t.get("id") for t in tags_data if t.get("id")]
             instance.tags.set(Tag.objects.filter(id__in=tag_ids))

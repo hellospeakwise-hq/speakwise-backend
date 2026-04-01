@@ -1,5 +1,6 @@
-"""speaker request views."""
+"""Speaker request views."""
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -52,9 +53,15 @@ from base.permissions import IsOrganizationAdminOrOrganizer, IsSpeakerRequestRec
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny, IsAuthenticated
+=======
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 
+<<<<<<< HEAD
 from organizations.models import OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
 >>>>>>> 947d65b (Add welcome email templates for organizers and speakers)
@@ -63,8 +70,14 @@ from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.serializers import (
 >>>>>>> 7255978 (refactor speakerrequest API)
     EmailRequestsSerializer,
+=======
+from speakerrequests.models import SpeakerRequest, SpeakerEmailRequests
+from speakerrequests.serializers import (
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
     SpeakerRequestSerializer,
+    EmailRequestsSerializer,
 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -344,16 +357,18 @@ from speakerrequests.utils import (
     send_speaker_org_request_email,
 )
 >>>>>>> 947d65b (Add welcome email templates for organizers and speakers)
+=======
+from speakerrequests.services import SpeakerRequestService
+from base.permissions import IsSpeakerRequestRecipient, IsOrganizerOfRequest
+from speakerrequests.filters import SpeakerRequestFilter, EmailRequestsFilter
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
 
 
-class SpeakerRequestListView(APIView):
-    """View to list and create speaker requests.
+class OrganizerSpeakerRequestListCreateAPIView(APIView):
+    """View for organizers to list and create speaker requests."""
 
-    This view allows organizers to list all their speaker requests and create new ones.
-    """
-
-    permission_classes = [AllowAny]
     serializer_class = SpeakerRequestSerializer
+<<<<<<< HEAD
 
     def get_objects(self, organizer, organization_id=None):
         """Get speaker requests by organizer.
@@ -670,69 +685,43 @@ class SpeakerRequestAcceptView(APIView):
 class SpeakerEmailRequestListView(APIView):
     """Speaker request sent via email."""
 
+=======
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, user):
-        """Get email requests sent or received by the user."""
-        try:
-            return SpeakerEmailRequests.objects.filter(
-                Q(request_from=user) | Q(request_to=user)
-            )
-        except SpeakerEmailRequests.DoesNotExist:
-            return NotFound
-
     def get(self, request):
-        """Return request sent or received by the authenticated user."""
-        email_requests = self.get_object(request.user)
-        email_request_filter = EmailRequestsFilter(request.GET, queryset=email_requests)
-        serializer = EmailRequestsSerializer(email_request_filter.qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        """Get requests for organizations where user is a member."""
+        speaker_requests = SpeakerRequest.objects.for_organizer(
+            self.request.user
+        ).with_prefetch()
+        speaker_requests_filter = SpeakerRequestFilter(data=speaker_requests)
+        self.serializer_class(speaker_requests_filter.qs)
+        return Response(self.serializer_class.data, status=status.HTTP_200_OK)
 
-    def post(self, request):
-        """Create a new request sent via email."""
-        # reconstruct request data
-        speaker_id = request.data.get("speaker_id")
-        if not speaker_id:
-            return Response(
-                {"speaker_id": "This field is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        request.data["request_to"] = speaker_id
-        request.data["request_from"] = request.user.id
-
-        # validate and save request data
-        serializer = EmailRequestsSerializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        """Create a new speaker request using the service layer."""
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
 
-        # send the request via email if the recipient exists
-        if serializer.instance.request_to:
-            er = serializer.instance
-            recipient = er.request_to
-            sender = er.request_from
-            send_speaker_email_request_email.enqueue(
-                speaker_email=recipient.email,
-                speaker_name=recipient.first_name or recipient.username,
-                requester_name=sender.first_name or sender.username,
-                requester_email=sender.email,
-                event_name=er.event,
-                event_location=er.location,
-                message=er.message,
-                request_id=str(er.id),
+        try:
+            speaker_request = SpeakerRequestService.create_request(
+                organizer=request.user,
+                speaker=serializer.validated_data["speaker"],
+                event=serializer.validated_data["event"],
+                message=serializer.validated_data["message"],
             )
+            response_serializer = self.serializer_class(speaker_request)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+class OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView(
+    generics.RetrieveUpdateDestroyAPIView
+):
+    """View for organizers to manage individual speaker requests."""
 
-@extend_schema(
-    request=EmailRequestsSerializer,
-    responses={200: None},
-    tags=["speaker email-request"],
-)
-class SpeakerEmailRequestDetailView(APIView):
-    """Detail view of Speaker request sent through email."""
-
+<<<<<<< HEAD
 <<<<<<< HEAD
     def get_queryset(self):
         """Ensure user is the recipient if they are updating status."""
@@ -765,3 +754,89 @@ class SpeakerEmailRequestDetailView(APIView):
             )
         return Response(status=status.HTTP_200_OK)
 >>>>>>> 947d65b (Add welcome email templates for organizers and speakers)
+=======
+    serializer_class = SpeakerRequestSerializer
+    permission_classes = [IsAuthenticated, IsOrganizerOfRequest]
+
+    def get_queryset(self):
+        """Get requests for organizations where user is a member."""
+        return SpeakerRequest.objects.for_organizer(self.request.user).with_prefetches()
+
+
+class SpeakerIncomingRequestListAPIView(APIView):
+    """View for speakers to see incoming requests."""
+
+    serializer_class = SpeakerRequestSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_class = SpeakerRequestFilter
+
+    def get_queryset(self):
+        """Get requests sent to the authenticated speaker."""
+        return SpeakerRequest.objects.for_speaker(self.request.user).with_prefetches()
+
+
+class SpeakerRequestRespondAPIView(generics.UpdateAPIView):
+    """View for speakers to respond to requests (Accept/Reject)."""
+
+    serializer_class = SpeakerRequestSerializer
+    permission_classes = [IsAuthenticated, IsSpeakerRequestRecipient]
+
+    def get_queryset(self):
+        """Get requests sent to the authenticated speaker."""
+        return SpeakerRequest.objects.for_speaker(self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        """Respond to request using service layer."""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        status_update = request.data.get("status")
+
+        try:
+            instance = SpeakerRequestService.respond_to_request(
+                request_id=instance.pk, user=request.user, status_update=status_update
+            )
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SpeakerEmailRequestListCreateAPIView(generics.ListCreateAPIView):
+    """View for email-based speaker requests."""
+
+    serializer_class = EmailRequestsSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_class = EmailRequestsFilter
+
+    def get_queryset(self):
+        """Get email requests where user is sender or receiver."""
+        from django.db.models import Q
+
+        return SpeakerEmailRequests.objects.filter(
+            Q(request_from=self.request.user) | Q(request_to=self.request.user)
+        )
+
+    def perform_create(self, serializer):
+        """Use service layer to create email request."""
+        # Note: The original code had some manual reconstruction of request.data
+        # We can handle that in the serializer or service.
+        SpeakerRequestService.create_email_request(
+            request_from=self.request.user,
+            request_to_user=serializer.validated_data.get("request_to"),
+            event_name=serializer.validated_data["event"],
+            location=serializer.validated_data["location"],
+            message=serializer.validated_data["message"],
+        )
+
+
+class SpeakerEmailRequestRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
+    """View to manage individual email requests."""
+
+    serializer_class = EmailRequestsSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        """Ensure user is the recipient if they are updating status."""
+        return SpeakerEmailRequests.objects.filter(request_to=self.request.user)
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)

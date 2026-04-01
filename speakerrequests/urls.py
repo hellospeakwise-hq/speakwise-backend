@@ -1,18 +1,19 @@
 """speaker request urls."""
 
 from django.urls import path
-
 from speakerrequests import views
 
 app_name = "speakerrequests"
 
 urlpatterns = [
+    # Organizer URLs
     path(
         "speaker-requests/",
-        views.SpeakerRequestListView.as_view(),
-        name="speaker_requests_list_create",
+        views.OrganizerSpeakerRequestListCreateAPIView.as_view(),
+        name="speaker-request-list-create",
     ),
     path(
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -33,7 +34,14 @@ urlpatterns = [
         views.SPeakerRequestDetailView.as_view(),
         name="speaker_request_retrieve_update_delete",
 >>>>>>> c4b309a (update urls)
+=======
+        "speaker-requests/<int:pk>/",
+        views.OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView.as_view(),
+        name="speaker-request-detail",
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
     ),
+    
+    # Speaker URLs
     path(
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -76,19 +84,24 @@ urlpatterns = [
     # Email Request URLs
 =======
         "speaker-requests/incoming/",
-        views.SpeakerRequestsListView.as_view(),
-        name="speaker_requests_list",
+        views.SpeakerIncomingRequestListAPIView.as_view(),
+        name="speaker-request-incoming-list",
     ),
     path(
-        "speaker-requests/<uuid:pk>/respond/",
-        views.SpeakerRequestAcceptView.as_view(),
-        name="speaker_request_respond",
+        "speaker-requests/<int:pk>/respond/",
+        views.SpeakerRequestRespondAPIView.as_view(),
+        name="speaker-request-respond",
     ),
+<<<<<<< HEAD
 >>>>>>> c4b309a (update urls)
+=======
+    
+    # Email Request URLs
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
     path(
         "speaker-requests/email-requests/",
-        views.SpeakerEmailRequestListView.as_view(),
-        name="speaker_email_requests_list_create",
+        views.SpeakerEmailRequestListCreateAPIView.as_view(),
+        name="speaker-email-request-list-create",
     ),
     path(
 <<<<<<< HEAD
@@ -109,8 +122,13 @@ urlpatterns = [
 >>>>>>> 7255978 (refactor speakerrequest API)
 =======
         "speaker-requests/email-requests/<uuid:pk>/",
+<<<<<<< HEAD
         views.SpeakerEmailRequestDetailView.as_view(),
         name="speaker_email_request_retrieve_update",
 >>>>>>> c4b309a (update urls)
+=======
+        views.SpeakerEmailRequestRetrieveUpdateAPIView.as_view(),
+        name="speaker-email-request-detail",
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
     ),
 ]

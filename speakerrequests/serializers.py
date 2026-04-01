@@ -18,9 +18,7 @@ class SpeakerRequestSerializer(serializers.ModelSerializer):
     event_title = serializers.CharField(source="event.title", read_only=True)
 
     organization_name = serializers.CharField(source="organizer.name", read_only=True)
-    speaker_name = serializers.CharField(
-        source="speaker.user_account.get_full_name", read_only=True
-    )
+    speaker_name = serializers.CharField(source="speaker.user_account.get_full_name", read_only=True)
     event_title = serializers.CharField(source="event.title", read_only=True)
 
     class Meta:
@@ -31,11 +29,15 @@ class SpeakerRequestSerializer(serializers.ModelSerializer):
             "id",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
             "organizer",
 >>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
 =======
 >>>>>>> 7255978 (refactor speakerrequest API)
+=======
+            "organizer",
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
             "organization_name",
             "speaker",
             "speaker_name",
@@ -43,12 +45,15 @@ class SpeakerRequestSerializer(serializers.ModelSerializer):
             "event_title",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             "organizer",
 =======
 >>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
 =======
             "organizer",
 >>>>>>> 7255978 (refactor speakerrequest API)
+=======
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
             "status",
             "message",
             "created_at",
@@ -127,12 +132,15 @@ class EmailRequestsRespondSerializer(serializers.Serializer):
     def validate(self, attrs):
         """Validate email request data."""
         if not attrs.get("request_to") and not attrs.get("request_from"):
-            raise serializers.ValidationError(
+             raise serializers.ValidationError(
                 {"error": "request_to and request_from are required."}
             )
         return attrs
 <<<<<<< HEAD
 
+<<<<<<< HEAD
 >>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
 =======
 >>>>>>> 7255978 (refactor speakerrequest API)
+=======
+>>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)

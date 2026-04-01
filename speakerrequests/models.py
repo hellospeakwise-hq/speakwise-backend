@@ -10,8 +10,47 @@ from speakers.models import SpeakerProfile
 from users.models import User
 
 
+from organizations.models import OrganizationMembership
+
+
+class SpeakerRequestQuerySet(models.QuerySet):
+    """QuerySet for SpeakerRequests to optimize common queries."""
+
+    def for_organizer(self, user):
+        """Requests for organizations where user is a member."""
+        org_ids = OrganizationMembership.objects.filter(user=user).values_list("organization_id", flat=True)
+        return self.filter(organizer_id__in=org_ids)
+
+    def for_speaker(self, user):
+        """Requests sent to this speaker."""
+        return self.filter(speaker__user_account=user)
+
+    def with_prefetches(self):
+        """Common select_related for optimized fetching."""
+        return self.select_related("organizer", "speaker__user_account", "event")
+
+
+class SpeakerRequestManager(models.Manager):
+    """Manager for SpeakerRequest model."""
+
+    def get_queryset(self):
+        """Use custom QuerySet."""
+        return SpeakerRequestQuerySet(self.model, using=self._db)
+
+    def for_organizer(self, user):
+        """Proxy to QuerySet."""
+        return self.get_queryset().for_organizer(user)
+
+    def for_speaker(self, user):
+        """Proxy to QuerySet."""
+        return self.get_queryset().for_speaker(user)
+
+
 class SpeakerRequest(TimeStampedModel):
+
     """speaker request model."""
+
+    objects = SpeakerRequestManager()
 
     organizer = models.ForeignKey(
         "organizations.Organization", on_delete=models.DO_NOTHING

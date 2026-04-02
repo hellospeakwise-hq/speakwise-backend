@@ -8,10 +8,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationAdminOrOrganizer
-from events.models import Event, Tag
+from events.models import Event, EventSpeakers, Tag
 from events.serializers import EventSerializer, TagSerializer
-from events.models import Event, EventSpeakers
-from events.serializers import EventSerializer
 from events.utils import create_event_payload
 from organizations.models import OrganizationMembership
 

@@ -3,7 +3,10 @@
 from rest_framework import serializers
 
 from organizations.choices import OrganizationRole
-from organizations.models import Organization, OrganizationMembership
+from organizations.models import (
+    Organization,
+    OrganizationMembership,
+)
 
 
 class OrganizationMembershipSerializer(serializers.ModelSerializer):

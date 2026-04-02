@@ -7,34 +7,32 @@ from speakerrequests import views
 app_name = "speakerrequests"
 
 urlpatterns = [
+    # Organizer URLs
     path(
         "speaker-requests/",
-        views.SpeakerRequestListView.as_view(),
-        name="speaker_requests_list_create",
+        views.OrganizerSpeakerRequestListCreateAPIView.as_view(),
+        name="speaker-request-list-create",
     ),
     path(
         "speaker-requests/<int:pk>/",
-        views.SPeakerRequestDetailView.as_view(),
-        name="speaker_request_retrieve_update_delete",
+        views.OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView.as_view(),
+        name="speaker-request-detail",
     ),
+    # Speaker URLs
     path(
-        "speaker-requests/incoming/",
-        views.SpeakerRequestsListView.as_view(),
-        name="speaker_requests_list",
+        "speaker-requests/respond/",
+        views.SpeakerRequestRespondAPIView.as_view(),
+        name="speaker-request-respond",
     ),
-    path(
-        "speaker-requests/<int:pk>/respond/",
-        views.SpeakerRequestAcceptView.as_view(),
-        name="speaker_request_respond",
-    ),
+    # Email Request URLs
     path(
         "speaker-requests/email-requests/",
-        views.SpeakerEmailRequestListView.as_view(),
-        name="speaker_email_requests_list_create",
+        views.SpeakerEmailRequestListCreateAPIView.as_view(),
+        name="speaker-email-request-list-create",
     ),
     path(
-        "speaker-requests/email-requests/<uuid:pk>/",
-        views.SpeakerEmailRequestDetailView.as_view(),
-        name="speaker_email_request_retrieve_update",
+        "speaker-requests/email-request/<id>/respond/",
+        views.SpeakerEmailRequestRespondAPIView.as_view(),
+        name="speaker-email-request-respond",
     ),
 ]

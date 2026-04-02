@@ -69,3 +69,13 @@ class IsOrganizationAdminOrOrganizer(BasePermission):
                 role__in=["ADMIN", "ORGANIZER"],
             ).exists()
         return False
+
+
+class IsSpeakerRequestRecipient(BasePermission):
+    """Permission to check if the user is the recipient of the speaker request."""
+
+    def has_object_permission(self, request, view, obj):
+        """Check if user is the speaker in the request."""
+        return request.user.is_authenticated and (
+            obj.speaker.user_account == request.user
+        )

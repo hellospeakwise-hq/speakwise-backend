@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationAdminOrOrganizer
-from events.models import Event, Tag
+from events.models import Event, EventSpeakers, Tag
 from events.serializers import EventSerializer, TagSerializer
 from events.utils import create_event_payload
 from organizations.models import OrganizationMembership
@@ -114,3 +114,13 @@ class EventDetailView(APIView):
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EventSpeakersListView(APIView):
+    """get event speakers list view."""
+
+    def get(self, request, event_slug: str):
+        """Retrieve event speakers."""
+        speakers = EventSpeakers.objects.filter(event__slug=event_slug)
+        serializer = EventSerializer(speakers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

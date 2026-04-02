@@ -3,7 +3,7 @@
 from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
-from events.models import Country, Event, Location, Tag
+from events.models import Country, Event, EventSpeakers, Location, Tag
 from speakers.serializers import SpeakerProfileSerializer
 
 
@@ -214,3 +214,13 @@ class EventWithGuestSpeakersSerializer(EventSerializer):
         """Get detailed speaker profiles for this event."""
         speakers = obj.speakers.all()
         return SpeakerProfileSerializer(speakers, many=True).data
+
+
+class EventSpeakersSerializer(serializers.ModelSerializer):
+    """Serializer for the EventSpeakers model."""
+
+    class Meta:
+        """Metaclass for the EventSpeakersSerializer."""
+
+        model = EventSpeakers
+        exclude = ["created_at", "updated_at"]

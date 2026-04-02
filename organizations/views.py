@@ -13,7 +13,10 @@ from base.permissions import (
     IsOrganizationMember,
 )
 from organizations.filters import OrganizationMembershipFilter
-from organizations.models import Organization, OrganizationMembership
+from organizations.models import (
+    Organization,
+    OrganizationMembership,
+)
 from organizations.serializers import (
     OrganizationMembershipSerializer,
     OrganizationSerializer,

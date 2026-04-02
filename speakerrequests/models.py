@@ -50,12 +50,19 @@ class SpeakerRequestManager(models.Manager):
         return self.get_queryset().for_speaker(user)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     def with_prefetches(self):
         """Proxy to QuerySet."""
         return self.get_queryset().with_prefetches()
 
 =======
 >>>>>>> cfbae2c (resolve test failure)
+=======
+    def for_event(self, event):
+        """Proxy to QuerySet."""
+        return self.get_queryset().filter(event=event)
+
+>>>>>>> 7255978 (refactor speakerrequest API)
 
 class SpeakerRequest(TimeStampedModel):
     """speaker request model."""

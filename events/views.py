@@ -123,10 +123,14 @@ class EventSpeakersListView(APIView):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     def get(self, request, event_slug: str):
 =======
     def get(self, request, event_slug:str):
 >>>>>>> 8be53aa (push to continue)
+=======
+    def get(self, request, event_slug: str):
+>>>>>>> 7255978 (refactor speakerrequest API)
         """Retrieve event speakers."""
         speakers = EventSpeakers.objects.filter(event__slug=event_slug)
         serializer = EventSerializer(speakers, many=True)

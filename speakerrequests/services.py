@@ -91,6 +91,7 @@ class SpeakerRequestService:
             message=message,
             status=RequestStatusChoices.PENDING,
         )
+        print(email_request.request_to.email)
 
         # send email notification
         if email_request.request_to:

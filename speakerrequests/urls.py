@@ -1,6 +1,7 @@
 """speaker request urls."""
 
 from django.urls import path
+
 from speakerrequests import views
 
 app_name = "speakerrequests"
@@ -28,9 +29,9 @@ urlpatterns = [
         name="speaker-request-detail",
 >>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
     ),
-    
     # Speaker URLs
     path(
+<<<<<<< HEAD
         "speaker-requests/incoming/",
 <<<<<<< HEAD
         views.SpeakerRequestsListView.as_view(),
@@ -61,6 +62,12 @@ urlpatterns = [
     ),
     
 >>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
+=======
+        "speaker-requests/respond/",
+        views.SpeakerRequestRespondAPIView.as_view(),
+        name="speaker-request-respond",
+    ),
+>>>>>>> 7255978 (refactor speakerrequest API)
     # Email Request URLs
     path(
         "speaker-requests/email-requests/",
@@ -68,6 +75,7 @@ urlpatterns = [
         name="speaker-email-request-list-create",
     ),
     path(
+<<<<<<< HEAD
 <<<<<<< HEAD
         "speaker-requests/email-request/<id>/respond/",
         views.SpeakerEmailRequestRespondAPIView.as_view(),
@@ -77,5 +85,10 @@ urlpatterns = [
         views.SpeakerEmailRequestRetrieveUpdateAPIView.as_view(),
         name="speaker-email-request-detail",
 >>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
+=======
+        "speaker-requests/email-request/<id>/respond/",
+        views.SpeakerEmailRequestRespondAPIView.as_view(),
+        name="speaker-email-request-respond",
+>>>>>>> 7255978 (refactor speakerrequest API)
     ),
 ]

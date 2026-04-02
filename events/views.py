@@ -121,7 +121,7 @@ class EventDetailView(APIView):
 class EventSpeakersListView(APIView):
     """get event speakers list view."""
 
-    def get(self, request, event_slug:str):
+    def get(self, request, event_slug: str):
         """Retrieve event speakers."""
         speakers = EventSpeakers.objects.filter(event__slug=event_slug)
         serializer = EventSerializer(speakers, many=True)

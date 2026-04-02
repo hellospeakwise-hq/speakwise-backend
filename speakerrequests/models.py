@@ -5,12 +5,10 @@ import uuid
 from django.db import models
 
 from base.models import TimeStampedModel
+from organizations.models import OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
 from speakers.models import SpeakerProfile
 from users.models import User
-
-
-from organizations.models import OrganizationMembership
 
 
 class SpeakerRequestQuerySet(models.QuerySet):
@@ -18,7 +16,9 @@ class SpeakerRequestQuerySet(models.QuerySet):
 
     def for_organizer(self, user):
         """Requests for organizations where user is a member."""
-        org_ids = OrganizationMembership.objects.filter(user=user).values_list("organization_id", flat=True)
+        org_ids = OrganizationMembership.objects.filter(user=user).values_list(
+            "organization_id", flat=True
+        )
         return self.filter(organizer_id__in=org_ids)
 
     def for_speaker(self, user):
@@ -45,9 +45,12 @@ class SpeakerRequestManager(models.Manager):
         """Proxy to QuerySet."""
         return self.get_queryset().for_speaker(user)
 
+    def for_event(self, event):
+        """Proxy to QuerySet."""
+        return self.get_queryset().filter(event=event)
+
 
 class SpeakerRequest(TimeStampedModel):
-
     """speaker request model."""
 
     objects = SpeakerRequestManager()

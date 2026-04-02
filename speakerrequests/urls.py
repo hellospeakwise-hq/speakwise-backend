@@ -1,6 +1,7 @@
 """speaker request urls."""
 
 from django.urls import path
+
 from speakerrequests import views
 
 app_name = "speakerrequests"
@@ -17,19 +18,12 @@ urlpatterns = [
         views.OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView.as_view(),
         name="speaker-request-detail",
     ),
-    
     # Speaker URLs
     path(
-        "speaker-requests/incoming/",
-        views.SpeakerIncomingRequestListAPIView.as_view(),
-        name="speaker-request-incoming-list",
-    ),
-    path(
-        "speaker-requests/<int:pk>/respond/",
+        "speaker-requests/respond/",
         views.SpeakerRequestRespondAPIView.as_view(),
         name="speaker-request-respond",
     ),
-    
     # Email Request URLs
     path(
         "speaker-requests/email-requests/",
@@ -37,8 +31,8 @@ urlpatterns = [
         name="speaker-email-request-list-create",
     ),
     path(
-        "speaker-requests/email-requests/<uuid:pk>/",
-        views.SpeakerEmailRequestRetrieveUpdateAPIView.as_view(),
-        name="speaker-email-request-detail",
+        "speaker-requests/email-request/<id>/respond/",
+        views.SpeakerEmailRequestRespondAPIView.as_view(),
+        name="speaker-email-request-respond",
     ),
 ]

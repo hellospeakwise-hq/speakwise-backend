@@ -1,140 +1,140 @@
 """Speaker request views."""
 
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 
-from speakerrequests.models import SpeakerRequest, SpeakerEmailRequests
+from base.permissions import IsOrganizationAdminOrOrganizer, IsSpeakerRequestRecipient
+from speakerrequests.filters import EmailRequestsFilter, SpeakerRequestFilter
+from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.serializers import (
-    SpeakerRequestSerializer,
     EmailRequestsSerializer,
+    SpeakerRequestSerializer,
 )
 from speakerrequests.services import SpeakerRequestService
-from base.permissions import IsSpeakerRequestRecipient, IsOrganizerOfRequest
-from speakerrequests.filters import SpeakerRequestFilter, EmailRequestsFilter
 
 
 class OrganizerSpeakerRequestListCreateAPIView(APIView):
     """View for organizers to list and create speaker requests."""
 
-    serializer_class = SpeakerRequestSerializer
-    permission_classes = [IsAuthenticated]
-
     def get(self, request):
-        """Get requests for organizations where user is a member."""
-        speaker_requests = SpeakerRequest.objects.for_organizer(
-            self.request.user
-        ).with_prefetch()
-        speaker_requests_filter = SpeakerRequestFilter(data=speaker_requests)
-        self.serializer_class(speaker_requests_filter.qs)
-        return Response(self.serializer_class.data, status=status.HTTP_200_OK)
+        """Get speaker requests for an organization."""
+        queryset = SpeakerRequest.objects.for_organizer(request.user)
+        filterset = SpeakerRequestFilter(request.GET, queryset=queryset)
+        serializer = SpeakerRequestSerializer(filterset.qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def post(self, request, *args, **kwargs):
-        """Create a new speaker request using the service layer."""
-        serializer = self.serializer_class(data=request.data)
+    def post(self, request):
+        """Create a new speaker request."""
+        # validate request data
+        serializer = SpeakerRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        try:
-            speaker_request = SpeakerRequestService.create_request(
-                organizer=request.user,
-                speaker=serializer.validated_data["speaker"],
-                event=serializer.validated_data["event"],
-                message=serializer.validated_data["message"],
-            )
-            response_serializer = self.serializer_class(speaker_request)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        # create speaker request
+        speaker_request = SpeakerRequestService.create_request(
+            organizer=serializer.validated_data["organizer"],
+            speaker=serializer.validated_data["speaker"],
+            event=serializer.validated_data["event"],
+            message=serializer.validated_data["message"],
+        )
+        serializer = SpeakerRequestSerializer(speaker_request)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView(
-    generics.RetrieveUpdateDestroyAPIView
-):
+class OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView(APIView):
     """View for organizers to manage individual speaker requests."""
 
     serializer_class = SpeakerRequestSerializer
-    permission_classes = [IsAuthenticated, IsOrganizerOfRequest]
+    permission_classes = [IsOrganizationAdminOrOrganizer]
 
-    def get_queryset(self):
-        """Get requests for organizations where user is a member."""
-        return SpeakerRequest.objects.for_organizer(self.request.user).with_prefetches()
+    def get(self, request, speaker_id):
+        """Get a single speaker request."""
+        queryset = SpeakerRequest.objects.for_organizer(request.user)
+        speaker_request = queryset.get(speaker_id=speaker_id)
+        serializer = self.serializer_class(speaker_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, speaker_id):
+        """Update a single speaker request."""
+        queryset = SpeakerRequest.objects.for_organizer(request.user)
+        speaker_request = queryset.get(speaker_id=speaker_id)
+
+        # use speaker request service to update status
+        req_data = SpeakerRequestService.respond_to_request(
+            speaker_request=speaker_request,
+            status_update=request.data.get("status"),
+        )
+        serializer = self.serializer_class(data=req_data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class SpeakerIncomingRequestListAPIView(APIView):
-    """View for speakers to see incoming requests."""
-
-    serializer_class = SpeakerRequestSerializer
-    permission_classes = [IsAuthenticated]
-    filterset_class = SpeakerRequestFilter
-
-    def get_queryset(self):
-        """Get requests sent to the authenticated speaker."""
-        return SpeakerRequest.objects.for_speaker(self.request.user).with_prefetches()
-
-
-class SpeakerRequestRespondAPIView(generics.UpdateAPIView):
+class SpeakerRequestRespondAPIView(APIView):
     """View for speakers to respond to requests (Accept/Reject)."""
 
-    serializer_class = SpeakerRequestSerializer
-    permission_classes = [IsAuthenticated, IsSpeakerRequestRecipient]
+    permission_classes = [IsSpeakerRequestRecipient]
 
-    def get_queryset(self):
-        """Get requests sent to the authenticated speaker."""
-        return SpeakerRequest.objects.for_speaker(self.request.user)
+    def get(self, request):
+        """Get a request for a speaker."""
+        speaker_request = SpeakerRequest.objects.for_speaker(request.user)
+        serializer = SpeakerRequestSerializer(speaker_request, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def update(self, request, *args, **kwargs):
-        """Respond to request using service layer."""
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        status_update = request.data.get("status")
-
-        try:
-            instance = SpeakerRequestService.respond_to_request(
-                request_id=instance.pk, user=request.user, status_update=status_update
-            )
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def patch(self, request):
+        """Update speaker request."""
+        speaker_request = SpeakerRequest.objects.get(
+            pk=request.data.get("id")
+        )  # get request id from request data
+        serializer_data = SpeakerRequestService.respond_to_request(
+            speaker_request=speaker_request, status_update=request.data.get("status")
+        )
+        serializer = SpeakerRequestSerializer(serializer_data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class SpeakerEmailRequestListCreateAPIView(generics.ListCreateAPIView):
+class SpeakerEmailRequestListCreateAPIView(APIView):
     """View for email-based speaker requests."""
 
     serializer_class = EmailRequestsSerializer
     permission_classes = [IsAuthenticated]
     filterset_class = EmailRequestsFilter
 
-    def get_queryset(self):
-        """Get email requests where user is sender or receiver."""
-        from django.db.models import Q
+    def get(self, request):
+        """Get email requests for a user."""
+        queryset = SpeakerEmailRequests.objects.filter(request_to=request.user)
+        filterset = self.filterset_class(request.GET, queryset=queryset)
+        serializer = self.serializer_class(filterset.qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return SpeakerEmailRequests.objects.filter(
-            Q(request_from=self.request.user) | Q(request_to=self.request.user)
+    def post(self, request):
+        """Create a new email request."""
+        speaker_request = SpeakerRequestService.create_email_request(
+            request_from=request.user,
+            request_to_user=request.data.get("request_to"),
+            event=request.data.get("event"),
+            message=request.data.get("message"),
         )
-
-    def perform_create(self, serializer):
-        """Use service layer to create email request."""
-        # Note: The original code had some manual reconstruction of request.data
-        # We can handle that in the serializer or service.
-        SpeakerRequestService.create_email_request(
-            request_from=self.request.user,
-            request_to_user=serializer.validated_data.get("request_to"),
-            event_name=serializer.validated_data["event"],
-            location=serializer.validated_data["location"],
-            message=serializer.validated_data["message"],
-        )
+        serializer = self.serializer_class(data=speaker_request)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class SpeakerEmailRequestRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
-    """View to manage individual email requests."""
+class SpeakerEmailRequestRespondAPIView(APIView):
+    """View for responding to email-based speaker requests."""
 
     serializer_class = EmailRequestsSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = "pk"
+    filterset_class = EmailRequestsFilter
 
-    def get_queryset(self):
-        """Ensure user is the recipient if they are updating status."""
-        return SpeakerEmailRequests.objects.filter(request_to=self.request.user)
+    def patch(self, request, pk=None):
+        """Update email request."""
+        email_request = SpeakerEmailRequests.objects.get(
+            request_to=self.request.user, pk=pk
+        )
+        response = SpeakerRequestService.respond_to_email_request(
+            email_request=email_request, request=request
+        )
+        serializer = self.serializer_class(data=response)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

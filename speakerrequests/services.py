@@ -49,10 +49,6 @@ class SpeakerRequestService:
     @transaction.atomic
     def respond_to_request(speaker_request, status_update):
         """Respond to a speaker request (Accept/Reject)."""
-        # Ensure only the intended speaker can respond
-
-        print(speaker_request.speaker.user_account.email, speaker_request.event.title)
-
         if speaker_request.status != RequestStatusChoices.PENDING:
             raise ValueError("Can only respond to pending requests.")
 
@@ -65,6 +61,7 @@ class SpeakerRequestService:
         speaker_request.status = status_update
         speaker_request.save()
 
+        # send email notifications
         if status_update == RequestStatusChoices.ACCEPTED:
             send_request_accepted_email.enqueue(
                 recipient_email=speaker_request.speaker.user_account.email,
@@ -90,8 +87,8 @@ class SpeakerRequestService:
             message=message,
             status=RequestStatusChoices.PENDING,
         )
-        print(email_request.request_to.email)
 
+        # send email notification
         if email_request.request_to:
             send_speaker_request_email.enqueue(
                 recipient_email=email_request.request_to.email,
@@ -112,7 +109,7 @@ class SpeakerRequestService:
         email_request.status = request.data.get("status")
         email_request.save()
 
-        # send email to the user
+        # send email notification
         if email_request.request_from:
             send_speaker_request_email.enqueue(
                 recipient_email=email_request.request_from.email,

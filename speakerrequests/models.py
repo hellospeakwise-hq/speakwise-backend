@@ -45,9 +45,9 @@ class SpeakerRequestManager(models.Manager):
         """Proxy to QuerySet."""
         return self.get_queryset().for_speaker(user)
 
-    def for_event(self, event):
+    def with_prefetches(self):
         """Proxy to QuerySet."""
-        return self.get_queryset().filter(event=event)
+        return self.get_queryset().with_prefectches()
 
 
 class SpeakerRequest(TimeStampedModel):

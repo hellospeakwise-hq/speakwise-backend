@@ -50,3 +50,10 @@ class EmailRequestsSerializer(serializers.ModelSerializer):
                 {"error": "request_to and request_from are required."}
             )
         return attrs
+
+
+class SpeakerRequestRespondSerializer(serializers.Serializer):
+    """Serializer for responding to a speaker request."""
+
+    id = serializers.IntegerField()
+    status = serializers.CharField(max_length=20)

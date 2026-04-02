@@ -1,5 +1,6 @@
 """Speaker request views."""
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from speakerrequests.filters import EmailRequestsFilter, SpeakerRequestFilter
 from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.serializers import (
     EmailRequestsSerializer,
+    SpeakerRequestRespondSerializer,
     SpeakerRequestSerializer,
 )
 from speakerrequests.services import SpeakerRequestService
@@ -81,6 +83,9 @@ class SpeakerRequestRespondAPIView(APIView):
         serializer = SpeakerRequestSerializer(speaker_request, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        request=SpeakerRequestRespondSerializer, responses=SpeakerRequestSerializer
+    )
     def patch(self, request):
         """Update speaker request."""
         speaker_request = SpeakerRequest.objects.get(

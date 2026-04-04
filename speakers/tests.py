@@ -64,7 +64,7 @@ class TestSpeakerProfile(TestCase):
         assert data["organization"] == "Test Org"
         assert data["country"] == "Test Country"
         assert len(data["skill_tags"]) == 1
-        assert data["skill_tags"][0]["id"] == self.skill_tags.id
+        assert data["skill_tags"][0]["id"] == str(self.skill_tags.id)
         assert len(data["social_links"]) == 1
         assert data["social_links"][0]["name"] == "Twitter"
         assert data["social_links"][0]["link"] == "https://twitter.com/testuser"

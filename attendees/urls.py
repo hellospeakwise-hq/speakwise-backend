@@ -15,7 +15,7 @@ urlpatterns = [
     #
     # path("attendees/verify/", views.verify_attendee, name="verify-attendee"),
     # path(
-    #     "attendees/<int:pk>/",
+    #     "attendees/<uuid:pk>/",
     #     views.AttendeeRetrieveUpdateDestroyView.as_view(),
     #     name="attendee-detail",
     # ),
@@ -30,7 +30,7 @@ urlpatterns = [
         name="upload-attendance",
     ),
     path(
-        "attendance/<int:pk>/",
+        "attendance/<uuid:pk>/",
         views.AttendanceDetailView.as_view(),
         name="attendance-detail",
     ),

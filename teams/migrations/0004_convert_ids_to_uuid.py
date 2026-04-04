@@ -40,9 +40,12 @@ def drop_fk_constraints(apps, schema_editor):
     for table_name, column_name, constraint_name in fk_constraints:
         if (table_name, column_name) not in already_handled:
             cursor.execute(
+<<<<<<< HEAD
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
             )
             cursor.execute(
+=======
+>>>>>>> 2dee7cf (model IDs from int to UUID)
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE uuid USING (NULL);'
             )
 
@@ -64,7 +67,10 @@ class Migration(migrations.Migration):
                 'ALTER TABLE "team_social" ALTER COLUMN id DROP IDENTITY IF EXISTS;',
                 'ALTER TABLE "team_member" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());',
                 'ALTER TABLE "team_social" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());',
+<<<<<<< HEAD
                 'ALTER TABLE "team_social" ALTER COLUMN team_member_id DROP NOT NULL;',
+=======
+>>>>>>> 2dee7cf (model IDs from int to UUID)
                 'ALTER TABLE "team_social" ALTER COLUMN team_member_id TYPE uuid USING (NULL);',
             ],
             state_operations=[

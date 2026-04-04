@@ -51,6 +51,7 @@ class SpeakerRequest(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     objects = SpeakerRequestManager()
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organizer = models.ForeignKey(
         "organizations.Organization", on_delete=models.CASCADE
     )

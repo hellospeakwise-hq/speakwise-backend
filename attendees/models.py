@@ -1,5 +1,7 @@
 """s model."""
 
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.db import models
 
@@ -11,6 +13,7 @@ from base.models import SocialLinks, TimeStampedModel
 class AttendeeProfile(TimeStampedModel):
     """s model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_account = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,
@@ -32,6 +35,7 @@ class AttendeeProfile(TimeStampedModel):
 class AttendeeSocialLinks(SocialLinks):
     """social links model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     attendee = models.ForeignKey(
         AttendeeProfile, on_delete=models.CASCADE, related_name="social_links"
     )
@@ -44,6 +48,7 @@ class AttendeeSocialLinks(SocialLinks):
 class Attendance(TimeStampedModel):
     """Attendance model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(
         "events.Event", on_delete=models.CASCADE, related_name="event_attendance"
     )

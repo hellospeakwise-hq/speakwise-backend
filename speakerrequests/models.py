@@ -13,6 +13,7 @@ from users.models import User
 class SpeakerRequest(TimeStampedModel):
     """speaker request model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organizer = models.ForeignKey(
         "organizations.Organization", on_delete=models.DO_NOTHING
     )

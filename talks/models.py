@@ -18,6 +18,7 @@ PRESENTATION_FILES_UPLOAD_DIR = "presentation_files"
 class Session(TimeStampedModel):
     """talk session model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     type = models.CharField(
         max_length=255, help_text="session type. eg. Keynote, lightning talk. etc"
     )
@@ -34,6 +35,7 @@ class Session(TimeStampedModel):
 class Talks(TimeStampedModel):
     """Talks model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField()
     speaker = models.ForeignKey(

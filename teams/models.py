@@ -1,5 +1,7 @@
 """teams models."""
 
+import uuid
+
 from django.db import models
 
 from base.models import SocialLinks, TimeStampedModel
@@ -10,6 +12,7 @@ TEAM_UPLOAD_DIR = "team/avatars/"
 class TeamSocial(SocialLinks):
     """Team member social links model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     team_member = models.ForeignKey(
         "TeamMember",
         related_name="social_links",
@@ -36,6 +39,7 @@ class TeamMember(TimeStampedModel):
     displayed on the "Meet Our Team" page.
     """
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(
         max_length=100,
         help_text="Full name of the team member",

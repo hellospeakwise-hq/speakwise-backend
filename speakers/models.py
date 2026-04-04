@@ -1,5 +1,6 @@
 """speakers models."""
 
+import uuid
 from itertools import count
 
 from django.db import models
@@ -15,6 +16,7 @@ SPEAKERS_UPLOAD_DIR = "speakers/avatars/"
 class SpeakerSkillTag(TimeStampedModel):
     """speaker skill tag."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(
         max_length=255, null=True, help_text="name of skill. Eg. Software Engineer"
     )  # Consider making this non-nullable if a skill must have a name.
@@ -39,6 +41,7 @@ class SpeakerExperiences(TimeStampedModel):
     This model holds speaker's presentation or speaking experiences.
     """
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event_name = models.CharField(
         max_length=255, null=True, help_text="Name of the event"
     )
@@ -68,6 +71,7 @@ class SpeakerExperiences(TimeStampedModel):
 class SpeakerProfile(TimeStampedModel):
     """speakers model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_account = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="speakers_profile_user"
     )
@@ -135,6 +139,7 @@ class SpeakerProfile(TimeStampedModel):
 class SpeakerSocialLinks(SocialLinks):
     """speaker social link model."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     speaker = models.ForeignKey(
         SpeakerProfile, on_delete=models.CASCADE, related_name="social_links"
     )
@@ -152,6 +157,7 @@ class SpeakerSocialLinks(SocialLinks):
 class SpeakerFollow(TimeStampedModel):
     """Model to track which users follow which speaker profiles."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     follower = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

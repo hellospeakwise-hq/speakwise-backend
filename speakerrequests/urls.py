@@ -14,15 +14,32 @@ urlpatterns = [
         name="speaker-request-list-create",
     ),
     path(
+<<<<<<< HEAD
         "speaker-requests/<int:pk>/",
         views.OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView.as_view(),
         name="speaker-request-detail",
+=======
+        "speaker-requests/<uuid:pk>/",
+        views.SPeakerRequestDetailView.as_view(),
+        name="speaker_request_retrieve_update_delete",
+    ),
+    path(
+        "speaker-requests/incoming/",
+        views.SpeakerRequestsListView.as_view(),
+        name="speaker_requests_list",
+>>>>>>> 63914ee (update urls)
     ),
     # Speaker URLs
     path(
+<<<<<<< HEAD
         "speaker-requests/<int:pk>/respond/",
         views.SpeakerRequestRespondAPIView.as_view(),
         name="speaker-request-respond",
+=======
+        "speaker-requests/<uuid:pk>/respond/",
+        views.SpeakerRequestAcceptView.as_view(),
+        name="speaker_request_respond",
+>>>>>>> 63914ee (update urls)
     ),
     # Email Request URLs
     path(

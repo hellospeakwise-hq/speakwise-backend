@@ -7,13 +7,13 @@ from speakerrequests import views
 app_name = "speakerrequests"
 
 urlpatterns = [
-    # Organizer URLs
     path(
         "speaker-requests/",
-        views.OrganizerSpeakerRequestListCreateAPIView.as_view(),
-        name="speaker-request-list-create",
+        views.SpeakerRequestListView.as_view(),
+        name="speaker_requests_list_create",
     ),
     path(
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         "speaker-requests/<int:pk>/",
@@ -28,9 +28,14 @@ urlpatterns = [
         views.OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView.as_view(),
         name="speaker-request-detail",
 >>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
+=======
+        "speaker-requests/<uuid:pk>/",
+        views.SPeakerRequestDetailView.as_view(),
+        name="speaker_request_retrieve_update_delete",
+>>>>>>> c4b309a (update urls)
     ),
-    # Speaker URLs
     path(
+<<<<<<< HEAD
 <<<<<<< HEAD
         "speaker-requests/incoming/",
 <<<<<<< HEAD
@@ -69,12 +74,24 @@ urlpatterns = [
     ),
 >>>>>>> 7255978 (refactor speakerrequest API)
     # Email Request URLs
-    path(
-        "speaker-requests/email-requests/",
-        views.SpeakerEmailRequestListCreateAPIView.as_view(),
-        name="speaker-email-request-list-create",
+=======
+        "speaker-requests/incoming/",
+        views.SpeakerRequestsListView.as_view(),
+        name="speaker_requests_list",
     ),
     path(
+        "speaker-requests/<uuid:pk>/respond/",
+        views.SpeakerRequestAcceptView.as_view(),
+        name="speaker_request_respond",
+    ),
+>>>>>>> c4b309a (update urls)
+    path(
+        "speaker-requests/email-requests/",
+        views.SpeakerEmailRequestListView.as_view(),
+        name="speaker_email_requests_list_create",
+    ),
+    path(
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         "speaker-requests/email-request/<id>/respond/",
@@ -90,5 +107,10 @@ urlpatterns = [
         views.SpeakerEmailRequestRespondAPIView.as_view(),
         name="speaker-email-request-respond",
 >>>>>>> 7255978 (refactor speakerrequest API)
+=======
+        "speaker-requests/email-requests/<uuid:pk>/",
+        views.SpeakerEmailRequestDetailView.as_view(),
+        name="speaker_email_request_retrieve_update",
+>>>>>>> c4b309a (update urls)
     ),
 ]

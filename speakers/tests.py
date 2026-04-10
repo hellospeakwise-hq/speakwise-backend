@@ -180,7 +180,7 @@ class PublicSpeakerExperiencesViewTests(APITestCase):
             video_recording_link="https://video.example.com/pub",
         )
         self.url = reverse(
-            "speakers:public_speaker_experiences", kwargs={"slug": self.profile.slug}
+            "v1:speakers:public_speaker_experiences", kwargs={"slug": self.profile.slug}
         )
 
     def test_public_experiences_by_slug(self):
@@ -194,7 +194,7 @@ class PublicSpeakerExperiencesViewTests(APITestCase):
     def test_public_experiences_invalid_slug_returns_empty(self):
         """Invalid slug should return empty list (200)."""
         url = reverse(
-            "speakers:public_speaker_experiences", kwargs={"slug": "unknown-slug"}
+            "v1:speakers:public_speaker_experiences", kwargs={"slug": "unknown-slug"}
         )
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
@@ -233,7 +233,7 @@ class SpeakerSkillTagsViewsTests(APITestCase):
             speaker=self.p2, name="Flask", description="Web", duration=3
         )
 
-        self.list_url = reverse("speakers:skills_list")
+        self.list_url = reverse("v1:speakers:skills_list")
 
     def test_list_requires_authentication(self):
         """List view requires authentication."""
@@ -267,7 +267,7 @@ class SpeakerSkillTagsViewsTests(APITestCase):
     def test_detail_get_patch_delete_for_own_tag(self):
         """Detail view allows GET, PATCH and DELETE for own tags."""
         self.client.force_authenticate(self.u1)
-        detail_url = reverse("speakers:skills_detail", kwargs={"pk": self.t1.id})
+        detail_url = reverse("v1:speakers:skills_detail", kwargs={"pk": self.t1.id})
 
         # GET own tag
         res = self.client.get(detail_url)
@@ -291,7 +291,7 @@ class SpeakerSkillTagsViewsTests(APITestCase):
     def test_cannot_access_others_tags(self):
         """Detail view returns 404 for other users' tags."""
         self.client.force_authenticate(self.u1)
-        other_detail_url = reverse("speakers:skills_detail", kwargs={"pk": self.t2.id})
+        other_detail_url = reverse("v1:speakers:skills_detail", kwargs={"pk": self.t2.id})
 
         # GET other's tag -> 404
         res = self.client.get(other_detail_url)
@@ -499,7 +499,7 @@ class SpeakerFollowViewTests(APITestCase):
             organization="View Org",
         )
         self.follow_url = reverse(
-            "speakers:speaker_follow", kwargs={"slug": self.profile.slug}
+            "v1:speakers:speaker_follow", kwargs={"slug": self.profile.slug}
         )
 
     # ── Authentication guard ────────────────────────────────────────────────
@@ -543,7 +543,7 @@ class SpeakerFollowViewTests(APITestCase):
     def test_get_follow_status_invalid_slug_returns_404(self):
         """GET with an invalid slug returns 404."""
         self.client.force_authenticate(self.follower_user)
-        url = reverse("speakers:speaker_follow", kwargs={"slug": "no-such-speaker"})
+        url = reverse("v1:speakers:speaker_follow", kwargs={"slug": "no-such-speaker"})
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -660,7 +660,7 @@ class SpeakerFollowersListViewTests(APITestCase):
             organization="List Org",
         )
         self.list_url = reverse(
-            "speakers:speaker_followers_list", kwargs={"slug": self.profile.slug}
+            "v1:speakers:speaker_followers_list", kwargs={"slug": self.profile.slug}
         )
 
     def test_followers_list_is_public(self):
@@ -693,7 +693,7 @@ class SpeakerFollowersListViewTests(APITestCase):
 
     def test_followers_list_invalid_slug_returns_404(self):
         """Invalid slug returns 404."""
-        url = reverse("speakers:speaker_followers_list", kwargs={"slug": "ghost-slug"})
+        url = reverse("v1:speakers:speaker_followers_list", kwargs={"slug": "ghost-slug"})
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -740,7 +740,7 @@ class FollowingCountFixTests(APITestCase):
 
         # speaker_a's follow URL
         self.follow_a_url = reverse(
-            "speakers:speaker_follow", kwargs={"slug": self.profile_a.slug}
+            "v1:speakers:speaker_follow", kwargs={"slug": self.profile_a.slug}
         )
 
     # ── GET /speakers/<slug>/follow/ ────────────────────────────────────────

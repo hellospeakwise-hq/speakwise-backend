@@ -315,9 +315,9 @@ class OrganizationViewsTest(APITestCase):
             added_by=self.user,
         )
 
-        self.list_create_url = reverse("organizations:organization-list-create")
+        self.list_create_url = reverse("v1:organizations:organization-list-create")
         self.detail_url = reverse(
-            "organizations:organization-detail", kwargs={"slug": self.organization.slug}
+            "v1:organizations:organization-detail", kwargs={"slug": self.organization.slug}
         )
 
     def test_create_organization(self):
@@ -415,7 +415,7 @@ class OrganizationViewsTest(APITestCase):
         )
         data = {"user": new_member.id, "role": "MEMBER"}
         members_url = reverse(
-            "organizations:organization-members-list-create-delete",
+            "v1:organizations:organization-members-list-create-delete",
             kwargs={"slug": self.organization.slug},
         )
         response = self.client.post(members_url, data, format="json")
@@ -428,7 +428,7 @@ class OrganizationViewsTest(APITestCase):
         )
         self.client.force_authenticate(user=other_user)
         member_delete_url = reverse(
-            "organizations:organization-members-delete",
+            "v1:organizations:organization-members-delete",
             kwargs={"org_slug": self.organization.slug, "username": self.user.username},
         )
         response = self.client.delete(member_delete_url)
@@ -441,7 +441,7 @@ class OrganizationViewsTest(APITestCase):
         )
         data = {"user": new_member.id, "role": "ADMIN"}
         members_url = reverse(
-            "organizations:organization-members-list-create-delete",
+            "v1:organizations:organization-members-list-create-delete",
             kwargs={"slug": self.organization.slug},
         )
         response = self.client.post(members_url, data, format="json")

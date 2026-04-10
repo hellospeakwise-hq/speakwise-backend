@@ -39,12 +39,11 @@ class FeedbackListCreateView(APIView):
         If not verified, returns 403 with a link to the verification endpoint.
         """
         if not request.session.get("attendee_verified"):
-            verify_url = reverse("attendees:verify-attendee")
-            # Namespace is mounted under /api/ at project level
+            verify_url = reverse("v1:attendees:verify-attendee")
             return Response(
                 {
                     "detail": "Attendee verification required before submitting feedback.",
-                    "verify_url": f"/api/{verify_url.lstrip('/')}",
+                    "verify_url": verify_url,
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )

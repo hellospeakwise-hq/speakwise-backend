@@ -41,7 +41,7 @@ class TalkIDORTests(APITestCase):
         self.client.force_authenticate(user=self.user_b)
 
         # User B tries to delete User A's talk
-        url = reverse("talks:talk-detail", kwargs={"pk": self.talk_a.pk})
+        url = reverse("v1:talks:talk-detail", kwargs={"pk": self.talk_a.pk})
         response = self.client.delete(url)
 
         # If IDOR is fixed, this returns 404 because get_queryset won't find the object

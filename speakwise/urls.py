@@ -10,25 +10,30 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+v1_urlpatterns = [
+    path("speakers/", include("speakers.urls", namespace="speakers")),
+    path("attendees/", include("attendees.urls", namespace="attendees")),
+    path("talks/", include("talks.urls", namespace="talks")),
+    path("users/", include("users.urls", namespace="users")),
+    path("teams/", include("teams.urls", namespace="teams")),
+    path("events/", include("events.urls", namespace="events")),
+    path("feedbacks/", include("feedbacks.urls", namespace="feedbacks")),
+    path("organizations/", include("organizations.urls", namespace="organizations")),
+    path("speakerrequests/", include("speakerrequests.urls", namespace="speakerrequests")),
+    # Documentation within v1
+    path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
-        "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
+        "docs/",
+        SpectacularSwaggerView.as_view(url_name="v1:schema"),
         name="swagger-ui",
     ),
-    path("api/docs/redoc/", SpectacularRedocView.as_view(), name="redoc"),
-    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    path("api/", include("speakers.urls", namespace="speakers")),
-    path("api/", include("attendees.urls", namespace="attendees")),
-    path("api/", include("talks.urls", namespace="talks")),
-    path("api/", include("users.urls", namespace="users")),
-    path("api/", include("teams.urls", namespace="teams")),
-    path("api/", include("events.urls", namespace="events")),
-    path("api/", include("feedbacks.urls", namespace="feedbacks")),
-    path("api/", include("organizations.urls", namespace="organizations")),
-    path("api/", include("speakerrequests.urls", namespace="speakerrequests")),
+    path("docs/redoc/", SpectacularRedocView.as_view(), name="redoc"),
 ]
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("api/v1/", include((v1_urlpatterns, "v1"), namespace="v1")),
+]
+
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

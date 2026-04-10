@@ -44,7 +44,7 @@ class EventAPITestCase(TestCase):
 
     def test_get_event_list(self):
         """Test retrieving the event list."""
-        url = reverse("events:event-list-create")
+        url = reverse("v1:events:event-list-create")
         # Authenticated
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
@@ -59,7 +59,7 @@ class EventAPITestCase(TestCase):
 
     def test_create_event(self):
         """Test creating a new event."""
-        url = reverse("events:event-list-create")
+        url = reverse("v1:events:event-list-create")
         new_event_data = {
             "title": "New Test Event",
             "short_description": "This is another test event.",
@@ -89,7 +89,7 @@ class EventAPITestCase(TestCase):
             role=OrganizationRole.ADMIN.value,
         )
 
-        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
+        url = reverse("v1:events:event-detail", kwargs={"slug": self.event.slug})
         self.client.force_authenticate(user=other_user)
         response = self.client.patch(url, {"title": "Hacked Title"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -112,7 +112,7 @@ class EventAPITestCase(TestCase):
             role=OrganizationRole.ADMIN.value,
         )
 
-        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
+        url = reverse("v1:events:event-detail", kwargs={"slug": self.event.slug})
         self.client.force_authenticate(user=other_user)
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

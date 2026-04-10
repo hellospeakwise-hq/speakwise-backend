@@ -45,7 +45,7 @@ class TestTalkReviewSubmitView(TestCase):
             ),
         )
         self.url = reverse(
-            "talks:talk-review-submit",
+            "v1:talks:talk-review-submit",
             kwargs={"slug": self.talk.slug},
         )
         self.view = TalkReviewSubmitView.as_view()

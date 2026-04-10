@@ -167,6 +167,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
+    "DEFAULT_VERSION": "v1",
+    "ALLOWED_VERSIONS": ["v1"],
 }
 
 SIMPLE_JWT = {
@@ -179,8 +182,7 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "A github version for speakers of Tech Conferences.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    # "PATH_PREFIX": "api",
-    "SCHEMA_PATH_PREFIX": "/api",
+    "SCHEMA_PATH_PREFIX": "/api/v[0-9]",
 }
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")

@@ -47,7 +47,7 @@ class TestPasswordReset(TestCase):
     def test_password_reset_request_success(self):
         """Test sending a password reset email with a valid email."""
         response = self.client.post(
-            reverse("users:password_reset_request"),
+            reverse("v1:users:password_reset_request"),
             {"email": "test@mail.com"},
             format="json",
         )
@@ -64,7 +64,7 @@ class TestPasswordReset(TestCase):
     def test_password_reset_request_invalid_email(self):
         """Test sending a password reset email with an invalid email."""
         response = self.client.post(
-            reverse("users:password_reset_request"),
+            reverse("v1:users:password_reset_request"),
             {"email": "invalid@mail.com"},
             format="json",
         )
@@ -78,7 +78,7 @@ class TestPasswordReset(TestCase):
         token = token_generator.make_token(self.user)
 
         response = self.client.post(
-            reverse("users:password_reset_confirm"),
+            reverse("v1:users:password_reset_confirm"),
             {
                 "email": "test@mail.com",
                 "token": token,
@@ -98,7 +98,7 @@ class TestPasswordReset(TestCase):
         token = token_generator.make_token(self.user)
 
         response = self.client.post(
-            reverse("users:password_reset_confirm"),
+            reverse("v1:users:password_reset_confirm"),
             {
                 "email": "invalid@mail.com",
                 "token": token,
@@ -112,7 +112,7 @@ class TestPasswordReset(TestCase):
     def test_password_reset_confirm_invalid_token(self):
         """Test confirming a password reset with an invalid token."""
         response = self.client.post(
-            reverse("users:password_reset_confirm"),
+            reverse("v1:users:password_reset_confirm"),
             {
                 "email": "test@mail.com",
                 "token": "invalid-token",
@@ -140,7 +140,7 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
             nationality="Kenya",
         )
         self.client.force_authenticate(user=self.user)
-        self.url = reverse("users:retrieve_update_authenticated_user")
+        self.url = reverse("v1:users:retrieve_update_authenticated_user")
 
     def test_get_authenticated_user(self):
         """Test retrieving authenticated user details."""

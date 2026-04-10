@@ -224,7 +224,7 @@ class TestTeamMemberListView(APITestCase):
 
     def test_get_team_members_success(self):
         """Test successful retrieval of active team members."""
-        url = reverse("teams:team-list")
+        url = reverse("v1:teams:team-list")
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -239,7 +239,7 @@ class TestTeamMemberListView(APITestCase):
 
     def test_get_team_members_includes_social_links(self):
         """Test that response includes social links."""
-        url = reverse("teams:team-list")
+        url = reverse("v1:teams:team-list")
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -256,7 +256,7 @@ class TestTeamMemberListView(APITestCase):
 
     def test_get_team_members_excludes_inactive(self):
         """Test that inactive members are excluded."""
-        url = reverse("teams:team-list")
+        url = reverse("v1:teams:team-list")
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -269,7 +269,7 @@ class TestTeamMemberListView(APITestCase):
 
     def test_get_team_members_response_structure(self):
         """Test the structure of team member response."""
-        url = reverse("teams:team-list")
+        url = reverse("v1:teams:team-list")
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -294,7 +294,7 @@ class TestTeamMemberListView(APITestCase):
         # Make all members inactive
         TeamMember.objects.update(is_active=False)
 
-        url = reverse("teams:team-list")
+        url = reverse("v1:teams:team-list")
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -303,7 +303,7 @@ class TestTeamMemberListView(APITestCase):
 
     def test_prefetch_optimization(self):
         """Test that social links are prefetched (no N+1 queries)."""
-        url = reverse("teams:team-list")
+        url = reverse("v1:teams:team-list")
 
         # This should execute only 2 queries:
         # 1. Get team members

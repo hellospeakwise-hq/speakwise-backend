@@ -18,10 +18,10 @@ class OAuthTests(TestCase):
     def setUp(self):
         """Test setup."""
         self.client = APIClient()
-        self.github_login_url = reverse("users:github-login")
-        self.github_callback_url = reverse("users:github-callback")
-        self.google_login_url = reverse("users:google-login")
-        self.google_callback_url = reverse("users:google-callback")
+        self.github_login_url = reverse("v1:users:github-login")
+        self.github_callback_url = reverse("v1:users:github-callback")
+        self.google_login_url = reverse("v1:users:google-login")
+        self.google_callback_url = reverse("v1:users:google-callback")
         # Ensure callbacks will redirect instead of raising Http404
         oauth_views.frontend_url = "http://test-frontend"
 

@@ -9,7 +9,7 @@ app_name = "talks"
 urlpatterns = [
     path("talks/", views.TalkListCreateView.as_view(), name="talk-list"),
     path(
-        "talks/<int:pk>/",
+        "talks/<uuid:pk>/",
         views.TalkRetrieveUpdateDestroyView.as_view(),
         name="talk-detail",
     ),

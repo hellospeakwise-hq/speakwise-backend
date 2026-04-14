@@ -20,7 +20,7 @@ urlpatterns = [
         name="speakers_experiences_list_create",
     ),
     path(
-        "speakers/experiences/<int:pk>/",
+        "speakers/experiences/<uuid:pk>/",
         views.SpeakerExperiencesRetrieveUpdateDestroyView.as_view(),
         name="speakers_experiences_retrieve_update_delete",
     ),
@@ -31,7 +31,7 @@ urlpatterns = [
         name="skills_list",
     ),
     path(
-        "speakers/skills/<int:pk>/",
+        "speakers/skills/<uuid:pk>/",
         views.SpeakerSkillTagsDetailView.as_view(),
         name="skills_detail",
     ),

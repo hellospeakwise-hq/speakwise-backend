@@ -44,6 +44,9 @@ def drop_fk_constraints(apps, schema_editor):
     for table_name, column_name, constraint_name in fk_constraints:
         if (table_name, column_name) not in already_handled:
             cursor.execute(
+                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+            )
+            cursor.execute(
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE uuid USING (NULL);'
             )
 
@@ -67,6 +70,7 @@ class Migration(migrations.Migration):
                 "ALTER TABLE attendees_attendeeprofile ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
                 "ALTER TABLE attendees_attendeesociallinks ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
                 "ALTER TABLE attendees_attendance ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+                "ALTER TABLE attendees_attendeesociallinks ALTER COLUMN attendee_id DROP NOT NULL;",
                 "ALTER TABLE attendees_attendeesociallinks ALTER COLUMN attendee_id TYPE uuid USING (NULL);",
             ],
             state_operations=[

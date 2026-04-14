@@ -46,6 +46,9 @@ def drop_fk_constraints(apps, schema_editor):
     for table_name, column_name, constraint_name in fk_constraints:
         if (table_name, column_name) not in already_handled:
             cursor.execute(
+                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+            )
+            cursor.execute(
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE uuid USING (NULL);'
             )
             converted_fks.append((table_name, column_name, constraint_name))
@@ -74,10 +77,14 @@ class Migration(migrations.Migration):
                 "ALTER TABLE events_location ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
                 "ALTER TABLE events_event ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
                 "ALTER TABLE events_tag ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+                "ALTER TABLE events_location ALTER COLUMN country_id DROP NOT NULL;",
                 "ALTER TABLE events_location ALTER COLUMN country_id TYPE uuid USING (NULL);",
+                "ALTER TABLE events_event ALTER COLUMN location_id DROP NOT NULL;",
                 "ALTER TABLE events_event ALTER COLUMN location_id TYPE uuid USING (NULL);",
                 "TRUNCATE events_event_tags;",
+                "ALTER TABLE events_event_tags ALTER COLUMN event_id DROP NOT NULL;",
                 "ALTER TABLE events_event_tags ALTER COLUMN event_id TYPE uuid USING (NULL);",
+                "ALTER TABLE events_event_tags ALTER COLUMN tag_id DROP NOT NULL;",
                 "ALTER TABLE events_event_tags ALTER COLUMN tag_id TYPE uuid USING (NULL);",
             ],
             state_operations=[

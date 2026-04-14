@@ -37,6 +37,9 @@ def drop_fk_constraints(apps, schema_editor):
     for table_name, column_name, constraint_name in fk_constraints:
         if (table_name, column_name) not in already_handled:
             cursor.execute(
+                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+            )
+            cursor.execute(
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE uuid USING (NULL);'
             )
 

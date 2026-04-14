@@ -51,6 +51,9 @@ def drop_fk_constraints(apps, schema_editor):
     for table_name, column_name, constraint_name in fk_constraints:
         if (table_name, column_name) not in already_handled:
             cursor.execute(
+                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+            )
+            cursor.execute(
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE uuid USING (NULL);'
             )
 
@@ -78,10 +81,15 @@ class Migration(migrations.Migration):
                 "ALTER TABLE speakers_speakerskilltag ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
                 "ALTER TABLE speakers_speakersociallinks ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
                 "ALTER TABLE speakers_speakerfollow ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+                "ALTER TABLE speakers_speakerexperiences ALTER COLUMN speaker_id DROP NOT NULL;",
                 "ALTER TABLE speakers_speakerexperiences ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+                "ALTER TABLE speakers_speakerskilltag ALTER COLUMN speaker_id DROP NOT NULL;",
                 "ALTER TABLE speakers_speakerskilltag ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+                "ALTER TABLE speakers_speakersociallinks ALTER COLUMN speaker_id DROP NOT NULL;",
                 "ALTER TABLE speakers_speakersociallinks ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+                "ALTER TABLE speakers_speakerfollow ALTER COLUMN speaker_id DROP NOT NULL;",
                 "ALTER TABLE speakers_speakerfollow ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+                "ALTER TABLE speakers_speakerprofile_events_spoken ALTER COLUMN speakerprofile_id DROP NOT NULL;",
                 "ALTER TABLE speakers_speakerprofile_events_spoken ALTER COLUMN speakerprofile_id TYPE uuid USING (NULL);",
             ],
             state_operations=[

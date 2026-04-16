@@ -4,7 +4,11 @@ from django.test import TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
-from cfp.views import CFPStatusUpdateView, CFPSubmissionDetailView, CFPSubmissionListCreateView
+from cfp.views import (
+    CFPStatusUpdateView,
+    CFPSubmissionDetailView,
+    CFPSubmissionListCreateView,
+)
 
 
 class CFPURLTest(TestCase):

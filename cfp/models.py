@@ -50,10 +50,13 @@ class CFPSubmission(TimeStampedModel):
     )
 
     class Meta:
+        """Meta options for CFPSubmission."""
+
         unique_together = ("event", "submitter")
         verbose_name = "CFP Submission"
         verbose_name_plural = "CFP Submissions"
         ordering = ["-created_at"]
 
     def __str__(self):
+        """Return string representation of the submission."""
         return f"{self.submitter} — {self.event.title}"

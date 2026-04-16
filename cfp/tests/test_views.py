@@ -79,8 +79,12 @@ class CFPSubmissionListCreateViewTest(TestCase):
 
     def test_submitter_sees_only_own_submission(self):
         """Test that a submitter only sees their own submission."""
-        CFPSubmission.objects.create(event=self.event, submitter=self.speaker_user, **CFP_PAYLOAD)
-        CFPSubmission.objects.create(event=self.event, submitter=self.other_user, **CFP_PAYLOAD)
+        CFPSubmission.objects.create(
+            event=self.event, submitter=self.speaker_user, **CFP_PAYLOAD
+        )
+        CFPSubmission.objects.create(
+            event=self.event, submitter=self.other_user, **CFP_PAYLOAD
+        )
         self.client.force_authenticate(user=self.speaker_user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -88,8 +92,12 @@ class CFPSubmissionListCreateViewTest(TestCase):
 
     def test_organizer_sees_all_submissions(self):
         """Test that an organizer sees all submissions for the event."""
-        CFPSubmission.objects.create(event=self.event, submitter=self.speaker_user, **CFP_PAYLOAD)
-        CFPSubmission.objects.create(event=self.event, submitter=self.other_user, **CFP_PAYLOAD)
+        CFPSubmission.objects.create(
+            event=self.event, submitter=self.speaker_user, **CFP_PAYLOAD
+        )
+        CFPSubmission.objects.create(
+            event=self.event, submitter=self.other_user, **CFP_PAYLOAD
+        )
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -165,7 +173,9 @@ class CFPSubmissionDetailViewTest(TestCase):
     def test_submitter_can_edit_while_pending(self):
         """Test that the submitter can edit their submission while it is pending."""
         self.client.force_authenticate(user=self.speaker_user)
-        response = self.client.patch(self.url, {"elevator_pitch": "Updated pitch."}, format="json")
+        response = self.client.patch(
+            self.url, {"elevator_pitch": "Updated pitch."}, format="json"
+        )
         self.assertEqual(response.status_code, 200)
         self.submission.refresh_from_db()
         self.assertEqual(self.submission.elevator_pitch, "Updated pitch.")
@@ -175,7 +185,9 @@ class CFPSubmissionDetailViewTest(TestCase):
         self.submission.status = CFPStatusChoices.ACCEPTED
         self.submission.save()
         self.client.force_authenticate(user=self.speaker_user)
-        response = self.client.patch(self.url, {"elevator_pitch": "Too late."}, format="json")
+        response = self.client.patch(
+            self.url, {"elevator_pitch": "Too late."}, format="json"
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_submitter_can_delete_while_pending(self):

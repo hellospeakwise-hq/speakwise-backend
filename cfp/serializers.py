@@ -13,11 +13,17 @@ class CoSpeakerSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
 
     class Meta:
+        """Meta options for CoSpeakerSerializer."""
+
         model = SpeakerProfile
         fields = ["id", "slug", "name"]
 
     def get_name(self, obj):
-        return f"{obj.user_account.first_name} {obj.user_account.last_name}".strip() or obj.user_account.username
+        """Return the co-speaker's full name or username."""
+        return (
+            f"{obj.user_account.first_name} {obj.user_account.last_name}".strip()
+            or obj.user_account.username
+        )
 
 
 class CFPSubmissionSerializer(serializers.ModelSerializer):
@@ -26,21 +32,27 @@ class CFPSubmissionSerializer(serializers.ModelSerializer):
     co_speakers = serializers.PrimaryKeyRelatedField(
         queryset=SpeakerProfile.objects.all(), many=True, required=False
     )
-    co_speakers_detail = CoSpeakerSerializer(source="co_speakers", many=True, read_only=True)
+    co_speakers_detail = CoSpeakerSerializer(
+        source="co_speakers", many=True, read_only=True
+    )
     submitter_email = serializers.EmailField(source="submitter.email", read_only=True)
 
     class Meta:
+        """Meta options for CFPSubmissionSerializer."""
+
         model = CFPSubmission
         exclude = ["created_at", "updated_at"]
         read_only_fields = ["id", "submitter", "submitter_email", "status", "event"]
 
     def create(self, validated_data):
+        """Create a new CFP submission."""
         co_speakers = validated_data.pop("co_speakers", [])
         submission = CFPSubmission.objects.create(**validated_data)
         submission.co_speakers.set(co_speakers)
         return submission
 
     def update(self, instance, validated_data):
+        """Update a CFP submission, only allowed while pending."""
         if instance.status != CFPStatusChoices.PENDING:
             raise serializers.ValidationError(
                 "Submissions can only be edited while they are pending review."
@@ -58,5 +70,7 @@ class CFPStatusUpdateSerializer(serializers.ModelSerializer):
     """Organizer-only serializer for updating submission status."""
 
     class Meta:
+        """Meta options for CFPStatusUpdateSerializer."""
+
         model = CFPSubmission
         fields = ["status"]

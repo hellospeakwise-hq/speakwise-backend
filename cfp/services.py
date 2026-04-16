@@ -34,6 +34,8 @@ _MESSAGES = {
 
 
 class CFPEmailService:
+    """Service for sending CFP status notification emails."""
+
     @staticmethod
     def send_status_notification(submission):
         """Send an email to the submitter when their CFP status changes."""
@@ -53,6 +55,14 @@ class CFPEmailService:
                 recipient_list=[submission.submitter.email],
                 fail_silently=False,
             )
-            logger.info("CFP status email sent to %s (status=%s)", submission.submitter.email, submission.status)
+            logger.info(
+                "CFP status email sent to %s (status=%s)",
+                submission.submitter.email,
+                submission.status,
+            )
         except Exception as e:
-            logger.error("Failed to send CFP status email to %s: %s", submission.submitter.email, e)
+            logger.error(
+                "Failed to send CFP status email to %s: %s",
+                submission.submitter.email,
+                e,
+            )

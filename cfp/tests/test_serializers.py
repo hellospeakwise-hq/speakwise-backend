@@ -1,6 +1,7 @@
 """CFP serializer tests."""
 
 from django.test import TestCase
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from cfp.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
@@ -56,9 +57,20 @@ class CFPSubmissionSerializerTest(TestCase):
         self.assertEqual(
             set(self.serializer.data.keys()),
             {
-                "id", "event", "submitter", "submitter_email", "talk_type", "audience",
-                "category", "elevator_pitch", "abstract", "co_speakers",
-                "co_speakers_detail", "other_speakers_text", "other_comments", "status",
+                "id",
+                "event",
+                "submitter",
+                "submitter_email",
+                "talk_type",
+                "audience",
+                "category",
+                "elevator_pitch",
+                "abstract",
+                "co_speakers",
+                "co_speakers_detail",
+                "other_speakers_text",
+                "other_comments",
+                "status",
             },
         )
 
@@ -90,18 +102,22 @@ class CFPSubmissionSerializerTest(TestCase):
             partial=True,
         )
         serializer.is_valid()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             serializer.save()
 
     def test_invalid_talk_type(self):
         """Test that an invalid talk type raises a validation error."""
-        serializer = CFPSubmissionSerializer(data={"talk_type": "keynote"}, partial=True)
+        serializer = CFPSubmissionSerializer(
+            data={"talk_type": "keynote"}, partial=True
+        )
         serializer.is_valid()
         self.assertIn("talk_type", serializer.errors)
 
     def test_invalid_category(self):
         """Test that an invalid category raises a validation error."""
-        serializer = CFPSubmissionSerializer(data={"category": "not_a_category"}, partial=True)
+        serializer = CFPSubmissionSerializer(
+            data={"category": "not_a_category"}, partial=True
+        )
         serializer.is_valid()
         self.assertIn("category", serializer.errors)
 

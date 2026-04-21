@@ -48,11 +48,24 @@ def drop_fk_constraints(apps, schema_editor):
         ("speakers_speakerfollow", "speaker_id"),
         ("speakers_speakerprofile_events_spoken", "speakerprofile_id"),
     }
-    for table_name, column_name, constraint_name in fk_constraints:
+   for table_name, column_name, constraint_name in fk_constraints:
         if (table_name, column_name) not in already_handled:
+            # Check if column is NOT NULL
             cursor.execute(
-                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+                f"""
+                SELECT is_nullable
+                FROM information_schema.columns
+                WHERE table_name = %s AND column_name = %s;
+                """,
+                [table_name, column_name],
             )
+            is_nullable = cursor.fetchone()[0] == "YES"
+
+            if not is_nullable:
+                cursor.execute(
+                    f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+                )
+
             cursor.execute(
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE uuid USING (NULL);'
             )

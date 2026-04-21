@@ -48,7 +48,7 @@ def drop_fk_constraints(apps, schema_editor):
         ("speakers_speakerfollow", "speaker_id"),
         ("speakers_speakerprofile_events_spoken", "speakerprofile_id"),
     }
-   for table_name, column_name, constraint_name in fk_constraints:
+    for table_name, column_name, constraint_name in fk_constraints:
         if (table_name, column_name) not in already_handled:
             # Check if column is NOT NULL
             cursor.execute(

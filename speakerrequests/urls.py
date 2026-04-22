@@ -13,7 +13,7 @@ urlpatterns = [
         name="speaker_requests_list_create",
     ),
     path(
-        "speaker-requests/<int:pk>/",
+        "speaker-requests/<uuid:pk>/",
         views.SPeakerRequestDetailView.as_view(),
         name="speaker_request_retrieve_update_delete",
     ),
@@ -23,7 +23,7 @@ urlpatterns = [
         name="speaker_requests_list",
     ),
     path(
-        "speaker-requests/<int:pk>/respond/",
+        "speaker-requests/<uuid:pk>/respond/",
         views.SpeakerRequestAcceptView.as_view(),
         name="speaker_request_respond",
     ),

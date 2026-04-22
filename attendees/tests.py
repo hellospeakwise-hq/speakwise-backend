@@ -66,4 +66,4 @@ class AttendeeSerializerTestCase(TestCase):
         assert set(data.keys()) == {"id", "name", "link"}
         assert data["name"] == self.social_link.name
         assert data["link"] == self.social_link.link
-        assert data["id"] == self.social_link.id
+        assert data["id"] == str(self.social_link.id)

@@ -1,5 +1,6 @@
 """speaker request views."""
 
+from django.conf import settings
 from django.db.models import Q
 from django.http.response import Http404
 from drf_spectacular.utils import extend_schema
@@ -20,8 +21,9 @@ from speakerrequests.serializers import (
 )
 from speakerrequests.utils import (
     send_request_accepted_email,
-    send_speaker_request_declined_email,
-    send_speaker_request_email,
+    send_request_declined_email,
+    send_speaker_email_request_email,
+    send_speaker_org_request_email,
 )
 
 
@@ -105,12 +107,17 @@ class SpeakerRequestListView(APIView):
 
         serializer.save()
 
-        # send email notification to speaker
-        send_speaker_request_email.enqueue(
-            speaker_email=serializer.instance.speaker.user_account.email,
-            event_name=serializer.instance.event.title,
-            organizer_name=serializer.instance.organizer.name,
-            message=serializer.instance.message,
+        req = serializer.instance
+        speaker_user = req.speaker.user_account
+        send_speaker_org_request_email.enqueue(
+            speaker_email=speaker_user.email,
+            speaker_name=speaker_user.first_name or speaker_user.username,
+            organization_name=req.organizer.name,
+            organizer_name=req.organizer.name,
+            event_name=req.event.title,
+            event_date=req.event.start_date_time.strftime("%B %-d, %Y") if req.event.start_date_time else "",
+            message=req.message,
+            request_id=req.id,
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -253,20 +260,39 @@ class SpeakerRequestAcceptView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        # send email notification to speaker if request is accepted or declined
-        (
+
+        req = serializer.instance
+        speaker_user = req.speaker.user_account
+        speaker_name = speaker_user.first_name or speaker_user.username
+        organizer_email = req.organizer.email
+        requester_name = req.organizer.name
+        event_name = req.event.title
+        event_date = req.event.start_date_time.strftime("%B %-d, %Y") if req.event.start_date_time else ""
+        event_location = req.event.location.name if req.event.location else ""
+        dashboard_url = f"{settings.FRONTEND_URL}/dashboard/organizer"
+        speaker_profile_url = f"{settings.FRONTEND_URL}/speakers/{req.speaker.id}"
+        discover_url = f"{settings.FRONTEND_URL}/speakers"
+
+        if req.status == RequestStatusChoices.ACCEPTED.value:
             send_request_accepted_email.enqueue(
-                speaker_email=serializer.instance.speaker.user_account.email,
-                event_name=serializer.instance.event.title,
-                speaker_name=serializer.instance.speaker.user_account.email,
+                organizer_email=organizer_email,
+                requester_name=requester_name,
+                speaker_name=speaker_name,
+                speaker_title="",
+                event_name=event_name,
+                event_date=event_date,
+                event_location=event_location,
+                speaker_profile_url=speaker_profile_url,
+                dashboard_url=dashboard_url,
             )
-            if serializer.instance.status == RequestStatusChoices.ACCEPTED.value
-            else send_speaker_request_declined_email.enqueue(
-                speaker_email=serializer.instance.speaker.user_account.email,
-                event_name=serializer.instance.event.title,
-                speaker_name=serializer.instance.speaker.user_account.email,
+        else:
+            send_request_declined_email.enqueue(
+                organizer_email=organizer_email,
+                requester_name=requester_name,
+                speaker_name=speaker_name,
+                event_name=event_name,
+                discover_url=discover_url,
             )
-        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -316,11 +342,18 @@ class SpeakerEmailRequestListView(APIView):
 
         # send the request via email if the recipient exists
         if serializer.instance.request_to:
-            send_speaker_request_email.enqueue(
-                speaker_email=serializer.instance.request_to.email,
-                event_name=serializer.instance.event,
-                organizer_name=serializer.instance.request_from.username,
-                message=serializer.instance.message,
+            er = serializer.instance
+            recipient = er.request_to
+            sender = er.request_from
+            send_speaker_email_request_email.enqueue(
+                speaker_email=recipient.email,
+                speaker_name=recipient.first_name or recipient.username,
+                requester_name=sender.first_name or sender.username,
+                requester_email=sender.email,
+                event_name=er.event,
+                event_location=er.location,
+                message=er.message,
+                request_id=str(er.id),
             )
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)

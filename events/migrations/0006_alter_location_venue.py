@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("events", "0005_alter_country_id_alter_event_id_alter_location_id_and_more"),
     ]

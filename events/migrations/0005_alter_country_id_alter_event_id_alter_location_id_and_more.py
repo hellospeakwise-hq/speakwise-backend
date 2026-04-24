@@ -7,9 +7,14 @@ from django.db import migrations, models
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing the tables we're converting to UUID,
     including constraints from other apps (attendees, speakers, speakerrequests, etc.)."""
-    
+
     cursor = schema_editor.connection.cursor()
-    target_pk_tables = ["events_country", "events_location", "events_event", "events_tag"]
+    target_pk_tables = [
+        "events_country",
+        "events_location",
+        "events_event",
+        "events_tag",
+    ]
 
     cursor.execute(
         """
@@ -51,10 +56,7 @@ def drop_fk_constraints(apps, schema_editor):
             converted_fks.append((table_name, column_name, constraint_name))
 
 
-
-
 class Migration(migrations.Migration):
-
     dependencies = [
         ("events", "0004_event_slug_alter_country_code_alter_country_name_and_more"),
     ]

@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("speakers", "0009_auto_20260212_1421"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

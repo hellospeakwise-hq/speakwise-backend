@@ -4,30 +4,29 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('events', '0001_initial'),
+        ("events", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='country',
-            name='updated_at',
+            model_name="country",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='event',
-            name='updated_at',
+            model_name="event",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='location',
-            name='updated_at',
+            model_name="location",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='tag',
-            name='updated_at',
+            model_name="tag",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

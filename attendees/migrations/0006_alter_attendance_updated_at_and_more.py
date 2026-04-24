@@ -4,35 +4,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('attendees', '0005_alter_attendeesociallinks_link_and_more'),
+        ("attendees", "0005_alter_attendeesociallinks_link_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='attendance',
-            name='updated_at',
+            model_name="attendance",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='attendeeprofile',
-            name='updated_at',
+            model_name="attendeeprofile",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='attendeesociallinks',
-            name='link',
+            model_name="attendeesociallinks",
+            name="link",
             field=models.URLField(max_length=255, null=True),
         ),
         migrations.AlterField(
-            model_name='attendeesociallinks',
-            name='name',
+            model_name="attendeesociallinks",
+            name="name",
             field=models.CharField(max_length=255, null=True),
         ),
         migrations.AlterField(
-            model_name='attendeesociallinks',
-            name='updated_at',
+            model_name="attendeesociallinks",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

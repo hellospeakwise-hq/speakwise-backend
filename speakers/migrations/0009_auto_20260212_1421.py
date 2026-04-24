@@ -4,19 +4,20 @@ from django.db import migrations
 from django.utils.text import slugify
 import uuid
 
+
 def generate_unique_slugs(apps, schema_editor):
-    SpeakerProfile = apps.get_model('speakers', 'SpeakerProfile')
-    
+    SpeakerProfile = apps.get_model("speakers", "SpeakerProfile")
+
     for profile in SpeakerProfile.objects.all():
         base_value = f"{profile.user_account.first_name}_{profile.user_account.last_name}".strip()
         if not base_value:
             base_value = profile.user_account.username
-            
+
         profile.slug = slugify(f"{base_value}")
-        profile.save(update_fields=['slug'])
+        profile.save(update_fields=["slug"])
+
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("speakers", "0008_speakerprofile_slug"),
     ]

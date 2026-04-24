@@ -115,7 +115,9 @@ class SpeakerRequestListView(APIView):
             organization_name=req.organizer.name,
             organizer_name=req.organizer.name,
             event_name=req.event.title,
-            event_date=req.event.start_date_time.strftime("%B %-d, %Y") if req.event.start_date_time else "",
+            event_date=req.event.start_date_time.strftime("%B %-d, %Y")
+            if req.event.start_date_time
+            else "",
             message=req.message,
             request_id=req.id,
         )
@@ -267,7 +269,11 @@ class SpeakerRequestAcceptView(APIView):
         organizer_email = req.organizer.email
         requester_name = req.organizer.name
         event_name = req.event.title
-        event_date = req.event.start_date_time.strftime("%B %-d, %Y") if req.event.start_date_time else ""
+        event_date = (
+            req.event.start_date_time.strftime("%B %-d, %Y")
+            if req.event.start_date_time
+            else ""
+        )
         event_location = req.event.location.name if req.event.location else ""
         dashboard_url = f"{settings.FRONTEND_URL}/dashboard/organizer"
         speaker_profile_url = f"{settings.FRONTEND_URL}/speakers/{req.speaker.id}"

@@ -210,7 +210,7 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
                 {
                     "id": sp.id if sp else None,
                     "organization": "Acme Org",
-                    "short_bio": "Hello " "world",
+                    "short_bio": "Hello world",
                     "user_account": self.user.id,
                 }
             ],

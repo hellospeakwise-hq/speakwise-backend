@@ -5,64 +5,70 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('events', '0002_alter_country_updated_at_alter_event_updated_at_and_more'),
-        ('speakers', '0010_add_speaker_follow_model'),
+        ("events", "0002_alter_country_updated_at_alter_event_updated_at_and_more"),
+        ("speakers", "0010_add_speaker_follow_model"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='speakerexperiences',
-            name='updated_at',
+            model_name="speakerexperiences",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='speakerfollow',
-            name='updated_at',
+            model_name="speakerfollow",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.RemoveField(
-            model_name='speakerprofile',
-            name='events_spoken',
+            model_name="speakerprofile",
+            name="events_spoken",
         ),
         migrations.AlterField(
-            model_name='speakerprofile',
-            name='updated_at',
+            model_name="speakerprofile",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='speakerskilltag',
-            name='speaker',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='skill_tags', to='speakers.speakerprofile'),
+            model_name="speakerskilltag",
+            name="speaker",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="skill_tags",
+                to="speakers.speakerprofile",
+            ),
         ),
         migrations.AlterField(
-            model_name='speakerskilltag',
-            name='updated_at',
+            model_name="speakerskilltag",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='speakersociallinks',
-            name='link',
+            model_name="speakersociallinks",
+            name="link",
             field=models.URLField(max_length=255, null=True),
         ),
         migrations.AlterField(
-            model_name='speakersociallinks',
-            name='name',
+            model_name="speakersociallinks",
+            name="name",
             field=models.CharField(max_length=255, null=True),
         ),
         migrations.AlterField(
-            model_name='speakersociallinks',
-            name='updated_at',
+            model_name="speakersociallinks",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterUniqueTogether(
-            name='speakersociallinks',
-            unique_together={('speaker', 'name')},
+            name="speakersociallinks",
+            unique_together={("speaker", "name")},
         ),
         migrations.AddField(
-            model_name='speakerprofile',
-            name='events_spoken',
-            field=models.ManyToManyField(blank=True, related_name='speakers', to='events.event'),
+            model_name="speakerprofile",
+            name="events_spoken",
+            field=models.ManyToManyField(
+                blank=True, related_name="speakers", to="events.event"
+            ),
         ),
     ]

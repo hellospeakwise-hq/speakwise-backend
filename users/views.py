@@ -43,7 +43,9 @@ class UserCreateView(CreateAPIView):
         try:
             EmailService.send_welcome_email(user)
         except Exception:
-            logger.warning("Welcome email failed for user ID: %s", user.id, exc_info=True)
+            logger.warning(
+                "Welcome email failed for user ID: %s", user.id, exc_info=True
+            )
 
 
 class UserLogoutView(APIView):

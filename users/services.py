@@ -57,9 +57,7 @@ class EmailService:
         token_generator = PasswordResetTokenGenerator()
         token = token_generator.make_token(user)
 
-        reset_url = (
-            f"{FRONTEND_URL}/reset-password?token={token}&email={user.email}"
-        )
+        reset_url = f"{FRONTEND_URL}/reset-password?token={token}&email={user.email}"
 
         html_message = render_to_string(
             "emails/password_reset.html",

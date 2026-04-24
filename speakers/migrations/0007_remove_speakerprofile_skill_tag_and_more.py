@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("speakers", "0006_alter_speakerexperiences_description_and_more"),
     ]

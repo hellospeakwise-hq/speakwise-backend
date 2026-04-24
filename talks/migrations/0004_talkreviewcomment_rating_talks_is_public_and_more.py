@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("talks", "0003_alter_session_updated_at_and_more"),
     ]

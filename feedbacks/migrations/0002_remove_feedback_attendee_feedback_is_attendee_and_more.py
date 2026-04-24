@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("feedbacks", "0001_initial"),
         ("speakers", "0002_initial"),

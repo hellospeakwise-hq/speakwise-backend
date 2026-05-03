@@ -35,6 +35,28 @@ urlpatterns = [
         views.SpeakerSkillTagsDetailView.as_view(),
         name="skills_detail",
     ),
+    # Speaker deck management
+    path(
+        "speakers/decks/",
+        views.SpeakerDeckListCreateView.as_view(),
+        name="speaker_decks_list_create",
+    ),
+    path(
+        "speakers/decks/<uuid:pk>/",
+        views.SpeakerDeckRetrieveUpdateDestroyView.as_view(),
+        name="speaker_deck_detail",
+    ),
+    # Notifications
+    path(
+        "notifications/",
+        views.NotificationListView.as_view(),
+        name="notification_list",
+    ),
+    path(
+        "notifications/<uuid:pk>/read/",
+        views.NotificationMarkReadView.as_view(),
+        name="notification_mark_read",
+    ),
     # Public experiences by speaker slug
     path(
         "speakers/<slug:slug>/experiences/",

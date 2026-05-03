@@ -2,7 +2,6 @@
 
 from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
-from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
@@ -15,7 +14,6 @@ from speakers.models import (
     SpeakerSkillTag,
     SpeakerSocialLinks,
 )
-from speakers.services import sanitize_upload
 
 
 class SpeakerSocialLinksSerializer(ModelSerializer):
@@ -75,11 +73,7 @@ class SpeakerFollowSerializer(ModelSerializer):
 
 
 class FollowerDetailSerializer(ModelSerializer):
-    """Rich serializer returning speaker profile info for followers/following lists.
-
-    Expects the queryset to have ``select_related('follower', 'speaker__user_account')``
-    and the context to contain a ``profiles`` mapping from user PK to SpeakerProfile.
-    """
+    """Rich serializer returning speaker profile info for followers/following lists."""
 
     username = SerializerMethodField()
     full_name = SerializerMethodField()
@@ -105,18 +99,16 @@ class FollowerDetailSerializer(ModelSerializer):
             "created_at",
         ]
 
+    def _get_profile(self, user):
+        """Get the SpeakerProfile for a user, if it exists."""
+        return SpeakerProfile.objects.filter(user_account=user).first()
+
     def _get_user(self, obj):
         """Get the relevant user depending on context (follower or following)."""
         context_type = self.context.get("type", "followers")
         if context_type == "following":
             return obj.speaker.user_account
         return obj.follower
-
-    def _profile(self, obj):
-        """Return the cached SpeakerProfile from context, or None."""
-        user = self._get_user(obj)
-        profiles = self.context.get("profiles", {})
-        return profiles.get(user.pk)
 
     def get_username(self, obj) -> str:
         """Return the username."""
@@ -132,29 +124,29 @@ class FollowerDetailSerializer(ModelSerializer):
 
     def get_avatar(self, obj):
         """Return the avatar URL."""
-        profile = self._profile(obj)
+        profile = self._get_profile(self._get_user(obj))
         if profile and profile.avatar:
             return profile.avatar.url
         return None
 
     def get_slug(self, obj):
         """Return the speaker profile slug."""
-        profile = self._profile(obj)
+        profile = self._get_profile(self._get_user(obj))
         return profile.slug if profile else None
 
     def get_short_bio(self, obj) -> str:
         """Return the short bio."""
-        profile = self._profile(obj)
+        profile = self._get_profile(self._get_user(obj))
         return profile.short_bio if profile else ""
 
     def get_country(self, obj) -> str:
         """Return the country."""
-        profile = self._profile(obj)
+        profile = self._get_profile(self._get_user(obj))
         return profile.country if profile else ""
 
     def get_organization(self, obj) -> str:
         """Return the organization."""
-        profile = self._profile(obj)
+        profile = self._get_profile(self._get_user(obj))
         return profile.organization if profile else ""
 
 
@@ -204,25 +196,16 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     def get_followers_count(self, obj) -> int:
         """Return total number of followers for this speaker."""
-        cached = getattr(obj, "_followers_count", None)
-        if cached is not None:
-            return cached
-        return obj.followers.count()
+        return obj.followers_count
 
     def get_following_count(self, obj) -> int:
         """Return how many speakers this speaker follows (their following count)."""
-        cached = getattr(obj, "_following_count", None)
-        if cached is not None:
-            return cached
         return SpeakerFollow.objects.filter(follower=obj.user_account).count()
 
     def get_is_following(self, obj) -> bool:
         """Return True if the current authenticated user follows this speaker."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
-            cached = getattr(obj, "_is_following", None)
-            if cached is not None:
-                return cached
             return SpeakerFollow.objects.filter(
                 follower=request.user, speaker=obj
             ).exists()
@@ -250,10 +233,15 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         return instance
 
 
+# ---------- Speaker Deck ----------
+
+
+ALLOWED_DECK_EXTENSIONS = {".pptx", ".pdf", ".key", ".ppt", ".odp", ".zip"}
+MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
 class SpeakerDeckSerializer(ModelSerializer):
     """Serializer for speaker presentation deck uploads."""
-
-    event = serializers.UUIDField(source="event_id", read_only=True)
 
     class Meta:
         """Meta options."""
@@ -262,43 +250,22 @@ class SpeakerDeckSerializer(ModelSerializer):
         exclude = ["created_at", "updated_at"]
         read_only_fields = ("id", "speaker", "original_filename", "file_size")
 
-    ALLOWED_DECK_EXTENSIONS = {".pptx", ".pdf", ".key", ".ppt", ".odp", ".zip"}
-    MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
-
     def validate_file(self, value):
         """Validate uploaded file extension and size."""
         import os
 
         ext = os.path.splitext(value.name)[1].lower()
-        if ext not in self.ALLOWED_DECK_EXTENSIONS:
+        if ext not in ALLOWED_DECK_EXTENSIONS:
             raise ValidationError(
                 f"Unsupported file type '{ext}'. "
-                f"Allowed: {', '.join(sorted(self.ALLOWED_DECK_EXTENSIONS))}"
+                f"Allowed: {', '.join(sorted(ALLOWED_DECK_EXTENSIONS))}"
             )
 
-        if value.size > self.MAX_DECK_FILE_SIZE:
-            max_mb = self.MAX_DECK_FILE_SIZE // (1024 * 1024)
+        if value.size > MAX_DECK_FILE_SIZE:
+            max_mb = MAX_DECK_FILE_SIZE // (1024 * 1024)
             raise ValidationError(f"File too large. Maximum size is {max_mb} MB.")
 
-        value._original_name = value.name
-        return sanitize_upload(value)
-
-    def create(self, validated_data):
-        """Create a speaker deck."""
-        file = validated_data["file"]
-        validated_data["original_filename"] = getattr(file, "_original_name", file.name)
-        validated_data["file_size"] = file.size
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        """Update a speaker deck."""
-        if "file" in validated_data:
-            file = validated_data["file"]
-            validated_data["original_filename"] = getattr(
-                file, "_original_name", file.name
-            )
-            validated_data["file_size"] = file.size
-        return super().update(instance, validated_data)
+        return value
 
 
 # ---------- Notification ----------

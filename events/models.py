@@ -64,6 +64,11 @@ class Event(TimeStampedModel):
         help_text="The organizer who created this event",
     )
 
+    speaker_deck_upload_enabled = models.BooleanField(
+        default=False,
+        help_text="When enabled, accepted speakers can upload their presentation materials.",
+    )
+
     def get_absolute_url(self):
         """Return the URL to access a particular event instance."""
         return f"/events/{self.slug}/"

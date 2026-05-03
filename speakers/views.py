@@ -13,6 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from speakers.models import (
+    Notification,
+    SpeakerDeck,
     SpeakerExperiences,
     SpeakerFollow,
     SpeakerProfile,
@@ -20,6 +22,8 @@ from speakers.models import (
 )
 from speakers.serializers import (
     FollowerDetailSerializer,
+    NotificationSerializer,
+    SpeakerDeckSerializer,
     SpeakerExperiencesSerializer,
     SpeakerProfileSerializer,
     SpeakerSkillTagSerializer,
@@ -532,3 +536,219 @@ class SpeakerFollowingListView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ---------- Speaker Deck Views ----------
+
+
+@extend_schema(tags=["speaker decks"])
+class SpeakerDeckListCreateView(APIView):
+    """List and upload speaker decks for an event.
+
+    GET  ?event=<uuid>  — list the authenticated speaker's decks for the event.
+    POST ?event=<uuid>  — upload a new deck (multipart/form-data).
+
+    Validation:
+    - Speaker must have an accepted SpeakerRequest for the event.
+    - Event must have speaker_deck_upload_enabled=True.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_event_and_speaker(self, request):
+        """Extract event and speaker profile from the request, with validation."""
+        from events.models import Event
+
+        event_id = request.query_params.get("event") or request.data.get("event")
+        if not event_id:
+            return None, None, Response(
+                {"detail": "The 'event' query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            event = Event.objects.get(pk=event_id)
+        except Event.DoesNotExist:
+            return None, None, Response(
+                {"detail": "Event not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        speaker_profile = request.user.speakers_profile_user.first()
+        if not speaker_profile:
+            return None, None, Response(
+                {"detail": "Speaker profile not found for this user."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return event, speaker_profile, None
+
+    @extend_schema(
+        responses=SpeakerDeckSerializer(many=True),
+        parameters=[
+            {
+                "name": "event",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+    )
+    def get(self, request):
+        """List speaker decks for the authenticated speaker and event."""
+        event, speaker_profile, error = self._get_event_and_speaker(request)
+        if error:
+            return error
+
+        decks = SpeakerDeck.objects.filter(speaker=speaker_profile, event=event)
+        serializer = SpeakerDeckSerializer(decks, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=SpeakerDeckSerializer, responses=SpeakerDeckSerializer)
+    def post(self, request):
+        """Upload a speaker deck for the specified event."""
+        from speakerrequests.choices import RequestStatusChoices
+        from speakerrequests.models import SpeakerRequest
+
+        event, speaker_profile, error = self._get_event_and_speaker(request)
+        if error:
+            return error
+
+        # Check upload is enabled
+        if not event.speaker_deck_upload_enabled:
+            return Response(
+                {"detail": "Speaker deck uploads are not enabled for this event."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Check speaker is accepted for this event
+        is_accepted = SpeakerRequest.objects.filter(
+            event=event,
+            speaker=speaker_profile,
+            status=RequestStatusChoices.ACCEPTED,
+        ).exists()
+
+        if not is_accepted:
+            return Response(
+                {"detail": "You must be an accepted speaker for this event to upload a deck."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = SpeakerDeckSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        uploaded_file = serializer.validated_data["file"]
+        serializer.save(
+            speaker=speaker_profile,
+            event=event,
+            original_filename=uploaded_file.name,
+            file_size=uploaded_file.size,
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=["speaker decks"])
+class SpeakerDeckRetrieveUpdateDestroyView(APIView):
+    """Retrieve, update, or delete a single speaker deck.
+
+    Only the owning speaker can modify or delete.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk, user):
+        """Get a speaker deck, ensuring it belongs to the authenticated speaker."""
+        try:
+            return SpeakerDeck.objects.get(pk=pk, speaker__user_account=user)
+        except SpeakerDeck.DoesNotExist as err:
+            raise Http404 from err
+
+    @extend_schema(responses=SpeakerDeckSerializer)
+    def get(self, request, pk):
+        """Retrieve a specific speaker deck."""
+        deck = self.get_object(pk, request.user)
+        serializer = SpeakerDeckSerializer(deck)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=SpeakerDeckSerializer, responses=SpeakerDeckSerializer)
+    def patch(self, request, pk):
+        """Update a speaker deck (description or file replacement)."""
+        deck = self.get_object(pk, request.user)
+        serializer = SpeakerDeckSerializer(deck, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        # If a new file is uploaded, update the metadata fields
+        save_kwargs = {}
+        if "file" in serializer.validated_data:
+            uploaded_file = serializer.validated_data["file"]
+            save_kwargs["original_filename"] = uploaded_file.name
+            save_kwargs["file_size"] = uploaded_file.size
+
+        serializer.save(**save_kwargs)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(responses={204: None})
+    def delete(self, request, pk):
+        """Delete a speaker deck."""
+        deck = self.get_object(pk, request.user)
+        deck.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------- Notification Views ----------
+
+
+@extend_schema(tags=["notifications"])
+class NotificationListView(APIView):
+    """List notifications for the authenticated user.
+
+    Supports filtering with ?is_read=true or ?is_read=false.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses=NotificationSerializer(many=True),
+        parameters=[
+            {
+                "name": "is_read",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["true", "false"]},
+            }
+        ],
+    )
+    def get(self, request):
+        """List notifications for the authenticated user."""
+        notifications = Notification.objects.filter(recipient=request.user)
+
+        is_read_param = request.query_params.get("is_read")
+        if is_read_param is not None:
+            is_read = is_read_param.lower() == "true"
+            notifications = notifications.filter(is_read=is_read)
+
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["notifications"])
+class NotificationMarkReadView(APIView):
+    """Mark a notification as read."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=NotificationSerializer)
+    def patch(self, request, pk):
+        """Mark a single notification as read."""
+        try:
+            notification = Notification.objects.get(pk=pk, recipient=request.user)
+        except Notification.DoesNotExist:
+            return Response(
+                {"detail": "Notification not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        notification.is_read = True
+        notification.save(update_fields=["is_read", "updated_at"])
+        serializer = NotificationSerializer(notification)
+        return Response(serializer.data, status=status.HTTP_200_OK)

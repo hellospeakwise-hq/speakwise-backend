@@ -2,7 +2,6 @@
 
 from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
-from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
@@ -15,7 +14,6 @@ from speakers.models import (
     SpeakerSkillTag,
     SpeakerSocialLinks,
 )
-from speakers.utils import sanitize_upload
 
 
 class SpeakerSocialLinksSerializer(ModelSerializer):
@@ -235,10 +233,15 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         return instance
 
 
+# ---------- Speaker Deck ----------
+
+
+ALLOWED_DECK_EXTENSIONS = {".pptx", ".pdf", ".key", ".ppt", ".odp", ".zip"}
+MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
 class SpeakerDeckSerializer(ModelSerializer):
     """Serializer for speaker presentation deck uploads."""
-
-    event = serializers.UUIDField(source="event_id", read_only=True)
 
     class Meta:
         """Meta options."""
@@ -247,43 +250,22 @@ class SpeakerDeckSerializer(ModelSerializer):
         exclude = ["created_at", "updated_at"]
         read_only_fields = ("id", "speaker", "original_filename", "file_size")
 
-    ALLOWED_DECK_EXTENSIONS = {".pptx", ".pdf", ".key", ".ppt", ".odp", ".zip"}
-    MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
-
     def validate_file(self, value):
         """Validate uploaded file extension and size."""
         import os
 
         ext = os.path.splitext(value.name)[1].lower()
-        if ext not in self.ALLOWED_DECK_EXTENSIONS:
+        if ext not in ALLOWED_DECK_EXTENSIONS:
             raise ValidationError(
                 f"Unsupported file type '{ext}'. "
-                f"Allowed: {', '.join(sorted(self.ALLOWED_DECK_EXTENSIONS))}"
+                f"Allowed: {', '.join(sorted(ALLOWED_DECK_EXTENSIONS))}"
             )
 
-        if value.size > self.MAX_DECK_FILE_SIZE:
-            max_mb = self.MAX_DECK_FILE_SIZE // (1024 * 1024)
+        if value.size > MAX_DECK_FILE_SIZE:
+            max_mb = MAX_DECK_FILE_SIZE // (1024 * 1024)
             raise ValidationError(f"File too large. Maximum size is {max_mb} MB.")
 
-        value._original_name = value.name
-        return sanitize_upload(value)
-
-    def create(self, validated_data):
-        """Create a speaker deck."""
-        file = validated_data["file"]
-        validated_data["original_filename"] = getattr(file, "_original_name", file.name)
-        validated_data["file_size"] = file.size
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        """Update a speaker deck."""
-        if "file" in validated_data:
-            file = validated_data["file"]
-            validated_data["original_filename"] = getattr(
-                file, "_original_name", file.name
-            )
-            validated_data["file_size"] = file.size
-        return super().update(instance, validated_data)
+        return value
 
 
 # ---------- Notification ----------

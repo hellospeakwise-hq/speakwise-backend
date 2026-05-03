@@ -9,6 +9,11 @@ app_name = "events"
 urlpatterns = [
     path("events/tags/", views.TagListView.as_view(), name="tag-list"),
     path("events/", views.EventListView.as_view(), name="event-list-create"),
+    path(
+        "events/<str:slug>/toggle-speaker-deck-upload/",
+        views.EventSpeakerDeckToggleView.as_view(),
+        name="event-toggle-speaker-deck",
+    ),
     path("events/<str:slug>/", views.EventDetailView.as_view(), name="event-detail"),
     path(
         "events/<slug:event_slug>/speakers/",

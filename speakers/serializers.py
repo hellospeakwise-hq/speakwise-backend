@@ -6,6 +6,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
 from speakers.models import (
+    Notification,
+    SpeakerDeck,
     SpeakerExperiences,
     SpeakerFollow,
     SpeakerProfile,
@@ -229,3 +231,59 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
                 SpeakerSocialLinks.objects.create(speaker=instance, **item)
 
         return instance
+
+
+# ---------- Speaker Deck ----------
+
+
+ALLOWED_DECK_EXTENSIONS = {".pptx", ".pdf", ".key", ".ppt", ".odp", ".zip"}
+MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+class SpeakerDeckSerializer(ModelSerializer):
+    """Serializer for speaker presentation deck uploads."""
+
+    class Meta:
+        """Meta options."""
+
+        model = SpeakerDeck
+        exclude = ["created_at", "updated_at"]
+        read_only_fields = ("id", "speaker", "original_filename", "file_size")
+
+    def validate_file(self, value):
+        """Validate uploaded file extension and size."""
+        import os
+
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in ALLOWED_DECK_EXTENSIONS:
+            raise ValidationError(
+                f"Unsupported file type '{ext}'. "
+                f"Allowed: {', '.join(sorted(ALLOWED_DECK_EXTENSIONS))}"
+            )
+
+        if value.size > MAX_DECK_FILE_SIZE:
+            max_mb = MAX_DECK_FILE_SIZE // (1024 * 1024)
+            raise ValidationError(f"File too large. Maximum size is {max_mb} MB.")
+
+        return value
+
+
+# ---------- Notification ----------
+
+
+class NotificationSerializer(ModelSerializer):
+    """Read-only serializer for in-app notifications."""
+
+    class Meta:
+        """Meta options."""
+
+        model = Notification
+        fields = [
+            "id",
+            "title",
+            "message",
+            "is_read",
+            "link",
+            "created_at",
+        ]
+        read_only_fields = fields

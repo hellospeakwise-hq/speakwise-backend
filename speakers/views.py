@@ -561,24 +561,36 @@ class SpeakerDeckListCreateView(APIView):
 
         event_id = request.query_params.get("event") or request.data.get("event")
         if not event_id:
-            return None, None, Response(
-                {"detail": "The 'event' query parameter is required."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return (
+                None,
+                None,
+                Response(
+                    {"detail": "The 'event' query parameter is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                ),
             )
 
         try:
             event = Event.objects.get(pk=event_id)
         except Event.DoesNotExist:
-            return None, None, Response(
-                {"detail": "Event not found."},
-                status=status.HTTP_404_NOT_FOUND,
+            return (
+                None,
+                None,
+                Response(
+                    {"detail": "Event not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                ),
             )
 
         speaker_profile = request.user.speakers_profile_user.first()
         if not speaker_profile:
-            return None, None, Response(
-                {"detail": "Speaker profile not found for this user."},
-                status=status.HTTP_403_FORBIDDEN,
+            return (
+                None,
+                None,
+                Response(
+                    {"detail": "Speaker profile not found for this user."},
+                    status=status.HTTP_403_FORBIDDEN,
+                ),
             )
 
         return event, speaker_profile, None
@@ -630,7 +642,9 @@ class SpeakerDeckListCreateView(APIView):
 
         if not is_accepted:
             return Response(
-                {"detail": "You must be an accepted speaker for this event to upload a deck."},
+                {
+                    "detail": "You must be an accepted speaker for this event to upload a deck."
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 

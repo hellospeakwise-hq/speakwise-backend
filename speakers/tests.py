@@ -822,3 +822,603 @@ class FollowingCountFixTests(APITestCase):
             instance=self.profile_b, context={"request": None}
         )
         self.assertEqual(serializer.data["following_count"], 0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpeakerDeck model tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class SpeakerDeckModelTests(TestCase):
+    """Tests for the SpeakerDeck model."""
+
+    def setUp(self):
+        """Create user, speaker profile, and event."""
+        User = get_user_model()
+        self.user = User.objects.create(
+            username="deck_speaker",
+            email="deck_speaker@example.com",
+            password="pass123",
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.user,
+            organization="Deck Org",
+        )
+        from events.models import Event
+
+        self.event = Event.objects.create(
+            title="Deck Conference",
+            is_active=True,
+            speaker_deck_upload_enabled=True,
+        )
+
+    def test_speaker_deck_creation(self):
+        """A SpeakerDeck record is created correctly."""
+        from speakers.models import SpeakerDeck
+
+        deck = SpeakerDeck.objects.create(
+            speaker=self.profile,
+            event=self.event,
+            file="speaker_decks/test.pdf",
+            original_filename="test.pdf",
+            file_size=1024,
+            description="My presentation",
+        )
+        self.assertEqual(deck.speaker, self.profile)
+        self.assertEqual(deck.event, self.event)
+        self.assertEqual(deck.original_filename, "test.pdf")
+        self.assertEqual(deck.file_size, 1024)
+        self.assertEqual(deck.description, "My presentation")
+        self.assertIn("test.pdf", str(deck))
+
+    def test_speaker_deck_cascade_on_speaker_delete(self):
+        """Deleting a speaker profile cascades to its SpeakerDeck records."""
+        from speakers.models import SpeakerDeck
+
+        SpeakerDeck.objects.create(
+            speaker=self.profile,
+            event=self.event,
+            file="speaker_decks/test.pdf",
+            original_filename="test.pdf",
+            file_size=1024,
+        )
+        self.assertEqual(SpeakerDeck.objects.count(), 1)
+        self.profile.delete()
+        self.assertEqual(SpeakerDeck.objects.count(), 0)
+
+    def test_speaker_deck_cascade_on_event_delete(self):
+        """Deleting an event cascades to its SpeakerDeck records."""
+        from speakers.models import SpeakerDeck
+
+        SpeakerDeck.objects.create(
+            speaker=self.profile,
+            event=self.event,
+            file="speaker_decks/test.pdf",
+            original_filename="test.pdf",
+            file_size=1024,
+        )
+        self.assertEqual(SpeakerDeck.objects.count(), 1)
+        self.event.delete()
+        self.assertEqual(SpeakerDeck.objects.count(), 0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Notification model tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class NotificationModelTests(TestCase):
+    """Tests for the Notification model."""
+
+    def setUp(self):
+        """Create a user for notifications."""
+        User = get_user_model()
+        self.user = User.objects.create(
+            username="notif_user",
+            email="notif@example.com",
+            password="pass123",
+        )
+
+    def test_notification_creation(self):
+        """A Notification record is created correctly."""
+        from speakers.models import Notification
+
+        notif = Notification.objects.create(
+            recipient=self.user,
+            title="Test Notification",
+            message="This is a test.",
+            link="https://example.com/test",
+        )
+        self.assertEqual(notif.recipient, self.user)
+        self.assertEqual(notif.title, "Test Notification")
+        self.assertFalse(notif.is_read)
+        self.assertIn("Test Notification", str(notif))
+        self.assertIn(self.user.username, str(notif))
+
+    def test_notification_default_is_unread(self):
+        """Notifications default to is_read=False."""
+        from speakers.models import Notification
+
+        notif = Notification.objects.create(
+            recipient=self.user,
+            title="Unread Test",
+            message="Should be unread by default.",
+        )
+        self.assertFalse(notif.is_read)
+
+    def test_notification_cascade_on_user_delete(self):
+        """Deleting a user cascades to their notifications."""
+        from speakers.models import Notification
+
+        Notification.objects.create(
+            recipient=self.user,
+            title="Cascade Test",
+            message="Should be deleted with user.",
+        )
+        self.assertEqual(Notification.objects.count(), 1)
+        self.user.delete()
+        self.assertEqual(Notification.objects.count(), 0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpeakerDeck serializer validation tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class SpeakerDeckSerializerTests(TestCase):
+    """Tests for SpeakerDeckSerializer file validation."""
+
+    def test_valid_file_types_accepted(self):
+        """Supported file types pass validation."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from speakers.serializers import SpeakerDeckSerializer
+
+        for ext in [".pdf", ".pptx", ".ppt", ".key", ".odp", ".zip"]:
+            filename = f"test{ext}"
+            file = SimpleUploadedFile(
+                filename, b"fake content", content_type="application/octet-stream"
+            )
+            serializer = SpeakerDeckSerializer(data={"file": file})
+            # We can't fully validate without event/speaker, but validate_file should pass
+            # Test the field-level validation directly
+            validated = serializer.fields["file"].run_validation(file)
+            self.assertIsNotNone(validated)
+
+    def test_invalid_file_type_rejected(self):
+        """Unsupported file types are rejected."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from speakers.serializers import SpeakerDeckSerializer
+
+        file = SimpleUploadedFile(
+            "test.exe", b"fake content", content_type="application/octet-stream"
+        )
+        serializer = SpeakerDeckSerializer(data={"file": file})
+        # validate_file is called during is_valid
+        is_valid = serializer.is_valid()
+        self.assertFalse(is_valid)
+        self.assertIn("file", serializer.errors)
+
+    def test_file_too_large_rejected(self):
+        """Files exceeding 50 MB are rejected."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from speakers.serializers import SpeakerDeckSerializer
+
+        # Create a file just over the limit
+        large_content = b"x" * (50 * 1024 * 1024 + 1)
+        file = SimpleUploadedFile(
+            "large.pdf", large_content, content_type="application/pdf"
+        )
+        serializer = SpeakerDeckSerializer(data={"file": file})
+        is_valid = serializer.is_valid()
+        self.assertFalse(is_valid)
+        self.assertIn("file", serializer.errors)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SpeakerDeck API view tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class SpeakerDeckViewTests(APITestCase):
+    """Tests for SpeakerDeckListCreateView and SpeakerDeckRetrieveUpdateDestroyView."""
+
+    def setUp(self):
+        """Create users, speaker profile, event, organization, and accepted request."""
+        self.client = APIClient()
+        User = get_user_model()
+
+        # Speaker user
+        self.speaker_user = User.objects.create(
+            username="deck_view_speaker",
+            email="deck_view@example.com",
+            password="pass123",
+        )
+        self.speaker_profile = SpeakerProfile.objects.create(
+            user_account=self.speaker_user,
+            organization="Deck View Org",
+        )
+
+        # Non-speaker user (has no speaker profile)
+        self.other_user = User.objects.create(
+            username="deck_view_other",
+            email="deck_other@example.com",
+            password="pass123",
+        )
+
+        # Non-accepted speaker
+        self.rejected_user = User.objects.create(
+            username="rejected_speaker",
+            email="rejected@example.com",
+            password="pass123",
+        )
+        self.rejected_profile = SpeakerProfile.objects.create(
+            user_account=self.rejected_user,
+            organization="Rejected Org",
+        )
+
+        # Organization
+        from organizations.models import Organization
+
+        self.organization = Organization.objects.create(
+            name="Deck View Org",
+            email="deckorg@example.com",
+            created_by=self.other_user,
+        )
+
+        # Event with uploads enabled
+        from events.models import Event
+
+        self.event = Event.objects.create(
+            title="Deck View Conference",
+            is_active=True,
+            speaker_deck_upload_enabled=True,
+            organizer=self.organization,
+        )
+
+        # Event with uploads disabled
+        self.event_disabled = Event.objects.create(
+            title="Disabled Conference",
+            is_active=True,
+            speaker_deck_upload_enabled=False,
+            organizer=self.organization,
+        )
+
+        # Accepted speaker request
+        from speakerrequests.models import SpeakerRequest
+
+        SpeakerRequest.objects.create(
+            organizer=self.organization,
+            speaker=self.speaker_profile,
+            event=self.event,
+            status="accepted",
+            message="Welcome!",
+        )
+
+        # Rejected speaker request
+        SpeakerRequest.objects.create(
+            organizer=self.organization,
+            speaker=self.rejected_profile,
+            event=self.event,
+            status="rejected",
+            message="Sorry.",
+        )
+
+        self.list_url = reverse("speakers:speaker_decks_list_create")
+
+    def _make_file(self, name="presentation.pdf", size=1024):
+        """Create a SimpleUploadedFile for testing."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return SimpleUploadedFile(
+            name, b"x" * size, content_type="application/octet-stream"
+        )
+
+    # ── Authentication ──────────────────────────────────────────────────────
+
+    def test_unauthenticated_get_returns_401(self):
+        """GET without auth returns 401."""
+        res = self.client.get(self.list_url, {"event": str(self.event.id)})
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unauthenticated_post_returns_401(self):
+        """POST without auth returns 401."""
+        res = self.client.post(self.list_url, {"event": str(self.event.id)})
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # ── Missing event parameter ─────────────────────────────────────────────
+
+    def test_get_without_event_param_returns_400(self):
+        """GET without event query param returns 400."""
+        self.client.force_authenticate(self.speaker_user)
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_without_event_param_returns_400(self):
+        """POST without event query param returns 400."""
+        self.client.force_authenticate(self.speaker_user)
+        file = self._make_file()
+        res = self.client.post(self.list_url, {"file": file}, format="multipart")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # ── No speaker profile ──────────────────────────────────────────────────
+
+    def test_post_without_speaker_profile_returns_403(self):
+        """User without a speaker profile cannot upload."""
+        self.client.force_authenticate(self.other_user)
+        file = self._make_file()
+        res = self.client.post(
+            f"{self.list_url}?event={self.event.id}",
+            {"file": file},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    # ── Upload disabled ─────────────────────────────────────────────────────
+
+    def test_post_when_upload_disabled_returns_403(self):
+        """Cannot upload when speaker_deck_upload_enabled is False."""
+        # Create accepted request for disabled event
+        from speakerrequests.models import SpeakerRequest
+
+        SpeakerRequest.objects.create(
+            organizer=self.organization,
+            speaker=self.speaker_profile,
+            event=self.event_disabled,
+            status="accepted",
+            message="Welcome!",
+        )
+
+        self.client.force_authenticate(self.speaker_user)
+        file = self._make_file()
+        res = self.client.post(
+            f"{self.list_url}?event={self.event_disabled.id}",
+            {"file": file},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("not enabled", res.data["detail"].lower())
+
+    # ── Not accepted ────────────────────────────────────────────────────────
+
+    def test_post_when_not_accepted_returns_403(self):
+        """Cannot upload when speaker is not accepted for the event."""
+        self.client.force_authenticate(self.rejected_user)
+        file = self._make_file()
+        res = self.client.post(
+            f"{self.list_url}?event={self.event.id}",
+            {"file": file},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("accepted speaker", res.data["detail"].lower())
+
+    # ── Successful upload ───────────────────────────────────────────────────
+
+    def test_post_successful_upload(self):
+        """Accepted speaker can upload a deck when uploads are enabled."""
+        self.client.force_authenticate(self.speaker_user)
+        file = self._make_file("my_talk.pptx", 2048)
+        res = self.client.post(
+            f"{self.list_url}?event={self.event.id}",
+            {"file": file, "description": "My keynote slides"},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["original_filename"], "my_talk.pptx")
+        self.assertEqual(res.data["file_size"], 2048)
+        self.assertEqual(res.data["description"], "My keynote slides")
+        self.assertEqual(res.data["event"], str(self.event.id))
+
+    def test_post_multiple_uploads_allowed(self):
+        """Multiple deck uploads are allowed for the same event."""
+        self.client.force_authenticate(self.speaker_user)
+        file1 = self._make_file("talk_v1.pdf", 1024)
+        file2 = self._make_file("talk_v2.pdf", 2048)
+
+        res1 = self.client.post(
+            f"{self.list_url}?event={self.event.id}",
+            {"file": file1},
+            format="multipart",
+        )
+        res2 = self.client.post(
+            f"{self.list_url}?event={self.event.id}",
+            {"file": file2},
+            format="multipart",
+        )
+        self.assertEqual(res1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res2.status_code, status.HTTP_201_CREATED)
+
+    # ── List decks ──────────────────────────────────────────────────────────
+
+    def test_get_lists_only_own_decks(self):
+        """GET returns only the authenticated speaker's decks for the event."""
+        from speakers.models import SpeakerDeck
+
+        SpeakerDeck.objects.create(
+            speaker=self.speaker_profile,
+            event=self.event,
+            file="speaker_decks/mine.pdf",
+            original_filename="mine.pdf",
+            file_size=512,
+        )
+
+        self.client.force_authenticate(self.speaker_user)
+        res = self.client.get(f"{self.list_url}?event={self.event.id}")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]["original_filename"], "mine.pdf")
+
+    # ── Detail CRUD ─────────────────────────────────────────────────────────
+
+    def test_detail_get_patch_delete(self):
+        """Detail view supports GET, PATCH, DELETE for own decks."""
+        from speakers.models import SpeakerDeck
+
+        deck = SpeakerDeck.objects.create(
+            speaker=self.speaker_profile,
+            event=self.event,
+            file="speaker_decks/crud.pdf",
+            original_filename="crud.pdf",
+            file_size=512,
+        )
+        detail_url = reverse("speakers:speaker_deck_detail", kwargs={"pk": deck.id})
+
+        self.client.force_authenticate(self.speaker_user)
+
+        # GET
+        res = self.client.get(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["original_filename"], "crud.pdf")
+
+        # PATCH description
+        res = self.client.patch(
+            detail_url, {"description": "Updated desc"}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        deck.refresh_from_db()
+        self.assertEqual(deck.description, "Updated desc")
+
+        # DELETE
+        res = self.client.delete(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        from speakers.models import SpeakerDeck as SD
+
+        self.assertFalse(SD.objects.filter(id=deck.id).exists())
+
+    def test_detail_other_user_gets_404(self):
+        """Other users cannot access another speaker's deck."""
+        from speakers.models import SpeakerDeck
+
+        deck = SpeakerDeck.objects.create(
+            speaker=self.speaker_profile,
+            event=self.event,
+            file="speaker_decks/private.pdf",
+            original_filename="private.pdf",
+            file_size=512,
+        )
+        detail_url = reverse("speakers:speaker_deck_detail", kwargs={"pk": deck.id})
+
+        self.client.force_authenticate(self.rejected_user)
+        res = self.client.get(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Notification API view tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class NotificationViewTests(APITestCase):
+    """Tests for NotificationListView and NotificationMarkReadView."""
+
+    def setUp(self):
+        """Create users and notifications."""
+        self.client = APIClient()
+        User = get_user_model()
+
+        self.user = User.objects.create(
+            username="notif_view_user",
+            email="notifview@example.com",
+            password="pass123",
+        )
+        self.other_user = User.objects.create(
+            username="notif_other",
+            email="notifother@example.com",
+            password="pass123",
+        )
+
+        from speakers.models import Notification
+
+        self.notif1 = Notification.objects.create(
+            recipient=self.user,
+            title="Upload Your Deck",
+            message="Please upload your presentation.",
+            link="https://example.com/upload",
+        )
+        self.notif2 = Notification.objects.create(
+            recipient=self.user,
+            title="Reminder",
+            message="Don't forget to upload.",
+            is_read=True,
+        )
+        # Another user's notification (should not appear)
+        self.notif_other = Notification.objects.create(
+            recipient=self.other_user,
+            title="Other's Notification",
+            message="Not for you.",
+        )
+
+        self.list_url = reverse("speakers:notification_list")
+
+    # ── Authentication ──────────────────────────────────────────────────────
+
+    def test_unauthenticated_get_returns_401(self):
+        """GET without auth returns 401."""
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # ── List ────────────────────────────────────────────────────────────────
+
+    def test_list_returns_only_own_notifications(self):
+        """GET returns only the authenticated user's notifications."""
+        self.client.force_authenticate(self.user)
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 2)
+        titles = {n["title"] for n in res.data}
+        self.assertIn("Upload Your Deck", titles)
+        self.assertIn("Reminder", titles)
+        self.assertNotIn("Other's Notification", titles)
+
+    def test_list_filter_unread(self):
+        """GET ?is_read=false returns only unread notifications."""
+        self.client.force_authenticate(self.user)
+        res = self.client.get(f"{self.list_url}?is_read=false")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]["title"], "Upload Your Deck")
+
+    def test_list_filter_read(self):
+        """GET ?is_read=true returns only read notifications."""
+        self.client.force_authenticate(self.user)
+        res = self.client.get(f"{self.list_url}?is_read=true")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]["title"], "Reminder")
+
+    # ── Mark as read ────────────────────────────────────────────────────────
+
+    def test_mark_read_success(self):
+        """PATCH marks a notification as read."""
+        mark_url = reverse(
+            "speakers:notification_mark_read", kwargs={"pk": self.notif1.id}
+        )
+        self.client.force_authenticate(self.user)
+        res = self.client.patch(mark_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data["is_read"])
+        self.notif1.refresh_from_db()
+        self.assertTrue(self.notif1.is_read)
+
+    def test_mark_read_other_users_notification_returns_404(self):
+        """Cannot mark another user's notification as read."""
+        mark_url = reverse(
+            "speakers:notification_mark_read", kwargs={"pk": self.notif_other.id}
+        )
+        self.client.force_authenticate(self.user)
+        res = self.client.patch(mark_url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_mark_read_nonexistent_returns_404(self):
+        """PATCH on non-existent notification returns 404."""
+        import uuid
+
+        mark_url = reverse(
+            "speakers:notification_mark_read", kwargs={"pk": uuid.uuid4()}
+        )
+        self.client.force_authenticate(self.user)
+        res = self.client.patch(mark_url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)

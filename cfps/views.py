@@ -10,9 +10,9 @@ from rest_framework.generics import (
 )
 from rest_framework.permissions import IsAuthenticated
 
+from base.permissions import IsOrganizationAdminOrOrganizer
 from cfps.choices import CFPStatusChoices
 from cfps.models import CFPSubmission
-from cfps.permissions import IsEventOrganizer
 from cfps.serializers import CFPStatusUpdateSerializer, CFPSubmissionSerializer
 from cfps.services import CFPEmailService
 from events.models import Event
@@ -36,7 +36,7 @@ class CFPSubmissionListCreateView(ListCreateAPIView):
     def get_queryset(self):
         """Return submissions scoped to the event and user role."""
         event = self.get_event()
-        if IsEventOrganizer().has_object_permission(self.request, self, event):
+        if IsOrganizationAdminOrOrganizer().has_object_permission(self.request, self, event):
             return CFPSubmission.objects.filter(event=event).prefetch_related(
                 "co_speakers"
             )
@@ -73,7 +73,7 @@ class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
         obj = super().get_object()
         user = self.request.user
         is_submitter = obj.submitter == user
-        is_organizer = IsEventOrganizer().has_object_permission(self.request, self, obj)
+        is_organizer = IsOrganizationAdminOrOrganizer().has_object_permission(self.request, self, obj)
         if not (is_submitter or is_organizer):
             raise PermissionDenied(
                 "You do not have permission to access this submission."
@@ -94,7 +94,7 @@ class CFPStatusUpdateView(UpdateAPIView):
     """PATCH — organizer updates submission status (accepted / rejected)."""
 
     serializer_class = CFPStatusUpdateSerializer
-    permission_classes = [IsAuthenticated, IsEventOrganizer]
+    permission_classes = [IsAuthenticated, IsOrganizationAdminOrOrganizer]
     http_method_names = ["patch", "head", "options"]
 
     def get_queryset(self):

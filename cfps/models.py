@@ -57,6 +57,11 @@ class CFPSubmission(TimeStampedModel):
         verbose_name_plural = "CFP Submissions"
         ordering = ["-created_at"]
 
+    @property
+    def organizer(self):
+        """Return the organization that owns the event this submission belongs to."""
+        return self.event.organizer
+
     def __str__(self):
         """Return string representation of the submission."""
         return f"{self.submitter} — {self.event.title}"

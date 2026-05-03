@@ -1,9 +1,10 @@
 """CFP serializers."""
 
+from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
-from cfp.choices import CFPStatusChoices
-from cfp.models import CFPSubmission
+from cfps.choices import CFPStatusChoices
+from cfps.models import CFPSubmission
 from speakers.models import SpeakerProfile
 
 
@@ -26,7 +27,7 @@ class CoSpeakerSerializer(serializers.ModelSerializer):
         )
 
 
-class CFPSubmissionSerializer(serializers.ModelSerializer):
+class CFPSubmissionSerializer(WritableNestedModelSerializer):
     """Serializer for creating and reading CFP submissions."""
 
     co_speakers = serializers.PrimaryKeyRelatedField(
@@ -44,26 +45,13 @@ class CFPSubmissionSerializer(serializers.ModelSerializer):
         exclude = ["created_at", "updated_at"]
         read_only_fields = ["id", "submitter", "submitter_email", "status", "event"]
 
-    def create(self, validated_data):
-        """Create a new CFP submission."""
-        co_speakers = validated_data.pop("co_speakers", [])
-        submission = CFPSubmission.objects.create(**validated_data)
-        submission.co_speakers.set(co_speakers)
-        return submission
-
     def update(self, instance, validated_data):
         """Update a CFP submission, only allowed while pending."""
         if instance.status != CFPStatusChoices.PENDING:
             raise serializers.ValidationError(
                 "Submissions can only be edited while they are pending review."
             )
-        co_speakers = validated_data.pop("co_speakers", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        if co_speakers is not None:
-            instance.co_speakers.set(co_speakers)
-        return instance
+        return super().update(instance, validated_data)
 
 
 class CFPStatusUpdateSerializer(serializers.ModelSerializer):

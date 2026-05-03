@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import models
 
 from base.models import TimeStampedModel
-from cfp.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
+from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
 from events.models import Event
 from speakers.models import SpeakerProfile
 from talks.choices import TalkCategoryChoices

@@ -4,9 +4,9 @@ from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
-from cfp.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
-from cfp.models import CFPSubmission
-from cfp.serializers import CFPStatusUpdateSerializer, CFPSubmissionSerializer
+from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
+from cfps.models import CFPSubmission
+from cfps.serializers import CFPStatusUpdateSerializer, CFPSubmissionSerializer
 from events.models import Country, Event, Location
 from organizations.models import Organization, OrganizationMembership
 from users.models import User

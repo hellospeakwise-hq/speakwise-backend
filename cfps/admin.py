@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from cfp.models import CFPSubmission
+from cfps.models import CFPSubmission
 
 
 @admin.register(CFPSubmission)

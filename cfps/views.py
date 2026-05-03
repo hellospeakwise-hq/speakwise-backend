@@ -1,7 +1,8 @@
 """CFP views."""
 
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -9,27 +10,12 @@ from rest_framework.generics import (
 )
 from rest_framework.permissions import IsAuthenticated
 
-from cfp.choices import CFPStatusChoices
-from cfp.models import CFPSubmission
-from cfp.serializers import CFPStatusUpdateSerializer, CFPSubmissionSerializer
-from cfp.services import CFPEmailService
+from cfps.choices import CFPStatusChoices
+from cfps.models import CFPSubmission
+from cfps.permissions import IsEventOrganizer
+from cfps.serializers import CFPStatusUpdateSerializer, CFPSubmissionSerializer
+from cfps.services import CFPEmailService
 from events.models import Event
-from organizations.models import OrganizationMembership
-
-
-def _get_event_or_404(slug):
-    try:
-        return Event.objects.get(slug=slug)
-    except Event.DoesNotExist as err:
-        raise NotFound("Event not found.") from err
-
-
-def _is_event_organizer(user, event):
-    return OrganizationMembership.objects.filter(
-        organization=event.organizer,
-        user=user,
-        role__in=["ADMIN", "ORGANIZER"],
-    ).exists()
 
 
 @extend_schema(tags=["CFP"])
@@ -44,19 +30,18 @@ class CFPSubmissionListCreateView(ListCreateAPIView):
     def get_event(self):
         """Return the event for this request, cached on the view instance."""
         if not hasattr(self, "_event"):
-            self._event = _get_event_or_404(self.kwargs["slug"])
+            self._event = get_object_or_404(Event, slug=self.kwargs["slug"])
         return self._event
 
     def get_queryset(self):
         """Return submissions scoped to the event and user role."""
         event = self.get_event()
-        user = self.request.user
-        if _is_event_organizer(user, event):
+        if IsEventOrganizer().has_object_permission(self.request, self, event):
             return CFPSubmission.objects.filter(event=event).prefetch_related(
                 "co_speakers"
             )
         return CFPSubmission.objects.filter(
-            event=event, submitter=user
+            event=event, submitter=self.request.user
         ).prefetch_related("co_speakers")
 
     def perform_create(self, serializer):
@@ -88,7 +73,7 @@ class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
         obj = super().get_object()
         user = self.request.user
         is_submitter = obj.submitter == user
-        is_organizer = _is_event_organizer(user, obj.event)
+        is_organizer = IsEventOrganizer().has_object_permission(self.request, self, obj)
         if not (is_submitter or is_organizer):
             raise PermissionDenied(
                 "You do not have permission to access this submission."
@@ -109,21 +94,12 @@ class CFPStatusUpdateView(UpdateAPIView):
     """PATCH — organizer updates submission status (accepted / rejected)."""
 
     serializer_class = CFPStatusUpdateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsEventOrganizer]
     http_method_names = ["patch", "head", "options"]
 
     def get_queryset(self):
         """Return all submissions."""
         return CFPSubmission.objects.all()
-
-    def get_object(self):
-        """Return the submission if the user is an event organizer."""
-        obj = super().get_object()
-        if not _is_event_organizer(self.request.user, obj.event):
-            raise PermissionDenied(
-                "Only event organizers can update submission status."
-            )
-        return obj
 
     def perform_update(self, serializer):
         """Save the status change and notify the submitter by email."""

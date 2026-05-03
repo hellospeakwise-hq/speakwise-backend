@@ -6,8 +6,8 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from cfp.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
-from cfp.models import CFPSubmission
+from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
+from cfps.models import CFPSubmission
 from events.models import Country, Event, Location
 from organizations.models import Organization, OrganizationMembership
 from users.models import User
@@ -249,7 +249,7 @@ class CFPStatusUpdateViewTest(TestCase):
         )
         self.url = reverse("cfp:cfp-status-update", kwargs={"pk": self.submission.id})
 
-    @patch("cfp.views.CFPEmailService.send_status_notification")
+    @patch("cfps.views.CFPEmailService.send_status_notification")
     def test_organizer_can_accept(self, mock_email):
         """Test that an organizer can accept a submission."""
         self.client.force_authenticate(user=self.organizer_user)
@@ -259,7 +259,7 @@ class CFPStatusUpdateViewTest(TestCase):
         self.assertEqual(self.submission.status, CFPStatusChoices.ACCEPTED)
         mock_email.assert_called_once_with(self.submission)
 
-    @patch("cfp.views.CFPEmailService.send_status_notification")
+    @patch("cfps.views.CFPEmailService.send_status_notification")
     def test_organizer_can_reject(self, mock_email):
         """Test that an organizer can reject a submission."""
         self.client.force_authenticate(user=self.organizer_user)
@@ -269,7 +269,7 @@ class CFPStatusUpdateViewTest(TestCase):
         self.assertEqual(self.submission.status, CFPStatusChoices.REJECTED)
         mock_email.assert_called_once()
 
-    @patch("cfp.views.CFPEmailService.send_status_notification")
+    @patch("cfps.views.CFPEmailService.send_status_notification")
     def test_submitter_cannot_update_status(self, mock_email):
         """Test that a submitter cannot update the status of their own submission."""
         self.client.force_authenticate(user=self.speaker_user)

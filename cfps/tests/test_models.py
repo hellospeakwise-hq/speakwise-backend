@@ -3,8 +3,8 @@
 from django.db import IntegrityError
 from django.test import TestCase
 
-from cfp.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
-from cfp.models import CFPSubmission
+from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
+from cfps.models import CFPSubmission
 from events.models import Country, Event, Location
 from organizations.models import Organization, OrganizationMembership
 from users.models import User

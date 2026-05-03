@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from cfp import views
+from cfps import views
 
 app_name = "cfp"
 

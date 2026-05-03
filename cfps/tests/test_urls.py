@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
-from cfp.views import (
+from cfps.views import (
     CFPStatusUpdateView,
     CFPSubmissionDetailView,
     CFPSubmissionListCreateView,

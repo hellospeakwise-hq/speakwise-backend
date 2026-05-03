@@ -36,7 +36,9 @@ class CFPSubmissionListCreateView(ListCreateAPIView):
     def get_queryset(self):
         """Return submissions scoped to the event and user role."""
         event = self.get_event()
-        if IsOrganizationAdminOrOrganizer().has_object_permission(self.request, self, event):
+        if IsOrganizationAdminOrOrganizer().has_object_permission(
+            self.request, self, event
+        ):
             return CFPSubmission.objects.filter(event=event).prefetch_related(
                 "co_speakers"
             )
@@ -73,7 +75,9 @@ class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
         obj = super().get_object()
         user = self.request.user
         is_submitter = obj.submitter == user
-        is_organizer = IsOrganizationAdminOrOrganizer().has_object_permission(self.request, self, obj)
+        is_organizer = IsOrganizationAdminOrOrganizer().has_object_permission(
+            self.request, self, obj
+        )
         if not (is_submitter or is_organizer):
             raise PermissionDenied(
                 "You do not have permission to access this submission."

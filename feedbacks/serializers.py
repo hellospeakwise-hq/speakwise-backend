@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from feedbacks.models import Feedback
+from feedbacks.models import Feedback, SpeakerFeedbackSettings
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
@@ -13,3 +13,14 @@ class FeedbackSerializer(serializers.ModelSerializer):
 
         model = Feedback
         exclude = ["created_at", "updated_at"]
+
+
+class SpeakerFeedbackSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for the per-event speaker feedback toggle."""
+
+    class Meta:
+        """Meta options."""
+
+        model = SpeakerFeedbackSettings
+        fields = ["id", "speaker", "event", "feedback_enabled"]
+        read_only_fields = ["id", "speaker", "feedback_enabled"]

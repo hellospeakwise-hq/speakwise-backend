@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("speakers", "0007_remove_speakerprofile_skill_tag_and_more"),
     ]

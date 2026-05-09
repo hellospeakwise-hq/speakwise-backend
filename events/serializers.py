@@ -123,7 +123,9 @@ class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
     event_image = serializers.ImageField(required=False, allow_null=True)
-    tags = TagSerializer(many=True, required=False)
+    tags = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Tag.objects.all(), required=False
+    )
     website = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
@@ -131,6 +133,11 @@ class EventSerializer(WritableNestedModelSerializer):
     name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
     date_range = serializers.SerializerMethodField()  # New field for start/end dates
+    cfp_open_date = serializers.DateTimeField(required=False, allow_null=True)
+    cfp_deadline = serializers.DateTimeField(required=False, allow_null=True)
+    cfp_speaker_notification_date = serializers.DateField(
+        required=False, allow_null=True
+    )
 
     class Meta:
         """Meta class for the EventSerializer."""
@@ -144,22 +151,27 @@ class EventSerializer(WritableNestedModelSerializer):
     # that already exists.
     # ------------------------------------------------------------------
 
+    def to_representation(self, instance):
+        """Return full tag objects instead of plain UUIDs."""
+        data = super().to_representation(instance)
+        data["tags"] = TagSerializer(instance.tags.all(), many=True).data
+        return data
+
     def create(self, validated_data):
         """Create an event, resolving the nested location/country and tags."""
-        tags_data = validated_data.pop("tags", [])
+        tags = validated_data.pop("tags", [])
         location_data = validated_data.pop("location", None)
         location = _resolve_location(location_data)
         if location:
             validated_data["location"] = location
         event = super(WritableNestedModelSerializer, self).create(validated_data)
-        if tags_data:
-            tag_ids = [t.get("id") for t in tags_data if t.get("id")]
-            event.tags.set(Tag.objects.filter(id__in=tag_ids))
+        if tags:
+            event.tags.set(tags)
         return event
 
     def update(self, instance, validated_data):
         """Update an event, resolving the nested location/country and tags."""
-        tags_data = validated_data.pop("tags", None)
+        tags = validated_data.pop("tags", None)
         location_data = validated_data.pop("location", None)
         if location_data is not None:
             location = _resolve_location(location_data)
@@ -168,9 +180,8 @@ class EventSerializer(WritableNestedModelSerializer):
         instance = super(WritableNestedModelSerializer, self).update(
             instance, validated_data
         )
-        if tags_data is not None:
-            tag_ids = [t.get("id") for t in tags_data if t.get("id")]
-            instance.tags.set(Tag.objects.filter(id__in=tag_ids))
+        if tags is not None:
+            instance.tags.set(tags)
         return instance
 
     def get_date(self, obj) -> str | None:

@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("speakerrequests", "0003_alter_speakerrequest_updated_at"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

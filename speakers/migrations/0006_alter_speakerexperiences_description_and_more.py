@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("events", "0001_initial"),
         ("speakers", "0005_alter_speakerexperiences_event_date"),

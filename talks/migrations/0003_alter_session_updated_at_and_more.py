@@ -4,25 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('talks', '0002_talkreviewcomment'),
+        ("talks", "0002_talkreviewcomment"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='session',
-            name='updated_at',
+            model_name="session",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='talkreviewcomment',
-            name='updated_at',
+            model_name="talkreviewcomment",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='talks',
-            name='updated_at',
+            model_name="talks",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

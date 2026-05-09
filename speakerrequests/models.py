@@ -15,10 +15,10 @@ class SpeakerRequest(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organizer = models.ForeignKey(
-        "organizations.Organization", on_delete=models.DO_NOTHING
+        "organizations.Organization", on_delete=models.CASCADE
     )
-    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.DO_NOTHING)
-    event = models.ForeignKey("events.Event", on_delete=models.DO_NOTHING)
+    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.CASCADE)
+    event = models.ForeignKey("events.Event", on_delete=models.CASCADE)
     status = models.CharField(
         max_length=10,
         choices=RequestStatusChoices.choices,

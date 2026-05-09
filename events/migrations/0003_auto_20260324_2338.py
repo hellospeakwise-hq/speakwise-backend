@@ -3,14 +3,15 @@
 from django.db import migrations
 from django.utils.text import slugify
 
+
 def create_existing_event_slugs(apps, schema_editor):
     Event = apps.get_model("events", "Event")
     for event in Event.objects.all():
         event.slug = slugify(event.title)
         event.save()
 
-class Migration(migrations.Migration):
 
+class Migration(migrations.Migration):
     dependencies = [
         ("events", "0002_alter_country_updated_at_alter_event_updated_at_and_more"),
     ]

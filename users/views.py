@@ -1,5 +1,6 @@
 """users views."""
 
+import logging
 from abc import ABC, abstractmethod
 
 from dj_rest_auth.views import LoginView
@@ -25,6 +26,8 @@ from users.serializers import (
 )
 from users.services import EmailService
 
+logger = logging.getLogger(__name__)
+
 
 @extend_schema(responses=UserSerializer)
 class UserCreateView(CreateAPIView):
@@ -33,6 +36,16 @@ class UserCreateView(CreateAPIView):
     serializer_class = UserSerializer
     queryset = User.objects.all()
     permission_classes = [AllowAny]
+
+    def perform_create(self, serializer):
+        """Create user and send welcome email."""
+        user = serializer.save()
+        try:
+            EmailService.send_welcome_email(user)
+        except Exception:
+            logger.warning(
+                "Welcome email failed for user ID: %s", user.id, exc_info=True
+            )
 
 
 class UserLogoutView(APIView):

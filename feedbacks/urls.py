@@ -11,5 +11,10 @@ urlpatterns = [
         "feedbacks/",
         views.FeedbackListCreateView.as_view(),
         name="feedbacks_list_create",
-    )
+    ),
+    path(
+        "feedbacks/toggle/",
+        views.SpeakerFeedbackToggleView.as_view(),
+        name="feedback_toggle",
+    ),
 ]

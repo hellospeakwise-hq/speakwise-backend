@@ -612,7 +612,9 @@ class SpeakerDeckListCreateView(APIView):
         if error:
             return error
 
-        decks = SpeakerDeck.objects.filter(speaker__user_account=request.user, event=event)
+        decks = SpeakerDeck.objects.filter(
+            speaker__user_account=request.user, event=event
+        )
         serializer = SpeakerDeckSerializer(decks, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

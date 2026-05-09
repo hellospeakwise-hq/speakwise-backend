@@ -10,11 +10,11 @@ from rest_framework.views import APIView
 
 from attendees.models import Attendance
 from events.models import Event
-from speakers.models import SpeakerProfile
 from speakerrequests.models import SpeakerRequest
+from speakers.models import SpeakerProfile
 
 from .models import Feedback, SpeakerFeedbackSettings
-from .serializers import FeedbackSerializer, SpeakerFeedbackSettingsSerializer
+from .serializers import FeedbackSerializer
 
 
 class FeedbackListCreateView(APIView):
@@ -67,9 +67,7 @@ class FeedbackListCreateView(APIView):
                 )
                 if not fb_settings.feedback_enabled:
                     return Response(
-                        {
-                            "detail": "The speaker has disabled feedback for this event."
-                        },
+                        {"detail": "The speaker has disabled feedback for this event."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
             except SpeakerFeedbackSettings.DoesNotExist:

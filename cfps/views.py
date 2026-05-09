@@ -2,8 +2,9 @@
 
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
+    ListAPIView,
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
     UpdateAPIView,
@@ -47,12 +48,8 @@ class CFPSubmissionListCreateView(ListCreateAPIView):
         ).prefetch_related("co_speakers")
 
     def perform_create(self, serializer):
-        """Validate uniqueness and save the submission."""
-        event = self.get_event()
-        user = self.request.user
-        if CFPSubmission.objects.filter(event=event, submitter=user).exists():
-            raise ValidationError("You have already submitted a CFP for this event.")
-        serializer.save(event=event, submitter=user)
+        """Save the submission."""
+        serializer.save(event=self.get_event(), submitter=self.request.user)
 
 
 @extend_schema(tags=["CFP"])
@@ -91,6 +88,23 @@ class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
         if instance.status != CFPStatusChoices.PENDING:
             raise PermissionDenied("Submissions can only be deleted while pending.")
         instance.delete()
+
+
+@extend_schema(tags=["CFP"])
+class MyCFPSubmissionsView(ListAPIView):
+    """GET — returns all CFP submissions by the authenticated user across all events."""
+
+    serializer_class = CFPSubmissionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return all submissions by the current user."""
+        return (
+            CFPSubmission.objects.filter(submitter=self.request.user)
+            .prefetch_related("co_speakers")
+            .select_related("event")
+            .order_by("-event__start_date_time")
+        )
 
 
 @extend_schema(tags=["CFP"])

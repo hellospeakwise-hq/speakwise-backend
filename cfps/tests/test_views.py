@@ -70,12 +70,44 @@ class CFPSubmissionListCreateViewTest(TestCase):
         response = self.client.post(self.url, CFP_PAYLOAD, format="json")
         self.assertEqual(response.status_code, 201)
 
-    def test_duplicate_submission_rejected(self):
-        """Test that a user cannot submit more than once per event."""
+    def test_multiple_submissions_same_event_allowed(self):
+        """Test that a user can submit more than one CFP to the same event."""
         self.client.force_authenticate(user=self.speaker_user)
-        self.client.post(self.url, CFP_PAYLOAD, format="json")
+        r1 = self.client.post(self.url, CFP_PAYLOAD, format="json")
+        r2 = self.client.post(self.url, CFP_PAYLOAD, format="json")
+        self.assertEqual(r1.status_code, 201)
+        self.assertEqual(r2.status_code, 201)
+        self.assertNotEqual(r1.data["id"], r2.data["id"])
+
+    def test_submission_response_includes_event_slug_and_title(self):
+        """Test that the submission response includes event_slug and event_title."""
+        self.client.force_authenticate(user=self.speaker_user)
         response = self.client.post(self.url, CFP_PAYLOAD, format="json")
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("event_slug", response.data)
+        self.assertIn("event_title", response.data)
+        self.assertEqual(response.data["event_slug"], self.event.slug)
+        self.assertEqual(response.data["event_title"], self.event.title)
+
+    def test_submission_with_new_fields(self):
+        """Test that new CFP fields (title, duration, language, etc.) are accepted."""
+        self.client.force_authenticate(user=self.speaker_user)
+        payload = {
+            **CFP_PAYLOAD,
+            "title": "My Talk Title",
+            "duration": 30,
+            "language": "French",
+            "outline": "Intro, body, conclusion.",
+            "is_first_time_speaker": True,
+            "travel_support_needed": True,
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["title"], "My Talk Title")
+        self.assertEqual(response.data["duration"], 30)
+        self.assertEqual(response.data["language"], "French")
+        self.assertTrue(response.data["is_first_time_speaker"])
+        self.assertTrue(response.data["travel_support_needed"])
 
     def test_submitter_sees_only_own_submission(self):
         """Test that a submitter only sees their own submission."""
@@ -276,3 +308,94 @@ class CFPStatusUpdateViewTest(TestCase):
         response = self.client.patch(self.url, {"status": "accepted"}, format="json")
         self.assertEqual(response.status_code, 403)
         mock_email.assert_not_called()
+
+
+class MyCFPSubmissionsViewTest(TestCase):
+    """Test GET /api/cfp/mine/."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = APIClient()
+        self.speaker = User.objects.create(
+            username="mine_speaker", email="mine@test.com", password="testpass"
+        )
+        self.other = User.objects.create(
+            username="mine_other", email="mine_other@test.com", password="testpass"
+        )
+        self.org = Organization.objects.create(
+            name="MineOrg", email="mineorg@test.com", created_by=self.speaker
+        )
+        OrganizationMembership.objects.create(
+            organization=self.org,
+            user=self.speaker,
+            role="ADMIN",
+            added_by=self.speaker,
+        )
+        self.event_a = Event.objects.create(
+            title="Mine Event A",
+            description="desc",
+            location=Location.objects.create(
+                venue="V",
+                address="A",
+                city="C",
+                state="S",
+                country=Country.objects.create(name="MineCountry"),
+            ),
+            organizer=self.org,
+        )
+        self.event_b = Event.objects.create(
+            title="Mine Event B",
+            description="desc",
+            location=Location.objects.create(
+                venue="V2",
+                address="A2",
+                city="C2",
+                state="S2",
+                country=Country.objects.create(name="MineCountry2"),
+            ),
+            organizer=self.org,
+        )
+        self.sub_a = CFPSubmission.objects.create(
+            event=self.event_a, submitter=self.speaker, **CFP_PAYLOAD
+        )
+        self.sub_b = CFPSubmission.objects.create(
+            event=self.event_b, submitter=self.speaker, **CFP_PAYLOAD
+        )
+        # submission by a different user — should not appear
+        CFPSubmission.objects.create(
+            event=self.event_a, submitter=self.other, **CFP_PAYLOAD
+        )
+        self.url = reverse("cfp:cfp-mine")
+
+    def test_unauthenticated_cannot_access(self):
+        """Test that unauthenticated users cannot access the mine endpoint."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 401)
+
+    def test_returns_only_own_submissions(self):
+        """Test that only the authenticated user's own submissions are returned."""
+        self.client.force_authenticate(user=self.speaker)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        ids = {s["id"] for s in response.data}
+        self.assertIn(str(self.sub_a.id), ids)
+        self.assertIn(str(self.sub_b.id), ids)
+        self.assertEqual(len(response.data), 2)
+
+    def test_other_user_sees_only_their_own(self):
+        """Test that a different user only sees their own submissions."""
+        self.client.force_authenticate(user=self.other)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+
+    def test_response_includes_event_slug_and_title(self):
+        """Test that each result includes event_slug and event_title."""
+        self.client.force_authenticate(user=self.speaker)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        for item in response.data:
+            self.assertIn("event_slug", item)
+            self.assertIn("event_title", item)
+            self.assertIsNotNone(item["event_slug"])
+            self.assertIsNotNone(item["event_title"])

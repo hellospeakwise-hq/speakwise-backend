@@ -1,6 +1,5 @@
 """CFP serializers."""
 
-from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
 from cfps.choices import CFPStatusChoices
@@ -27,7 +26,7 @@ class CoSpeakerSerializer(serializers.ModelSerializer):
         )
 
 
-class CFPSubmissionSerializer(WritableNestedModelSerializer):
+class CFPSubmissionSerializer(serializers.ModelSerializer):
     """Serializer for creating and reading CFP submissions."""
 
     co_speakers = serializers.PrimaryKeyRelatedField(
@@ -37,13 +36,27 @@ class CFPSubmissionSerializer(WritableNestedModelSerializer):
         source="co_speakers", many=True, read_only=True
     )
     submitter_email = serializers.EmailField(source="submitter.email", read_only=True)
+    event_slug = serializers.CharField(source="event.slug", read_only=True)
+    event_title = serializers.CharField(source="event.title", read_only=True)
 
     class Meta:
         """Meta options for CFPSubmissionSerializer."""
 
         model = CFPSubmission
         exclude = ["created_at", "updated_at"]
-        read_only_fields = ["id", "submitter", "submitter_email", "status", "event"]
+        read_only_fields = [
+            "id",
+            "submitter",
+            "submitter_email",
+            "status",
+            "event",
+            "event_slug",
+            "event_title",
+        ]
+
+    def validate_title(self, value):
+        """Strip whitespace from title."""
+        return value.strip()
 
     def update(self, instance, validated_data):
         """Update a CFP submission, only allowed while pending."""

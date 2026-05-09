@@ -131,6 +131,11 @@ class EventSerializer(WritableNestedModelSerializer):
     name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
     date_range = serializers.SerializerMethodField()  # New field for start/end dates
+    cfp_open_date = serializers.DateTimeField(required=False, allow_null=True)
+    cfp_deadline = serializers.DateTimeField(required=False, allow_null=True)
+    cfp_speaker_notification_date = serializers.DateField(
+        required=False, allow_null=True
+    )
 
     class Meta:
         """Meta class for the EventSerializer."""

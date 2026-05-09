@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0008_add_cfp_fields_to_event"),
-        ("organizations", "0004_fix_cascade_on_delete"),
+        ("organizations", "0005_merge_20260509_1654"),
         ("speakerrequests", "0007_convert_ids_to_uuid"),
         ("speakers", "0012_convert_ids_to_uuid"),
     ]

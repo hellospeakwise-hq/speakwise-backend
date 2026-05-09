@@ -1,6 +1,5 @@
 """CFP model tests."""
 
-from django.db import IntegrityError
 from django.test import TestCase
 
 from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
@@ -64,18 +63,36 @@ class CFPSubmissionModelTest(TestCase):
         assert self.submission.status == CFPStatusChoices.PENDING
 
     def test_str_representation(self):
-        """Test the string representation of the submission."""
-        assert str(self.submission) == f"{self.user} — {self.event.title}"
+        """Test the string representation uses the submission title."""
+        self.submission.title = "My Great Talk"
+        self.submission.save()
+        assert str(self.submission) == f"{self.user} — My Great Talk"
 
-    def test_unique_together_enforced(self):
-        """Test that a user cannot submit more than once per event."""
-        with self.assertRaises(IntegrityError):
-            CFPSubmission.objects.create(
-                event=self.event,
-                submitter=self.user,
-                talk_type=TalkTypeChoices.LONG,
-                audience=AudienceLevelChoices.ADVANCED,
-                category="backend",
-                elevator_pitch="Another pitch.",
-                abstract="Another abstract.",
-            )
+    def test_multiple_submissions_per_event_allowed(self):
+        """Test that a user can submit more than one CFP per event."""
+        second = CFPSubmission.objects.create(
+            event=self.event,
+            submitter=self.user,
+            talk_type=TalkTypeChoices.LONG,
+            audience=AudienceLevelChoices.ADVANCED,
+            category="backend",
+            elevator_pitch="A second pitch.",
+            abstract="A second abstract.",
+        )
+        assert second.id is not None
+        assert (
+            CFPSubmission.objects.filter(event=self.event, submitter=self.user).count()
+            == 2
+        )
+
+    def test_new_fields_have_correct_defaults(self):
+        """Test that the new CFP fields default correctly."""
+        assert self.submission.title == ""
+        assert self.submission.duration is None
+        assert self.submission.language == "English"
+        assert self.submission.outline == ""
+        assert self.submission.slides_url is None
+        assert self.submission.recording_url is None
+        assert self.submission.notes_for_organizers == ""
+        assert self.submission.is_first_time_speaker is False
+        assert self.submission.travel_support_needed is False

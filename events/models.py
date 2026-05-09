@@ -54,6 +54,36 @@ class Event(TimeStampedModel):
     tags = models.ManyToManyField(Tag, related_name="events", blank=True)
     slug = models.SlugField(max_length=255, unique=True, null=True)
 
+    # CFP configuration
+    accepts_cfp = models.BooleanField(
+        default=False,
+        help_text="Does this event accept Call for Papers submissions?",
+    )
+    cfp_open = models.BooleanField(
+        default=False,
+        help_text="Is the CFP currently open for submissions?",
+    )
+    cfp_description = models.TextField(
+        blank=True,
+        default="",
+        help_text="What the organizers are looking for — shown to speakers on the CFP page.",
+    )
+    cfp_open_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When CFP submissions open.",
+    )
+    cfp_deadline = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When CFP submissions close.",
+    )
+    cfp_speaker_notification_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="When speakers will be notified of the outcome.",
+    )
+
     # Add organizer relationship
     organizer = models.ForeignKey(
         "organizations.Organization",

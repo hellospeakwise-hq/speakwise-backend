@@ -12,6 +12,7 @@ urlpatterns = [
         views.CFPSubmissionListCreateView.as_view(),
         name="cfp-list-create",
     ),
+    path("cfp/mine/", views.MyCFPSubmissionsView.as_view(), name="cfp-mine"),
     path("cfp/<uuid:pk>/", views.CFPSubmissionDetailView.as_view(), name="cfp-detail"),
     path(
         "cfp/<uuid:pk>/status/",

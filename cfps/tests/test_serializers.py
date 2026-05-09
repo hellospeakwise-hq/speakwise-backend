@@ -59,20 +59,60 @@ class CFPSubmissionSerializerTest(TestCase):
             {
                 "id",
                 "event",
+                "event_slug",
+                "event_title",
                 "submitter",
                 "submitter_email",
+                "title",
                 "talk_type",
+                "duration",
                 "audience",
                 "category",
+                "language",
                 "elevator_pitch",
                 "abstract",
+                "outline",
+                "slides_url",
+                "recording_url",
                 "co_speakers",
                 "co_speakers_detail",
                 "other_speakers_text",
+                "notes_for_organizers",
                 "other_comments",
+                "is_first_time_speaker",
+                "travel_support_needed",
                 "status",
             },
         )
+
+    def test_event_slug_and_title_are_read_only(self):
+        """Test that event_slug and event_title are present and read-only."""
+        data = self.serializer.data
+        self.assertEqual(data["event_slug"], self.event.slug)
+        self.assertEqual(data["event_title"], self.event.title)
+
+    def test_new_fields_serialized_correctly(self):
+        """Test title, duration, language, outline and flag fields serialize correctly."""
+        self.submission.title = "New Talk"
+        self.submission.duration = 30
+        self.submission.language = "French"
+        self.submission.is_first_time_speaker = True
+        self.submission.travel_support_needed = True
+        self.submission.save()
+        data = CFPSubmissionSerializer(instance=self.submission).data
+        self.assertEqual(data["title"], "New Talk")
+        self.assertEqual(data["duration"], 30)
+        self.assertEqual(data["language"], "French")
+        self.assertTrue(data["is_first_time_speaker"])
+        self.assertTrue(data["travel_support_needed"])
+
+    def test_title_is_stripped_on_validate(self):
+        """Test that leading/trailing whitespace is stripped from title."""
+        serializer = CFPSubmissionSerializer(
+            instance=self.submission, data={"title": "  Padded Title  "}, partial=True
+        )
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["title"], "Padded Title")
 
     def test_field_content(self):
         """Test that the serializer field content is correct."""

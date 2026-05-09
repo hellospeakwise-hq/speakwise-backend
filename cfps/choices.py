@@ -27,3 +27,12 @@ class CFPStatusChoices(models.TextChoices):
     PENDING = "pending", _("Pending")
     ACCEPTED = "accepted", _("Accepted")
     REJECTED = "rejected", _("Rejected")
+
+
+class TalkDurationChoices(models.IntegerChoices):
+    """Talk duration choices in minutes."""
+
+    FIFTEEN = 15, _("15 minutes")
+    THIRTY = 30, _("30 minutes")
+    FORTY_FIVE = 45, _("45 minutes")
+    SIXTY = 60, _("60 minutes")

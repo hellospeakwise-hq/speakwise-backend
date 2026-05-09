@@ -114,3 +114,52 @@ class EventDetailView(APIView):
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EventSpeakerDeckToggleView(APIView):
+    """Toggle speaker deck upload for an event.
+
+    POST toggles the speaker_deck_upload_enabled flag.
+    When enabling, sends notifications to all accepted speakers.
+    """
+
+    permission_classes = [IsOrganizationAdminOrOrganizer]
+
+    @extend_schema(
+        tags=["Events"],
+        request=None,
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "speaker_deck_upload_enabled": {"type": "boolean"},
+                    "detail": {"type": "string"},
+                },
+            }
+        },
+    )
+    def post(self, request, slug, *args, **kwargs):
+        """Toggle the speaker deck upload flag for an event."""
+        from events.notifications import notify_accepted_speakers_deck_upload
+
+        event = get_object_or_404(Event, slug=slug)
+        self.check_object_permissions(request, event)
+
+        # Toggle the flag
+        event.speaker_deck_upload_enabled = not event.speaker_deck_upload_enabled
+        event.save(update_fields=["speaker_deck_upload_enabled", "updated_at"])
+
+        detail = "Speaker deck upload has been "
+        if event.speaker_deck_upload_enabled:
+            detail += "enabled."
+            notify_accepted_speakers_deck_upload(event)
+        else:
+            detail += "disabled."
+
+        return Response(
+            {
+                "speaker_deck_upload_enabled": event.speaker_deck_upload_enabled,
+                "detail": detail,
+            },
+            status=status.HTTP_200_OK,
+        )

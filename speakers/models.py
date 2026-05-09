@@ -179,3 +179,67 @@ class SpeakerFollow(TimeStampedModel):
     def __str__(self):
         """String representation of a follow relationship."""
         return f"{self.follower.username} → {self.speaker}"
+
+
+# Speaker deck file upload directory
+SPEAKER_DECK_UPLOAD_DIR = "speaker_decks/"
+
+
+class SpeakerDeck(TimeStampedModel):
+    """Model to store speaker presentation uploads (decks) for events."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    speaker = models.ForeignKey(
+        SpeakerProfile,
+        on_delete=models.CASCADE,
+        related_name="speaker_decks",
+        help_text="The speaker who uploaded this deck.",
+    )
+    event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.CASCADE,
+        related_name="speaker_decks",
+        help_text="The event this deck is associated with.",
+    )
+    file = models.FileField(upload_to=SPEAKER_DECK_UPLOAD_DIR)
+    original_filename = models.CharField(
+        max_length=255, help_text="Original name of the uploaded file."
+    )
+    file_size = models.PositiveIntegerField(help_text="File size in bytes.")
+    description = models.TextField(
+        blank=True, default="", help_text="Optional description of the presentation."
+    )
+
+    class Meta:
+        """Meta options for SpeakerDeck."""
+
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        """String representation of a speaker deck."""
+        return f"{self.original_filename} — {self.speaker}"
+
+
+class Notification(TimeStampedModel):
+    """Lightweight in-app notification model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        help_text="The user who receives this notification.",
+    )
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    link = models.URLField(blank=True, default="", help_text="Optional action URL.")
+
+    class Meta:
+        """Meta options for Notification."""
+
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        """String representation of a notification."""
+        return f"{self.title} → {self.recipient.username}"

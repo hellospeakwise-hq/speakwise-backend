@@ -612,7 +612,7 @@ class SpeakerDeckListCreateView(APIView):
         if error:
             return error
 
-        decks = SpeakerDeck.objects.filter(speaker=speaker_profile, event=event)
+        decks = SpeakerDeck.objects.filter(speaker__user_account=request.user, event=event)
         serializer = SpeakerDeckSerializer(decks, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -633,14 +633,18 @@ class SpeakerDeckListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Check speaker is accepted for this event
-        is_accepted = SpeakerRequest.objects.filter(
-            event=event,
-            speaker=speaker_profile,
-            status=RequestStatusChoices.ACCEPTED,
-        ).exists()
+        # Check speaker is accepted for this event across any of their profiles
+        accepted_request = (
+            SpeakerRequest.objects.filter(
+                event=event,
+                speaker__user_account=request.user,
+                status=RequestStatusChoices.ACCEPTED,
+            )
+            .select_related("speaker")
+            .first()
+        )
 
-        if not is_accepted:
+        if not accepted_request:
             return Response(
                 {
                     "detail": "You must be an accepted speaker for this event to upload a deck."
@@ -653,7 +657,7 @@ class SpeakerDeckListCreateView(APIView):
 
         uploaded_file = serializer.validated_data["file"]
         serializer.save(
-            speaker=speaker_profile,
+            speaker=accepted_request.speaker,
             event=event,
             original_filename=uploaded_file.name,
             file_size=uploaded_file.size,

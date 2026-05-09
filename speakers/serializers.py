@@ -3,6 +3,7 @@
 from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.exceptions import ValidationError
+from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
 from speakers.models import (
@@ -242,6 +243,8 @@ MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 class SpeakerDeckSerializer(ModelSerializer):
     """Serializer for speaker presentation deck uploads."""
+
+    event = serializers.UUIDField(source="event_id", read_only=True)
 
     class Meta:
         """Meta options."""

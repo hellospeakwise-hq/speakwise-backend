@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("events", "0008_event_speaker_deck_upload_enabled"),
+        ("events", "0009_event_speaker_deck_upload_enabled"),
         ("speakers", "0012_convert_ids_to_uuid"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

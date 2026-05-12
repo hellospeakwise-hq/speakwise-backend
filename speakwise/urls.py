@@ -30,6 +30,7 @@ urlpatterns = [
     path("api/", include("organizations.urls", namespace="organizations")),
     path("api/", include("speakerrequests.urls", namespace="speakerrequests")),
     path("api/", include("cfps.urls", namespace="cfp")),
+    path("api/", include("eventsessions.urls", namespace="sessions")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

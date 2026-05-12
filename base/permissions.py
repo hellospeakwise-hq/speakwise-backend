@@ -14,6 +14,8 @@ class IsOrganizationAdmin(BasePermission):
             organization = obj
             if hasattr(obj, "organizer"):
                 organization = obj.organizer
+            elif hasattr(obj, "event") and hasattr(obj.event, "organizer"):
+                organization = obj.event.organizer
 
             return OrganizationMembership.objects.filter(
                 organization=organization, user=request.user, role="ADMIN"
@@ -30,6 +32,8 @@ class IsOrganizationMember(BasePermission):
             organization = obj
             if hasattr(obj, "organizer"):
                 organization = obj.organizer
+            elif hasattr(obj, "event") and hasattr(obj.event, "organizer"):
+                organization = obj.event.organizer
 
             return OrganizationMembership.objects.filter(
                 organization=organization, user=request.user, is_active=True
@@ -46,6 +50,8 @@ class IsOrganizationOrganizer(BasePermission):
             organization = obj
             if hasattr(obj, "organizer"):
                 organization = obj.organizer
+            elif hasattr(obj, "event") and hasattr(obj.event, "organizer"):
+                organization = obj.event.organizer
 
             return OrganizationMembership.objects.filter(
                 organization=organization, user=request.user, role="ORGANIZER"
@@ -62,6 +68,8 @@ class IsOrganizationAdminOrOrganizer(BasePermission):
             organization = obj
             if hasattr(obj, "organizer"):
                 organization = obj.organizer
+            elif hasattr(obj, "event") and hasattr(obj.event, "organizer"):
+                organization = obj.event.organizer
 
             return OrganizationMembership.objects.filter(
                 organization=organization,

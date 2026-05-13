@@ -29,24 +29,24 @@ class SessionListCreateView(APIView):
     serializer_class = SessionSerializer
     permission_classes = [IsOrganizationAdminOrOrganizer]
 
-    def get(self, request):
+    def get(self, request, event_slug=None):
         """List all sessions associated with a specific event.
 
         Returns a list of all sessions associated with a specific event (identified by slug).
         Accessible by any user.
+        The event should be passed as a query parameter.
         """
-        event_slug = request.query_params.get("event")
+        if not event_slug:
+            event_slug = request.query_params.get("event")
+
         if not event_slug:
             return Response(
-                data="event slug required in query params",
+                data={"detail": "event slug required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            event = get_object_or_404(Event, slug=event_slug)
-            sessions = Session.objects.filter(event=event)
-        except Event.DoesNotExist as err:
-            return Response(err, status=status.HTTP_404_NOT_FOUND)
+        event = get_object_or_404(Event, slug=event_slug)
+        sessions = Session.objects.filter(event=event).order_by("start_time")
 
         serializer = self.serializer_class(sessions, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -57,11 +57,8 @@ class SessionListCreateView(APIView):
         Only accessible by organization admins or organizers.
         """
         serializer = self.serializer_class(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-        except ValidationError as e:
-            return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

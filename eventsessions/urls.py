@@ -19,11 +19,6 @@ urlpatterns = [
     path(
         "sessions/",
         SessionListCreateView.as_view(),
-        name="session-list-base",
-    ),
-    path(
-        "sessions/<str:event_slug>/",
-        SessionListCreateView.as_view(),
         name="session-list",
     ),
     path(

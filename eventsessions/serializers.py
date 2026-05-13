@@ -65,4 +65,3 @@ class SessionSerializer(WritableNestedModelSerializer):
 
         model = Session
         exclude = ["created_at", "updated_at"]
-        read_only_fields = ["event"]

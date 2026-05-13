@@ -32,7 +32,13 @@ class Session(TimeStampedModel):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False, db_index=True
     )
-    event = models.ForeignKey("events.Event", on_delete=models.CASCADE)
+    event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.CASCADE,
+        null=False,
+        related_name="event_sessions",
+        db_index=True,
+    )
     track = models.ForeignKey("Track", on_delete=models.CASCADE)
     title = models.CharField(max_length=255, db_index=True)
     abstract = models.TextField()

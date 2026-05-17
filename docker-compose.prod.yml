@@ -1,0 +1,12 @@
+services:
+  db:
+    volumes:
+      - postgres_prod:/var/lib/postgresql/data/
+
+  web:
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  postgres_prod:

@@ -1,0 +1,18 @@
+services:
+  db:
+    volumes:
+      - postgres_staging:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=speakwise_staging
+
+  web:
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env.staging
+    environment:
+      - DB_NAME=speakwise_staging
+    restart: unless-stopped
+
+volumes:
+  postgres_staging:

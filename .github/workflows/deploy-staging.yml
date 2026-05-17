@@ -1,0 +1,72 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: speakwise-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install uv && uv pip install --system -r requirements/local.txt
+
+      - name: Run tests
+        run: python manage.py test
+        env:
+          DJANGO_SETTINGS_MODULE: speakwise.settings.test
+          SECRET_KEY: test-secret-key
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: speakwise-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript check
+        run: pnpm tsc --noEmit
+
+  deploy-backend-staging:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend to staging via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /home/speakwise/speakwise-backend
+
+            echo "--- Pulling latest develop branch ---"
+            git fetch origin
+            git checkout develop
+            git pull origin develop
+
+            echo "--- Rebuilding and restarting staging backend ---"
+            docker compose -f docker-compose.yml -f docker-compose.staging.yml build --no-cache
+            docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+
+            echo "--- Staging backend live at https://apis-staging.speak-wise.live ---"

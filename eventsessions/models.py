@@ -3,6 +3,7 @@
 import uuid
 
 from django.db import models
+from django.utils import timezone
 
 from base.models import TimeStampedModel
 
@@ -11,9 +12,9 @@ class Track(TimeStampedModel):
     """Track model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-    color = models.CharField(max_length=255)
-    description = models.TextField()
+    name = models.CharField(max_length=255, null=True)
+    color = models.CharField(max_length=255, null=True)
+    description = models.TextField(blank=True, default="")
 
 
 class SessionVenue(TimeStampedModel):
@@ -21,8 +22,8 @@ class SessionVenue(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    capacity = models.IntegerField()
-    location_notes = models.TextField()
+    capacity = models.IntegerField(default=20)
+    location_notes = models.TextField(blank=True, default="")
     virtual_url = models.URLField(max_length=255)
 
 
@@ -41,20 +42,20 @@ class Session(TimeStampedModel):
     )
     track = models.ForeignKey("Track", on_delete=models.CASCADE)
     title = models.CharField(max_length=255, db_index=True)
-    abstract = models.TextField()
+    abstract = models.TextField(default="", blank=True)
     venue = models.ForeignKey("SessionVenue", on_delete=models.CASCADE)
     session_type = models.CharField(max_length=255)
     level = models.CharField(max_length=255)
     status = models.CharField(max_length=255)
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
-    max_attendees = models.IntegerField()
+    start_date_time = models.DateTimeField(default=timezone.now)
+    end_date_time = models.DateTimeField(default=timezone.now)
+    max_attendees = models.IntegerField(default=20)
     is_draft = models.BooleanField(default=False)  # allow draft sessions
 
     class Meta:
         """Meta options for Session model."""
 
-        ordering = ("-start_time",)
+        ordering = ("-start_date_time",)
         unique_together = ("event", "title")
         verbose_name_plural = "Sessions"
 
@@ -70,7 +71,7 @@ class SessionSponsor(TimeStampedModel):
     session = models.ForeignKey(
         "Session", on_delete=models.CASCADE, null=True, related_name="session_sponsors"
     )
-    sponsor = models.CharField(max_length=255)
+    sponsor = models.CharField(max_length=255, null=True)
 
 
 class SessionSpeaker(TimeStampedModel):

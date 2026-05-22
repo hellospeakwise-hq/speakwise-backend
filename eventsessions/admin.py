@@ -51,6 +51,6 @@ class TrackAdmin(admin.ModelAdmin):
 class SessionAdmin(admin.ModelAdmin):
     """session admin."""
 
-    list_display = ("title", "event", "start_time", "end_time")
+    list_display = ("title", "event", "start_date_time", "end_date_time")
     search_fields = ("title", "event__name")
-    list_filter = ("event", "track")
+    list_filter = ("event", "track", "start_date_time", "end_date_time")

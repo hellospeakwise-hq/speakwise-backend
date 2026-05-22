@@ -86,8 +86,8 @@ class SessionAPITestCase(APITestCase):
             "session_type": "Workshop",
             "level": "Intermediate",
             "status": "Proposed",
-            "start_time": timezone.now().isoformat(),
-            "end_time": (timezone.now() + timedelta(hours=2)).isoformat(),
+            "start_date_time": timezone.now().isoformat(),
+            "end_date_time": (timezone.now() + timedelta(hours=2)).isoformat(),
             "max_attendees": 30,
             "event": self.event.id,
         }

@@ -72,56 +72,100 @@ class EventScheduleAPITestCase(APITestCase):
 
     def test_list_event_schedules(self):
         """Test listing event schedules."""
-        url = reverse("eventschedules:event-schedules-create")
-        response = self.client.get(url, {"event_slug": self.event.slug})
+        url = reverse(
+            "eventschedules:event-schedules-create",
+            kwargs={"event_slug": self.event.slug},
+        )
+
+        # Unauthorized
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Authorized
+        self.client.force_authenticate(user=self.user_organizer)
+        response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(str(response.data[0]["event"]), str(self.event.id))
 
     def test_create_event_schedule(self):
         """Test creating an event schedule."""
-        url = reverse("eventschedules:event-schedules-create")
+        url = reverse(
+            "eventschedules:event-schedules-create",
+            kwargs={"event_slug": self.event.slug},
+        )
         data = {
             "event": self.event.id,
-            "session": [self.session.id],
         }
+
+        # Unauthorized
+        response = self.client.post(url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Authorized
+        self.client.force_authenticate(user=self.user_admin)
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(EventSchedule.objects.count(), 2)
 
     def test_retrieve_event_schedule(self):
         """Test retrieving an event schedule."""
-        url = reverse("eventschedules:event-schedule-ret", args=[self.schedule.id])
+        url = reverse(
+            "eventschedules:event-schedule-ret",
+            kwargs={"schedule_id": self.schedule.id},
+        )
 
         # Unauthorized
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Admin
-        self.client.force_authenticate(user=self.user_admin)
+        # Authorized
+        self.client.force_authenticate(user=self.user_organizer)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(str(response.data["event"]), str(self.event.id))
+        self.assertEqual(str(response.data["id"]), str(self.schedule.id))
 
     def test_update_event_schedule(self):
         """Test updating an event schedule."""
-        url = reverse("eventschedules:event-schedule-ret", args=[self.schedule.id])
+        url = reverse(
+            "eventschedules:event-schedule-ret",
+            kwargs={"schedule_id": self.schedule.id},
+        )
         data = {
             "event": self.event.id,
         }
 
+        # Unauthorized
+        response = self.client.patch(url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Forbidden for regular user
+        self.client.force_authenticate(user=self.user_regular)
+        response = self.client.patch(url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Authorized
         self.client.force_authenticate(user=self.user_organizer)
-        response = self.client.put(url, data, format="json")
+        response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_delete_event_schedule(self):
         """Test deleting an event schedule."""
-        url = reverse("eventschedules:event-schedule-ret", args=[self.schedule.id])
+        url = reverse(
+            "eventschedules:event-schedule-ret",
+            kwargs={"schedule_id": self.schedule.id},
+        )
 
+        # Unauthorized
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Forbidden for regular user
         self.client.force_authenticate(user=self.user_regular)
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+        # Authorized
         self.client.force_authenticate(user=self.user_admin)
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -131,6 +175,6 @@ class EventScheduleAPITestCase(APITestCase):
         """Test serializer validation."""
         from eventschedules.serializers import EventScheduleSerializer
 
-        data = {"event": self.event.id, "session": [self.session2.id]}
+        data = {"event": self.event.id}
         serializer = EventScheduleSerializer(data=data, context={"event": self.event})
         self.assertTrue(serializer.is_valid())

@@ -64,8 +64,8 @@ class SessionAPITestCase(APITestCase):
             session_type="Talk",
             level="Beginner",
             status="Confirmed",
-            start_time=timezone.now(),
-            end_time=timezone.now() + timedelta(hours=1),
+            start_date_time=timezone.now(),
+            end_date_time=timezone.now() + timedelta(hours=1),
             max_attendees=50,
         )
 

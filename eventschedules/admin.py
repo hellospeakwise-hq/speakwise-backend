@@ -1,3 +1,4 @@
-from django.contrib import admin
+"""Events schedule admin."""
+
 
 # Register your models here.

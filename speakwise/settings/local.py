@@ -1,5 +1,8 @@
 """Development settings for SpeakWise project."""
 
+import sys
+import warnings
+
 from speakwise.settings.base import *  # Import base settings  # noqa: E402,F403,F401
 from speakwise.settings.base import BASE_DIR  # noqa: E402
 
@@ -94,20 +97,49 @@ CACHES = {
     }
 }
 
+# Detect if running tests
+TESTING = "test" in sys.argv or "pytest" in sys.argv
+
+if TESTING:
+    # Ignore UserWarning from whitenoise regarding staticfiles directory during tests
+    warnings.filterwarnings("ignore", message="No directory at")
+
 # Logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
+if TESTING:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+            },
         },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-}
+        "root": {
+            "handlers": ["console"],
+            "level": "ERROR",
+        },
+        "loggers": {
+            "django.request": {
+                "handlers": ["console"],
+                "level": "ERROR",
+                "propagate": False,
+            },
+        },
+    }
+else:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+            },
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+    }
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

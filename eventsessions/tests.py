@@ -143,7 +143,6 @@ class SessionAPITestCase(APITestCase):
         self.client.logout()
         url = reverse("sessions:session-list")
         response = self.client.post(url, self.payload, format="json")
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_session_serializer(self):

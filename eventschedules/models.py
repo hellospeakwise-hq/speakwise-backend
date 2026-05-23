@@ -14,7 +14,7 @@ class EventSchedule(TimeStampedModel):
     event = models.ForeignKey(
         "events.Event", on_delete=models.CASCADE, related_name="event_schedules"
     )
-    session = models.ManyToManyField(
+    sessions = models.ManyToManyField(
         "eventsessions.Session", related_name="event_schedules"
     )
 

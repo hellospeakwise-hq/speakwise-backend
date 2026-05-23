@@ -68,7 +68,7 @@ class EventScheduleAPITestCase(APITestCase):
         )
 
         self.schedule = EventSchedule.objects.create(event=self.event)
-        self.schedule.session.add(self.session)
+        self.schedule.sessions.add(self.session)
 
     def test_list_event_schedules(self):
         """Test listing event schedules."""
@@ -77,12 +77,6 @@ class EventScheduleAPITestCase(APITestCase):
             kwargs={"event_slug": self.event.slug},
         )
 
-        # Unauthorized
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        # Authorized
-        self.client.force_authenticate(user=self.user_organizer)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
@@ -96,6 +90,7 @@ class EventScheduleAPITestCase(APITestCase):
         )
         data = {
             "event": self.event.id,
+            "sessions": [self.session.id],
         }
 
         # Unauthorized

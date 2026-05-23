@@ -3,6 +3,7 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,7 +22,11 @@ from .serializers import EventScheduleSerializer
 class EventScheduleListCreateView(APIView):
     """Event schedule list create view."""
 
-    permission_classes = [IsOrganizationAdminOrOrganizer]
+    def get_permissions(self):
+        """Get permission class."""
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsOrganizationAdminOrOrganizer()]
 
     def get(self, request, event_slug):
         """List event schedules.
@@ -29,18 +34,13 @@ class EventScheduleListCreateView(APIView):
         Query params: event_slug.
         Response: EventSchedule object.
         """
-        if not request.user or not request.user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
         event = get_object_or_404(Event, slug=event_slug)
-        self.check_object_permissions(request, event)
         event_schedules = EventSchedule.objects.filter(event=event)
         serializer = EventScheduleSerializer(event_schedules, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, event_slug):
         """Create an event schedule."""
-        if not request.user or not request.user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
         event = get_object_or_404(Event, slug=event_slug)
         self.check_object_permissions(request, event)
         serializer = EventScheduleSerializer(

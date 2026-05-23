@@ -1,13 +1,7 @@
 """Speaker request views."""
 
-<<<<<<< HEAD
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-=======
-from django.conf import settings
-from django.db.models import Q
-from django.http.response import Http404
->>>>>>> 39bd44e (Add welcome email templates for organizers and speakers)
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.pagination import PageNumberPagination
@@ -27,16 +21,7 @@ from speakerrequests.serializers import (
     SpeakerRequestRespondSerializer,
     SpeakerRequestSerializer,
 )
-<<<<<<< HEAD
 from speakerrequests.services import SpeakerRequestService
-=======
-from speakerrequests.utils import (
-    send_request_accepted_email,
-    send_request_declined_email,
-    send_speaker_email_request_email,
-    send_speaker_org_request_email,
-)
->>>>>>> 39bd44e (Add welcome email templates for organizers and speakers)
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -70,7 +55,8 @@ class OrganizerSpeakerRequestListCreateAPIView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        request=SpeakerRequestCreateSerializer, responses={201: SpeakerRequestSerializer}
+        request=SpeakerRequestCreateSerializer,
+        responses={201: SpeakerRequestSerializer},
     )
     def post(self, request, *args, **kwargs):
         """Create a new speaker request."""
@@ -98,7 +84,6 @@ class OrganizerSpeakerRequestListCreateAPIView(APIView):
                 }
             )
 
-<<<<<<< HEAD
         speaker_request = SpeakerRequestService.create_request(
             organizer=organizer,
             speaker=serializer.validated_data["speaker"],
@@ -108,19 +93,6 @@ class OrganizerSpeakerRequestListCreateAPIView(APIView):
         return Response(
             SpeakerRequestSerializer(speaker_request).data,
             status=status.HTTP_201_CREATED,
-=======
-        req = serializer.instance
-        speaker_user = req.speaker.user_account
-        send_speaker_org_request_email.enqueue(
-            speaker_email=speaker_user.email,
-            speaker_name=speaker_user.first_name or speaker_user.username,
-            organization_name=req.organizer.name,
-            organizer_name=req.organizer.name,
-            event_name=req.event.title,
-            event_date=req.event.start_date_time.strftime("%B %-d, %Y") if req.event.start_date_time else "",
-            message=req.message,
-            request_id=req.id,
->>>>>>> 39bd44e (Add welcome email templates for organizers and speakers)
         )
 
 
@@ -183,7 +155,6 @@ class SpeakerRequestRespondAPIView(APIView):
 
         serializer = SpeakerRequestRespondSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-<<<<<<< HEAD
 
         updated_request = SpeakerRequestService.respond_to_request(
             speaker_request=speaker_request,
@@ -192,43 +163,6 @@ class SpeakerRequestRespondAPIView(APIView):
         return Response(
             SpeakerRequestSerializer(updated_request).data, status=status.HTTP_200_OK
         )
-=======
-        serializer.save()
-
-        req = serializer.instance
-        speaker_user = req.speaker.user_account
-        speaker_name = speaker_user.first_name or speaker_user.username
-        organizer_email = req.organizer.email
-        requester_name = req.organizer.name
-        event_name = req.event.title
-        event_date = req.event.start_date_time.strftime("%B %-d, %Y") if req.event.start_date_time else ""
-        event_location = req.event.location.name if req.event.location else ""
-        dashboard_url = f"{settings.FRONTEND_URL}/dashboard/organizer"
-        speaker_profile_url = f"{settings.FRONTEND_URL}/speakers/{req.speaker.id}"
-        discover_url = f"{settings.FRONTEND_URL}/speakers"
-
-        if req.status == RequestStatusChoices.ACCEPTED.value:
-            send_request_accepted_email.enqueue(
-                organizer_email=organizer_email,
-                requester_name=requester_name,
-                speaker_name=speaker_name,
-                speaker_title="",
-                event_name=event_name,
-                event_date=event_date,
-                event_location=event_location,
-                speaker_profile_url=speaker_profile_url,
-                dashboard_url=dashboard_url,
-            )
-        else:
-            send_request_declined_email.enqueue(
-                organizer_email=organizer_email,
-                requester_name=requester_name,
-                speaker_name=speaker_name,
-                event_name=event_name,
-                discover_url=discover_url,
-            )
-        return Response(serializer.data, status=status.HTTP_200_OK)
->>>>>>> 39bd44e (Add welcome email templates for organizers and speakers)
 
 
 class SpeakerEmailRequestListCreateAPIView(APIView):
@@ -263,7 +197,6 @@ class SpeakerEmailRequestListCreateAPIView(APIView):
         serializer = EmailRequestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-<<<<<<< HEAD
         email_request = SpeakerRequestService.create_email_request(
             request_from=self.request.user,
             request_to_user=serializer.validated_data["request_to"],
@@ -282,7 +215,9 @@ class SpeakerEmailRequestRespondAPIView(APIView):
 
     def get_object(self, id):
         """Get object and check ownership."""
-        obj = get_object_or_404(SpeakerEmailRequests, id=id, request_to=self.request.user)
+        obj = get_object_or_404(
+            SpeakerEmailRequests, id=id, request_to=self.request.user
+        )
         return obj
 
     @extend_schema(
@@ -301,39 +236,4 @@ class SpeakerEmailRequestRespondAPIView(APIView):
         return Response(
             EmailRequestsSerializer(updated_email_request).data,
             status=status.HTTP_200_OK,
-=======
-        # send the request via email if the recipient exists
-        if serializer.instance.request_to:
-            er = serializer.instance
-            recipient = er.request_to
-            sender = er.request_from
-            send_speaker_email_request_email.enqueue(
-                speaker_email=recipient.email,
-                speaker_name=recipient.first_name or recipient.username,
-                requester_name=sender.first_name or sender.username,
-                requester_email=sender.email,
-                event_name=er.event,
-                event_location=er.location,
-                message=er.message,
-                request_id=str(er.id),
-            )
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-@extend_schema(
-    request=EmailRequestsSerializer,
-    responses={200: None},
-    tags=["speaker email-request"],
-)
-class SpeakerEmailRequestDetailView(APIView):
-    """Detail view of Speaker request sent through email."""
-
-    def patch(self, request, pk=None):
-        """Update status of a specific speaker request."""
-        email_request = get_object_or_404(
-            SpeakerEmailRequests,
-            pk=pk,
-            request_to=request.user,
->>>>>>> 39bd44e (Add welcome email templates for organizers and speakers)
         )

@@ -10,7 +10,7 @@ from .models import EventSchedule
 class EventScheduleSerializer(serializers.ModelSerializer):
     """Event schedule serializer."""
 
-    session = SessionSerializer(many=True, read_only=True)
+    sessions = SessionSerializer(many=True, read_only=True)
 
     class Meta:
         """metaclass."""
@@ -22,11 +22,13 @@ class EventScheduleSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         """Validate event schedule data."""
         event = self.context.get("event")
-        session = attrs.get("session")
+        sessions = attrs.get("sessions", [])
 
-        if event and session and session.event != event:
-            raise serializers.ValidationError(
-                {"session": "Session must belong to the event."}
-            )
+        # check if all sessions belong to the event
+        for sess in sessions:
+            if sess.event != event:
+                raise serializers.ValidationError(
+                    {"sessions": "Sessions must belong to the event."}
+                )
 
         return attrs

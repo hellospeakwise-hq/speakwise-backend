@@ -1,4 +1,4 @@
-"""speaker request utils."""
+"""speaker request tasks."""
 
 from django.conf import settings
 from django.core.mail import send_mail

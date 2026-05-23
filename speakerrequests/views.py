@@ -19,7 +19,7 @@ from speakerrequests.serializers import (
     EmailRequestsSerializer,
     SpeakerRequestSerializer,
 )
-from speakerrequests.utils import (
+from speakerrequests.tasks import (
     send_request_accepted_email,
     send_request_declined_email,
     send_speaker_email_request_email,

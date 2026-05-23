@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event, Tag
 from events.serializers import EventSerializer, TagSerializer
-from events.utils import create_event_payload
+from events.utils import create_event_payload, notify_accepted_speakers_deck_upload
 from organizations.models import OrganizationMembership
 
 
@@ -140,7 +140,6 @@ class EventSpeakerDeckToggleView(APIView):
     )
     def post(self, request, slug, *args, **kwargs):
         """Toggle the speaker deck upload flag for an event."""
-        from events.notifications import notify_accepted_speakers_deck_upload
 
         event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
@@ -157,9 +156,6 @@ class EventSpeakerDeckToggleView(APIView):
             detail += "disabled."
 
         return Response(
-            {
-                "speaker_deck_upload_enabled": event.speaker_deck_upload_enabled,
-                "detail": detail,
-            },
+            data=detail,
             status=status.HTTP_200_OK,
         )

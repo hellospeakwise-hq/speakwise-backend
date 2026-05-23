@@ -6,6 +6,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
+from speakers.utils import sanitize_upload
 from speakers.models import (
     Notification,
     SpeakerDeck,
@@ -234,12 +235,6 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         return instance
 
 
-# ---------- Speaker Deck ----------
-
-
-ALLOWED_DECK_EXTENSIONS = {".pptx", ".pdf", ".key", ".ppt", ".odp", ".zip"}
-MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
-
 
 class SpeakerDeckSerializer(ModelSerializer):
     """Serializer for speaker presentation deck uploads."""
@@ -268,7 +263,21 @@ class SpeakerDeckSerializer(ModelSerializer):
             max_mb = MAX_DECK_FILE_SIZE // (1024 * 1024)
             raise ValidationError(f"File too large. Maximum size is {max_mb} MB.")
 
-        return value
+        value._original_name = value.name
+        return sanitize_upload(value)
+
+    def create(self, validated_data):
+        file = validated_data["file"]
+        validated_data["original_filename"] = getattr(file, "_original_name", file.name)
+        validated_data["file_size"] = file.size
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if "file" in validated_data:
+            file = validated_data["file"]
+            validated_data["original_filename"] = getattr(file, "_original_name", file.name)
+            validated_data["file_size"] = file.size
+        return super().update(instance, validated_data)
 
 
 # ---------- Notification ----------

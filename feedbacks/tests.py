@@ -42,7 +42,9 @@ class TestFeedback(TestCase):
             username="testattendee", email="attendee@mail.com", password="testpass123"
         )
         self.attendee = AttendeeProfile.objects.create(user_account=self.user)
+        self.event = make_event()
         self.feedback = Feedback.objects.create(
+            event=self.event,
             overall_rating=5,
             engagement=4,
             clarity=5,

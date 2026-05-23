@@ -118,13 +118,7 @@ class SpeakerFeedbackToggleView(APIView):
     )
     def post(self, request, *args, **kwargs):
         """Toggle feedback enabled/disabled for the speaker at the given event."""
-        try:
-            speaker = SpeakerProfile.objects.get(user_account=request.user)
-        except SpeakerProfile.DoesNotExist:
-            return Response(
-                {"detail": "Speaker profile not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        speaker = get_object_or_404(SpeakerProfile, user_account=request.user)
 
         event_id = request.data.get("event")
         if not event_id:

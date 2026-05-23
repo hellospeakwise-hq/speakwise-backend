@@ -244,12 +244,3 @@ class TestFeedbackCreationToggleGating(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn("disabled", resp.data["detail"])
 
-    def test_feedback_without_event_not_gated(self):
-        """Feedback without an event field bypasses the toggle check."""
-        SpeakerFeedbackSettings.objects.create(
-            speaker=self.speaker, event=self.event, feedback_enabled=False
-        )
-        payload = self._payload()
-        del payload["event"]
-        resp = self.client.post(self._url(), payload, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)

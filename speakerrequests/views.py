@@ -274,7 +274,7 @@ class SpeakerRequestAcceptView(APIView):
             if req.event.start_date_time
             else ""
         )
-        event_location = req.event.location.name if req.event.location else ""
+        event_location = req.event.location.venue if req.event.location else ""
         dashboard_url = f"{settings.FRONTEND_URL}/dashboard/organizer"
         speaker_profile_url = f"{settings.FRONTEND_URL}/speakers/{req.speaker.id}"
         discover_url = f"{settings.FRONTEND_URL}/speakers"

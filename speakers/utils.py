@@ -1,3 +1,5 @@
+"""Speakers Utils."""
+
 import os
 import re
 import uuid

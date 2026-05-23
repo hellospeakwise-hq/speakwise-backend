@@ -203,9 +203,14 @@ class SpeakerDeck(TimeStampedModel):
     )
     file = models.FileField(upload_to=SPEAKER_DECK_UPLOAD_DIR)
     original_filename = models.CharField(
-        max_length=255, help_text="Original name of the uploaded file.", null=True, blank=True
+        max_length=255,
+        help_text="Original name of the uploaded file.",
+        null=True,
+        blank=True,
     )
-    file_size = models.PositiveIntegerField(help_text="File size in bytes.", null=True, blank=True)
+    file_size = models.PositiveIntegerField(
+        help_text="File size in bytes.", null=True, blank=True
+    )
     description = models.TextField(
         blank=True, default="", help_text="Optional description of the presentation."
     )
@@ -242,4 +247,4 @@ class Notification(TimeStampedModel):
 
     def __str__(self):
         """String representation of a notification."""
-        return f"{self.title} → {self.recipient.username}"
+        return f"{self.title} → {self.recipient.user_account.username}"

@@ -539,8 +539,6 @@ class SpeakerFollowingListView(APIView):
         )
 
 
-
-
 @extend_schema(tags=["speaker decks"])
 class SpeakerDeckListCreateView(APIView):
     """List and upload speaker decks for an event.
@@ -561,7 +559,9 @@ class SpeakerDeckListCreateView(APIView):
 
         event_id = request.query_params.get("event") or request.data.get("event")
         if not event_id:
-            raise ValidationError({"detail": "The 'event' query parameter is required."})
+            raise ValidationError(
+                {"detail": "The 'event' query parameter is required."}
+            )
 
         event = get_object_or_404(Event, pk=event_id)
 
@@ -695,7 +695,7 @@ class NotificationListView(APIView):
     )
     def get(self, request):
         """List notifications for the authenticated user."""
-        notifications = Notification.objects.filter(recipient=request.user)
+        notifications = Notification.objects.filter(recipient__user_account=request.user)
 
         is_read_param = request.query_params.get("is_read")
         if is_read_param is not None:
@@ -716,7 +716,7 @@ class NotificationMarkReadView(APIView):
     def patch(self, request, pk):
         """Mark a single notification as read."""
         try:
-            notification = Notification.objects.get(pk=pk, recipient=request.user)
+            notification = Notification.objects.get(pk=pk, recipient__user_account=request.user)
         except Notification.DoesNotExist:
             return Response(
                 {"detail": "Notification not found."},

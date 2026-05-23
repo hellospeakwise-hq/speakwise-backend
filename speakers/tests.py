@@ -911,12 +911,16 @@ class NotificationModelTests(TestCase):
     """Tests for the Notification model."""
 
     def setUp(self):
-        """Create a user for notifications."""
+        """Create a user and speaker profile for notifications."""
         User = get_user_model()
         self.user = User.objects.create(
             username="notif_user",
             email="notif@example.com",
             password="pass123",
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.user,
+            organization="Notif Org",
         )
 
     def test_notification_creation(self):
@@ -924,12 +928,12 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         notif = Notification.objects.create(
-            recipient=self.user,
+            recipient=self.profile,
             title="Test Notification",
             message="This is a test.",
             link="https://example.com/test",
         )
-        self.assertEqual(notif.recipient, self.user)
+        self.assertEqual(notif.recipient, self.profile)
         self.assertEqual(notif.title, "Test Notification")
         self.assertFalse(notif.is_read)
         self.assertIn("Test Notification", str(notif))
@@ -940,18 +944,18 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         notif = Notification.objects.create(
-            recipient=self.user,
+            recipient=self.profile,
             title="Unread Test",
             message="Should be unread by default.",
         )
         self.assertFalse(notif.is_read)
 
     def test_notification_cascade_on_user_delete(self):
-        """Deleting a user cascades to their notifications."""
+        """Deleting a user cascades through the speaker profile to notifications."""
         from speakers.models import Notification
 
         Notification.objects.create(
-            recipient=self.user,
+            recipient=self.profile,
             title="Cascade Test",
             message="Should be deleted with user.",
         )
@@ -1340,7 +1344,9 @@ class SanitizeUploadTests(TestCase):
     def _make_file(self, name, content=b"data"):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        return SimpleUploadedFile(name, content, content_type="application/octet-stream")
+        return SimpleUploadedFile(
+            name, content, content_type="application/octet-stream"
+        )
 
     def test_strips_path_traversal(self):
         """Path components are stripped, leaving only the bare filename."""
@@ -1419,7 +1425,7 @@ class SanitizeUploadTests(TestCase):
         file = SimpleUploadedFile(
             "my talk (v1).pdf", b"content", content_type="application/pdf"
         )
-        validated = SpeakerDeckSerializer().fields["file"].run_validation(file)
+        validated = SpeakerDeckSerializer().validate_file(file)
         self.assertNotIn(" ", validated.name)
         self.assertNotIn("(", validated.name)
         self.assertTrue(validated.name.endswith(".pdf"))
@@ -1448,24 +1454,30 @@ class NotificationViewTests(APITestCase):
             email="notifother@example.com",
             password="pass123",
         )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.user, organization="Notif View Org"
+        )
+        self.other_profile = SpeakerProfile.objects.create(
+            user_account=self.other_user, organization="Other Notif Org"
+        )
 
         from speakers.models import Notification
 
         self.notif1 = Notification.objects.create(
-            recipient=self.user,
+            recipient=self.profile,
             title="Upload Your Deck",
             message="Please upload your presentation.",
             link="https://example.com/upload",
         )
         self.notif2 = Notification.objects.create(
-            recipient=self.user,
+            recipient=self.profile,
             title="Reminder",
             message="Don't forget to upload.",
             is_read=True,
         )
         # Another user's notification (should not appear)
         self.notif_other = Notification.objects.create(
-            recipient=self.other_user,
+            recipient=self.other_profile,
             title="Other's Notification",
             message="Not for you.",
         )

@@ -243,4 +243,3 @@ class TestFeedbackCreationToggleGating(APITestCase):
         resp = self.client.post(self._url(), self._payload(), format="json")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn("disabled", resp.data["detail"])
-

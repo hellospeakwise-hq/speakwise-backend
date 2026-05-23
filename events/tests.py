@@ -230,7 +230,7 @@ class EventSpeakerDeckToggleTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         # One accepted speaker → one notification
-        notifications = Notification.objects.filter(recipient=self.speaker_user)
+        notifications = Notification.objects.filter(recipient=self.speaker_profile)
         self.assertEqual(notifications.count(), 1)
         notif = notifications.first()
         self.assertIn(self.event.title, notif.title)
@@ -247,7 +247,7 @@ class EventSpeakerDeckToggleTests(TestCase):
         res = self.client.post(self.toggle_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
-        notifications = Notification.objects.filter(recipient=self.speaker_user)
+        notifications = Notification.objects.filter(recipient=self.speaker_profile)
         self.assertEqual(notifications.count(), 0)
 
     def test_toggle_nonexistent_event_returns_404(self):

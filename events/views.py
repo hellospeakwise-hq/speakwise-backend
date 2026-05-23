@@ -155,6 +155,9 @@ class EventSpeakerDeckToggleView(APIView):
             detail += "disabled."
 
         return Response(
-            data=detail,
+            data={
+                "speaker_deck_upload_enabled": event.speaker_deck_upload_enabled,
+                "detail": detail,
+            },
             status=status.HTTP_200_OK,
         )

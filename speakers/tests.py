@@ -1305,6 +1305,125 @@ class SpeakerDeckViewTests(APITestCase):
         res = self.client.get(detail_url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_patch_file_replacement_updates_metadata(self):
+        """PATCH with a new file updates original_filename and file_size."""
+        from speakers.models import SpeakerDeck
+
+        deck = SpeakerDeck.objects.create(
+            speaker=self.speaker_profile,
+            event=self.event,
+            file="speaker_decks/old.pdf",
+            original_filename="old.pdf",
+            file_size=512,
+        )
+        detail_url = reverse("speakers:speaker_deck_detail", kwargs={"pk": deck.id})
+
+        self.client.force_authenticate(self.speaker_user)
+        new_file = self._make_file("new_slides.pdf", 4096)
+        res = self.client.patch(detail_url, {"file": new_file}, format="multipart")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        deck.refresh_from_db()
+        self.assertIn("new_slides", deck.original_filename)
+        self.assertTrue(deck.original_filename.endswith(".pdf"))
+        self.assertEqual(deck.file_size, 4096)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# sanitize_upload utility tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class SanitizeUploadTests(TestCase):
+    """Unit tests for speakers.utils.sanitize_upload."""
+
+    def _make_file(self, name, content=b"data"):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return SimpleUploadedFile(name, content, content_type="application/octet-stream")
+
+    def test_strips_path_traversal(self):
+        """Path components are stripped, leaving only the bare filename."""
+        from speakers.utils import sanitize_upload
+
+        file = self._make_file("../../etc/passwd.pdf")
+        sanitize_upload(file)
+        self.assertNotIn("/", file.name)
+        self.assertNotIn("..", file.name)
+        self.assertTrue(file.name.endswith(".pdf"))
+
+    def test_replaces_special_chars_with_underscores(self):
+        """Spaces and special characters in the stem become underscores."""
+        from speakers.utils import sanitize_upload
+
+        file = self._make_file("my talk (v2)!.pdf")
+        sanitize_upload(file)
+        stem = file.name.rsplit(".", 1)[0]
+        for char in (" ", "(", ")", "!"):
+            self.assertNotIn(char, stem)
+
+    def test_collapses_consecutive_underscores(self):
+        """Multiple consecutive underscores are collapsed to one."""
+        from speakers.utils import sanitize_upload
+
+        file = self._make_file("hello   world.pptx")
+        sanitize_upload(file)
+        self.assertNotIn("__", file.name)
+
+    def test_extension_preserved_in_lowercase(self):
+        """File extension is retained and normalised to lowercase."""
+        from speakers.utils import sanitize_upload
+
+        file = self._make_file("Talk.PDF")
+        sanitize_upload(file)
+        self.assertTrue(file.name.endswith(".pdf"))
+
+    def test_uuid_hex_suffix_appended(self):
+        """A 32-char hex UUID suffix is appended to the stem."""
+        from speakers.utils import sanitize_upload
+
+        file = self._make_file("talk.pdf")
+        sanitize_upload(file)
+        stem = file.name.rsplit(".", 1)[0]
+        parts = stem.rsplit("_", 1)
+        self.assertEqual(len(parts), 2)
+        suffix = parts[1]
+        self.assertEqual(len(suffix), 32)
+        self.assertTrue(all(c in "0123456789abcdef" for c in suffix))
+
+    def test_two_uploads_same_name_get_different_results(self):
+        """The same filename sanitized twice produces different output names."""
+        from speakers.utils import sanitize_upload
+
+        file1 = self._make_file("deck.pdf")
+        file2 = self._make_file("deck.pdf")
+        sanitize_upload(file1)
+        sanitize_upload(file2)
+        self.assertNotEqual(file1.name, file2.name)
+
+    def test_file_content_unchanged(self):
+        """Sanitisation does not alter the file content."""
+        from speakers.utils import sanitize_upload
+
+        content = b"slide data"
+        file = self._make_file("deck.pdf", content)
+        sanitize_upload(file)
+        self.assertEqual(file.read(), content)
+
+    def test_valid_upload_returns_sanitized_name(self):
+        """validate_file in SpeakerDeckSerializer calls sanitize_upload."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from speakers.serializers import SpeakerDeckSerializer
+
+        file = SimpleUploadedFile(
+            "my talk (v1).pdf", b"content", content_type="application/pdf"
+        )
+        validated = SpeakerDeckSerializer().fields["file"].run_validation(file)
+        self.assertNotIn(" ", validated.name)
+        self.assertNotIn("(", validated.name)
+        self.assertTrue(validated.name.endswith(".pdf"))
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Notification API view tests

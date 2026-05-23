@@ -1,9 +1,10 @@
 """speakers app views."""
 
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
@@ -538,7 +539,6 @@ class SpeakerFollowingListView(APIView):
         )
 
 
-# ---------- Speaker Deck Views ----------
 
 
 @extend_schema(tags=["speaker decks"])
@@ -561,39 +561,15 @@ class SpeakerDeckListCreateView(APIView):
 
         event_id = request.query_params.get("event") or request.data.get("event")
         if not event_id:
-            return (
-                None,
-                None,
-                Response(
-                    {"detail": "The 'event' query parameter is required."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                ),
-            )
+            raise ValidationError({"detail": "The 'event' query parameter is required."})
 
-        try:
-            event = Event.objects.get(pk=event_id)
-        except Event.DoesNotExist:
-            return (
-                None,
-                None,
-                Response(
-                    {"detail": "Event not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                ),
-            )
+        event = get_object_or_404(Event, pk=event_id)
 
         speaker_profile = request.user.speakers_profile_user.first()
         if not speaker_profile:
-            return (
-                None,
-                None,
-                Response(
-                    {"detail": "Speaker profile not found for this user."},
-                    status=status.HTTP_403_FORBIDDEN,
-                ),
-            )
+            raise PermissionDenied("Speaker profile not found for this user.")
 
-        return event, speaker_profile, None
+        return event, speaker_profile
 
     @extend_schema(
         responses=SpeakerDeckSerializer(many=True),
@@ -608,9 +584,7 @@ class SpeakerDeckListCreateView(APIView):
     )
     def get(self, request):
         """List speaker decks for the authenticated speaker and event."""
-        event, speaker_profile, error = self._get_event_and_speaker(request)
-        if error:
-            return error
+        event, speaker_profile = self._get_event_and_speaker(request)
 
         decks = SpeakerDeck.objects.filter(
             speaker__user_account=request.user, event=event
@@ -624,9 +598,7 @@ class SpeakerDeckListCreateView(APIView):
         from speakerrequests.choices import RequestStatusChoices
         from speakerrequests.models import SpeakerRequest
 
-        event, speaker_profile, error = self._get_event_and_speaker(request)
-        if error:
-            return error
+        event, speaker_profile = self._get_event_and_speaker(request)
 
         # Check upload is enabled
         if not event.speaker_deck_upload_enabled:
@@ -656,14 +628,7 @@ class SpeakerDeckListCreateView(APIView):
 
         serializer = SpeakerDeckSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        uploaded_file = serializer.validated_data["file"]
-        serializer.save(
-            speaker=accepted_request.speaker,
-            event=event,
-            original_filename=uploaded_file.name,
-            file_size=uploaded_file.size,
-        )
+        serializer.save(speaker=accepted_request.speaker, event=event)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -678,10 +643,8 @@ class SpeakerDeckRetrieveUpdateDestroyView(APIView):
 
     def get_object(self, pk, user):
         """Get a speaker deck, ensuring it belongs to the authenticated speaker."""
-        try:
-            return SpeakerDeck.objects.get(pk=pk, speaker__user_account=user)
-        except SpeakerDeck.DoesNotExist as err:
-            raise Http404 from err
+        deck = get_object_or_404(SpeakerDeck, pk=pk, speaker__user_account=user)
+        return deck
 
     @extend_schema(responses=SpeakerDeckSerializer)
     def get(self, request, pk):
@@ -696,15 +659,7 @@ class SpeakerDeckRetrieveUpdateDestroyView(APIView):
         deck = self.get_object(pk, request.user)
         serializer = SpeakerDeckSerializer(deck, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-
-        # If a new file is uploaded, update the metadata fields
-        save_kwargs = {}
-        if "file" in serializer.validated_data:
-            uploaded_file = serializer.validated_data["file"]
-            save_kwargs["original_filename"] = uploaded_file.name
-            save_kwargs["file_size"] = uploaded_file.size
-
-        serializer.save(**save_kwargs)
+        serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(responses={204: None})

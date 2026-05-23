@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event, EventSpeakers, Tag
 from events.serializers import EventSerializer, TagSerializer
-from events.utils import create_event_payload
+from events.utils import create_event_payload, notify_accepted_speakers_deck_upload
 from organizations.models import OrganizationMembership
 
 
@@ -121,8 +121,51 @@ class EventDetailView(APIView):
 class EventSpeakersListView(APIView):
     """get event speakers list view."""
 
+<<<<<<< HEAD
     def get(self, request, event_slug: str):
         """Retrieve event speakers."""
         speakers = EventSpeakers.objects.filter(event__slug=event_slug)
         serializer = EventSerializer(speakers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+=======
+    POST toggles the speaker_deck_upload_enabled flag.
+    When enabling, sends notifications to all accepted speakers.
+    """
+
+    permission_classes = [IsOrganizationAdminOrOrganizer]
+
+    @extend_schema(
+        tags=["Events"],
+        request=None,
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "speaker_deck_upload_enabled": {"type": "boolean"},
+                    "detail": {"type": "string"},
+                },
+            }
+        },
+    )
+    def post(self, request, slug, *args, **kwargs):
+        """Toggle the speaker deck upload flag for an event."""
+
+        event = get_object_or_404(Event, slug=slug)
+        self.check_object_permissions(request, event)
+
+        # Toggle the flag
+        event.speaker_deck_upload_enabled = not event.speaker_deck_upload_enabled
+        event.save(update_fields=["speaker_deck_upload_enabled", "updated_at"])
+
+        detail = "Speaker deck upload has been "
+        if event.speaker_deck_upload_enabled:
+            detail += "enabled."
+            notify_accepted_speakers_deck_upload(event)
+        else:
+            detail += "disabled."
+
+        return Response(
+            data=detail,
+            status=status.HTTP_200_OK,
+        )
+>>>>>>> e858683 (refactor: migrate email utilities to tasks.py and reorganize notification logic across modules)

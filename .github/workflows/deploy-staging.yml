@@ -7,9 +7,6 @@ on:
 jobs:
   test-backend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: speakwise-backend
     steps:
       - uses: actions/checkout@v4
 

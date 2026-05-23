@@ -119,7 +119,7 @@ class SpeakerRequestListView(APIView):
             if req.event.start_date_time
             else "",
             message=req.message,
-            request_id=req.id,
+            request_id=str(req.id),
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

@@ -1,14 +1,13 @@
 """events utils."""
 
-from django.http import Http404
 from django.conf import settings
+from django.http import Http404
 
+from organizations.models import Organization, OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.tasks import send_speaker_deck_upload_email
 from speakers.models import Notification
-
-from organizations.models import Organization, OrganizationMembership
 
 
 def create_event_payload(request):
@@ -52,7 +51,7 @@ def notify_accepted_speakers_deck_upload(event):
         # Create in-app notification
         notifications_to_create.append(
             Notification(
-                recipient=user,
+                recipient=speaker_request.speaker,
                 title=f"Upload your presentation for {event.title}",
                 message=(
                     f"The organizer has enabled presentation uploads for "

@@ -140,7 +140,6 @@ class EventSpeakerDeckToggleView(APIView):
     )
     def post(self, request, slug, *args, **kwargs):
         """Toggle the speaker deck upload flag for an event."""
-
         event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
 

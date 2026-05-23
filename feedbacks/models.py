@@ -25,8 +25,6 @@ class Feedback(TimeStampedModel):
     event = models.ForeignKey(
         "events.Event",
         on_delete=models.DO_NOTHING,
-        null=True,
-        blank=True,
         related_name="event_feedback",
     )
     overall_rating = models.IntegerField(

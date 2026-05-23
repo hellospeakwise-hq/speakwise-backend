@@ -54,10 +54,12 @@ class EventListView(APIView):
         """List events."""
         events = Event.objects.all()
         if request.user.is_authenticated:
-            try:
-                membership = OrganizationMembership.objects.get(user=request.user)
-                events = events.filter(organizer=membership.organization)
-            except OrganizationMembership.DoesNotExist:
+            user_orgs = OrganizationMembership.objects.filter(
+                user=request.user, is_active=True
+            ).values_list("organization", flat=True)
+            if user_orgs.exists():
+                events = events.filter(organizer__in=user_orgs)
+            else:
                 events = events.filter(is_active=True)
         else:
             events = events.filter(is_active=True)

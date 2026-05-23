@@ -94,6 +94,31 @@ class EventAPITestCase(TestCase):
         response = self.client.patch(url, {"title": "Hacked Title"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_get_event_list_with_multiple_orgs(self):
+        """Test that a user with multiple org memberships can list events without error."""
+        second_org = Organization.objects.create(
+            name="Second Organization",
+            email="second@org.com",
+            created_by=self.user,
+        )
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=second_org,
+            role=OrganizationRole.ADMIN.value,
+        )
+        Event.objects.create(
+            title="Second Org Event",
+            short_description="Event for second org.",
+            organizer=second_org,
+            is_active=True,
+        )
+
+        url = reverse("events:event-list-create")
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
     def test_delete_event_unauthorized(self):
         """Test that a user from another organization cannot delete this event."""
         other_user = User.objects.create(

@@ -163,6 +163,35 @@ class SpeakerRequestRespondAPIView(APIView):
         return Response(
             SpeakerRequestSerializer(updated_request).data, status=status.HTTP_200_OK
         )
+<<<<<<< HEAD
+=======
+        event_location = req.event.location.venue if req.event.location else ""
+        dashboard_url = f"{settings.FRONTEND_URL}/dashboard/organizer"
+        speaker_profile_url = f"{settings.FRONTEND_URL}/speakers/{req.speaker.id}"
+        discover_url = f"{settings.FRONTEND_URL}/speakers"
+
+        if req.status == RequestStatusChoices.ACCEPTED.value:
+            send_request_accepted_email.enqueue(
+                organizer_email=organizer_email,
+                requester_name=requester_name,
+                speaker_name=speaker_name,
+                speaker_title="",
+                event_name=event_name,
+                event_date=event_date,
+                event_location=event_location,
+                speaker_profile_url=speaker_profile_url,
+                dashboard_url=dashboard_url,
+            )
+        else:
+            send_request_declined_email.enqueue(
+                organizer_email=organizer_email,
+                requester_name=requester_name,
+                speaker_name=speaker_name,
+                event_name=event_name,
+                discover_url=discover_url,
+            )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+>>>>>>> 6cedfed (fix: use location.venue and set console log level to WARNING)
 
 
 class SpeakerEmailRequestListCreateAPIView(APIView):

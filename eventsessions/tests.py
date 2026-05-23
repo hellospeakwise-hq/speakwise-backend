@@ -64,8 +64,8 @@ class SessionAPITestCase(APITestCase):
             session_type="Talk",
             level="Beginner",
             status="Confirmed",
-            start_time=timezone.now(),
-            end_time=timezone.now() + timedelta(hours=1),
+            start_date_time=timezone.now(),
+            end_date_time=timezone.now() + timedelta(hours=1),
             max_attendees=50,
         )
 
@@ -86,8 +86,8 @@ class SessionAPITestCase(APITestCase):
             "session_type": "Workshop",
             "level": "Intermediate",
             "status": "Proposed",
-            "start_time": timezone.now().isoformat(),
-            "end_time": (timezone.now() + timedelta(hours=2)).isoformat(),
+            "start_date_time": timezone.now().isoformat(),
+            "end_date_time": (timezone.now() + timedelta(hours=2)).isoformat(),
             "max_attendees": 30,
             "event": self.event.id,
         }
@@ -143,7 +143,6 @@ class SessionAPITestCase(APITestCase):
         self.client.logout()
         url = reverse("sessions:session-list")
         response = self.client.post(url, self.payload, format="json")
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_session_serializer(self):

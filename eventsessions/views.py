@@ -46,7 +46,7 @@ class SessionListCreateView(APIView):
             )
 
         event = get_object_or_404(Event, slug=event_slug)
-        sessions = Session.objects.filter(event=event).order_by("start_time")
+        sessions = Session.objects.filter(event=event).order_by("start_date_time")
 
         serializer = self.serializer_class(sessions, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

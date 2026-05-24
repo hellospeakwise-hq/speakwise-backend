@@ -1,29 +1,31 @@
 """Speaker request utils."""
 
+import logging
+
 from django.conf import settings
 from django.core.mail import send_mail
 from django_tasks import task
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 @task()
 def send_speaker_request_email(
-    speaker_email: str, event_name: str, message: str, organizer_name: str = None
+    recipient_email: str, event_title: str, message: str
 ) -> None:
     """Send an email notification to the speaker about the speaker request."""
-    subject = f"Invitation to Speak at {event_name} – SpeakWise"
+    subject = f"Invitation to Speak at {event_title} – SpeakWise"
     send_mail(
         subject=subject,
         message=message,
-        recipient_list=[speaker_email],
+        recipient_list=[recipient_email],
         from_email=settings.DEFAULT_FROM_EMAIL,
         fail_silently=False,
     )
 
 
 @task()
+<<<<<<< HEAD
 <<<<<<< HEAD
 def send_speaker_org_request_email(
     speaker_email: str,
@@ -61,11 +63,14 @@ def send_speaker_org_request_email(
     )
 =======
 def send_request_accepted_email(speaker, _event):
+=======
+def send_request_accepted_email(recipient_email, event_title):
+>>>>>>> 0dcd31b (fix merge conficts and added improvements)
     """Send an email notification to the speaker about the accepted speaker request."""
-    subject = f"Speaker Request Accepted for {_event.title}"
+    subject = f"Speaker Request Accepted for {event_title}"
     body = (
         f"Hello,\n\n"
-        f"Congratulations! Your speaker request for '{_event.title}' "
+        f"Congratulations! Your speaker request for {event_title} "
         f"has been accepted.\n\n"
         f"Best regards,\n"
         f"The SpeakWise Team"
@@ -73,24 +78,27 @@ def send_request_accepted_email(speaker, _event):
     send_mail(
         subject=subject,
         message=body,
-        recipient_list=[speaker.user_account.email],
+        recipient_list=[recipient_email],
         from_email=settings.DEFAULT_FROM_EMAIL,
         fail_silently=False,
     )
+<<<<<<< HEAD
     # add event and speaker to organization event speakers
     from events.models import EventSpeakers
     EventSpeakers.objects.get_or_create(event=_event, speaker=speaker)
 >>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
+=======
+>>>>>>> 0dcd31b (fix merge conficts and added improvements)
 
 
 @task()
-def send_speaker_request_declined_email(speaker, _event):
+def send_request_declined_email(recipient_email, event_title):
     """Send an email notification to the speaker about the declined speaker request."""
-    subject = f"Speaker Request Declined for {_event.title}"
+    subject = f"Speaker Request Declined for {event_title}"
     body = (
         f"Hello,\n\n"
         f"We regret to inform you that your speaker request for '"
-        f"{_event.title}' has been declined.\n\n"
+        f"{event_title}' has been declined.\n\n"
         f"Thank you for your interest.\n\n"
         f"Best regards,\n"
         f"The SpeakWise Team"
@@ -179,8 +187,11 @@ def send_request_declined_email(
     send_mail(
         subject=subject,
         message=body,
-        recipient_list=[speaker.user_account.email],
+        recipient_list=[recipient_email],
         from_email=settings.DEFAULT_FROM_EMAIL,
         fail_silently=False,
     )
+<<<<<<< HEAD
 >>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
+=======
+>>>>>>> 0dcd31b (fix merge conficts and added improvements)

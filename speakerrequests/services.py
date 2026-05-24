@@ -8,7 +8,11 @@ from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.utils import (
     send_request_accepted_email,
+<<<<<<< HEAD
     send_speaker_request_declined_email,
+=======
+    send_request_declined_email,
+>>>>>>> 0dcd31b (fix merge conficts and added improvements)
     send_speaker_request_email,
 )
 
@@ -37,22 +41,16 @@ class SpeakerRequestService:
 
         # Notify speaker via email
         send_speaker_request_email.enqueue(
-            speaker_email=request.speaker.user_account.email,
-            event_name=request.event.title,
-            organizer_name=request.organizer.name,
+            recipient_email=request.speaker.user_account.email,
+            event_title=request.event.title,
             message=request.message,
         )
         return request
 
     @staticmethod
     @transaction.atomic
-    def respond_to_request(request_id, user, status_update):
+    def respond_to_request(speaker_request, status_update):
         """Respond to a speaker request (Accept/Reject)."""
-        # Ensure only the intended speaker can respond
-        speaker_request = SpeakerRequest.objects.select_related(
-            "speaker__user_account", "event", "organizer"
-        ).get(pk=request_id, speaker__user_account=user)
-
         if speaker_request.status != RequestStatusChoices.PENDING:
             raise ValueError("Can only respond to pending requests.")
 
@@ -65,6 +63,7 @@ class SpeakerRequestService:
         speaker_request.status = status_update
         speaker_request.save()
 
+        # send email notifications
         if status_update == RequestStatusChoices.ACCEPTED:
             from events.models import EventSpeakers
 
@@ -73,22 +72,26 @@ class SpeakerRequestService:
             )
 
             send_request_accepted_email.enqueue(
-                speaker=speaker_request.speaker,
-                _event=speaker_request.event,
+                recipient_email=speaker_request.speaker.user_account.email,
+                event_title=speaker_request.event.title,
             )
         else:
-            send_speaker_request_declined_email.enqueue(
-                speaker=speaker_request.speaker,
-                _event=speaker_request.event,
+            send_request_declined_email.enqueue(
+                recipeint_email=speaker_request.speaker.user_account.email,
+                event_title=speaker_request.event.title,
             )
 
         return speaker_request
 
     @staticmethod
     @transaction.atomic
+<<<<<<< HEAD
     def create_email_request(
         request_from, request_to_user, event_name, location, message
     ):
+=======
+    def create_email_request(request_from, request_to_user, event, message):
+>>>>>>> 0dcd31b (fix merge conficts and added improvements)
         """Create a speaker request for a user not necessarily in the system yet (or via email)."""
         email_request = SpeakerEmailRequests.objects.create(
             request_from=request_from,
@@ -100,10 +103,11 @@ class SpeakerRequestService:
         )
         print(email_request.request_to.email)
 
+        # send email notification
         if email_request.request_to:
             send_speaker_request_email.enqueue(
-                speaker_email=email_request.request_to.email,
-                event_name=email_request.event,
+                recipient_email=email_request.request_to.email,
+                event_title=email_request.event,
                 organizer_name=email_request.request_from.username,
                 message=email_request.message,
             )

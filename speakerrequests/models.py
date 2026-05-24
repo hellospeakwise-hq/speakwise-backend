@@ -10,16 +10,12 @@ from speakers.models import SpeakerProfile
 from users.models import User
 
 
-from organizations.models import OrganizationMembership
-
-
 class SpeakerRequestQuerySet(models.QuerySet):
     """QuerySet for SpeakerRequests to optimize common queries."""
 
     def for_organizer(self, user):
         """Requests for organizations where user is a member."""
-        org_ids = OrganizationMembership.objects.filter(user=user).values_list("organization_id", flat=True)
-        return self.filter(organizer_id__in=org_ids)
+        return self.filter(organizer__organization_memberships__user=user)
 
     def for_speaker(self, user):
         """Requests sent to this speaker."""
@@ -45,18 +41,21 @@ class SpeakerRequestManager(models.Manager):
         """Proxy to QuerySet."""
         return self.get_queryset().for_speaker(user)
 
+    def with_prefetches(self):
+        """Proxy to QuerySet."""
+        return self.get_queryset().with_prefetches()
+
 
 class SpeakerRequest(TimeStampedModel):
-
     """speaker request model."""
-
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     objects = SpeakerRequestManager()
 
     organizer = models.ForeignKey(
-        "organizations.Organization", on_delete=models.DO_NOTHING
+        "organizations.Organization", on_delete=models.CASCADE
     )
-    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.DO_NOTHING)
-    event = models.ForeignKey("events.Event", on_delete=models.DO_NOTHING)
+    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.CASCADE)
+    event = models.ForeignKey("events.Event", on_delete=models.CASCADE)
     status = models.CharField(
         max_length=10,
         choices=RequestStatusChoices.choices,
@@ -85,19 +84,19 @@ class SpeakerEmailRequests(TimeStampedModel):
     location = models.CharField(max_length=255)
     request_from = models.ForeignKey(
         User,
-        on_delete=models.DO_NOTHING,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_requests",
     )
     request_to = models.ForeignKey(
         User,
-        on_delete=models.DO_NOTHING,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_requests_received",
     )
     message = models.TextField(null=False)
     status = models.CharField(
-        max_length=225,
+        max_length=20,
         choices=RequestStatusChoices.choices,
         default=RequestStatusChoices.PENDING,
     )

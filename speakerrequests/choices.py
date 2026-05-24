@@ -9,3 +9,4 @@ class RequestStatusChoices(models.TextChoices):
     PENDING = "pending", "Pending"
     ACCEPTED = "accepted", "Accepted"
     REJECTED = "rejected", "Rejected"
+    CANCELLED = "cancelled", "Cancelled"

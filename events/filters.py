@@ -16,7 +16,7 @@ class EventFilter(filters.FilterSet):
     def organizer_filter(self, queryset, name, value):
         """Filter events by organizer name."""
         if value:
-            return queryset.filter(organizer__user_account__username__icontains=value)
+            return queryset.filter(organizer__name__icontains=value)
         return queryset
 
     def country_filter(self, queryset, name, value):

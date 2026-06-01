@@ -75,7 +75,11 @@ class SpeakerFollowSerializer(ModelSerializer):
 
 
 class FollowerDetailSerializer(ModelSerializer):
-    """Rich serializer returning speaker profile info for followers/following lists."""
+    """Rich serializer returning speaker profile info for followers/following lists.
+
+    Expects the queryset to have ``select_related('follower', 'speaker__user_account')``
+    and the context to contain a ``profiles`` mapping from user PK to SpeakerProfile.
+    """
 
     username = SerializerMethodField()
     full_name = SerializerMethodField()
@@ -101,16 +105,18 @@ class FollowerDetailSerializer(ModelSerializer):
             "created_at",
         ]
 
-    def _get_profile(self, user):
-        """Get the SpeakerProfile for a user, if it exists."""
-        return SpeakerProfile.objects.filter(user_account=user).first()
-
     def _get_user(self, obj):
         """Get the relevant user depending on context (follower or following)."""
         context_type = self.context.get("type", "followers")
         if context_type == "following":
             return obj.speaker.user_account
         return obj.follower
+
+    def _profile(self, obj):
+        """Return the cached SpeakerProfile from context, or None."""
+        user = self._get_user(obj)
+        profiles = self.context.get("profiles", {})
+        return profiles.get(user.pk)
 
     def get_username(self, obj) -> str:
         """Return the username."""
@@ -126,29 +132,29 @@ class FollowerDetailSerializer(ModelSerializer):
 
     def get_avatar(self, obj):
         """Return the avatar URL."""
-        profile = self._get_profile(self._get_user(obj))
+        profile = self._profile(obj)
         if profile and profile.avatar:
             return profile.avatar.url
         return None
 
     def get_slug(self, obj):
         """Return the speaker profile slug."""
-        profile = self._get_profile(self._get_user(obj))
+        profile = self._profile(obj)
         return profile.slug if profile else None
 
     def get_short_bio(self, obj) -> str:
         """Return the short bio."""
-        profile = self._get_profile(self._get_user(obj))
+        profile = self._profile(obj)
         return profile.short_bio if profile else ""
 
     def get_country(self, obj) -> str:
         """Return the country."""
-        profile = self._get_profile(self._get_user(obj))
+        profile = self._profile(obj)
         return profile.country if profile else ""
 
     def get_organization(self, obj) -> str:
         """Return the organization."""
-        profile = self._get_profile(self._get_user(obj))
+        profile = self._profile(obj)
         return profile.organization if profile else ""
 
 
@@ -198,16 +204,22 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     def get_followers_count(self, obj) -> int:
         """Return total number of followers for this speaker."""
-        return obj.followers_count
+        return getattr(obj, "_followers_count", obj.followers_count)
 
     def get_following_count(self, obj) -> int:
         """Return how many speakers this speaker follows (their following count)."""
+        cached = getattr(obj, "_following_count", None)
+        if cached is not None:
+            return cached
         return SpeakerFollow.objects.filter(follower=obj.user_account).count()
 
     def get_is_following(self, obj) -> bool:
         """Return True if the current authenticated user follows this speaker."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
+            following_set = getattr(obj, "_following_user_ids", None)
+            if following_set is not None:
+                return request.user.pk in following_set
             return SpeakerFollow.objects.filter(
                 follower=request.user, speaker=obj
             ).exists()

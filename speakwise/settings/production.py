@@ -22,8 +22,6 @@ ALLOWED_HOSTS = [
     "apis-staging.speak-wise.live",
     "speak-wise.live",
     "www.speak-wise.live",
-    "https://www.speak-wise.live",
-    "159.65.58.240",
 ]
 
 # Database
@@ -71,7 +69,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_REDIRECT_EXEMPT = []
-SECURE_SSL_REDIRECT = False
+SECURE_SSL_REDIRECT = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
@@ -95,38 +93,35 @@ EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 SERVER_EMAIL = os.environ.get("SERVER_EMAIL")
 
-# Logging
+# Logging — structured JSON for production
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "{levelname}{asctime}{module}{process}{thread}{message}",
+            "style": "{",
+        },
         "verbose": {
-            "format": (
-                "{levelname} {asctime} {module} {process:d} {thread:d} {message}"
-            ),
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
     },
     "handlers": {
-        "file": {
-            "level": "INFO",
-            "class": "logging.FileHandler",
-            "filename": os.path.join(BASE_DIR, "django.log"),
-            "formatter": "verbose",
-        },
         "console": {
-            "level": "WARNING",
+            "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json" if "PYTHONJSONLOGGER" in os.environ else "verbose",
         },
     },
     "root": {
-        "handlers": ["file", "console"],
+        "handlers": ["console"],
         "level": "INFO",
     },
     "loggers": {
         "django": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },

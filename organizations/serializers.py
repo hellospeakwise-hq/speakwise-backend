@@ -43,10 +43,14 @@ class OrganizationSerializer(serializers.ModelSerializer):
         validated_data["created_by"] = user
         organization = super().create(validated_data)
         if user:
-            OrganizationMembership.objects.create(
-                organization=organization,
-                user=user,
-                role=OrganizationRole.ADMIN,
-                added_by=user,
+            from django.db import transaction
+
+            transaction.on_commit(
+                lambda: OrganizationMembership.objects.create(
+                    organization=organization,
+                    user=user,
+                    role=OrganizationRole.ADMIN,
+                    added_by=user,
+                )
             )
         return organization

@@ -52,7 +52,9 @@ class EventListView(APIView):
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         """List events."""
-        events = Event.objects.all()
+        events = Event.objects.select_related(
+            "location__country", "organizer"
+        ).prefetch_related("tags")
         if request.user.is_authenticated:
             user_orgs = OrganizationMembership.objects.filter(
                 user=request.user, is_active=True
@@ -92,7 +94,12 @@ class EventDetailView(APIView):
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
         """Retrieve event detail."""
-        event = get_object_or_404(Event, slug=slug)
+        event = get_object_or_404(
+            Event.objects.select_related(
+                "location__country", "organizer"
+            ).prefetch_related("tags"),
+            slug=slug,
+        )
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

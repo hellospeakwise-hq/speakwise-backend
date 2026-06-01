@@ -57,13 +57,15 @@ class EmailService:
         token_generator = PasswordResetTokenGenerator()
         token = token_generator.make_token(user)
 
-        reset_url = f"{FRONTEND_URL}/reset-password?token={token}&email={user.email}"
+        reset_url = f"{FRONTEND_URL}/reset-password"
 
         html_message = render_to_string(
             "emails/password_reset.html",
             {
                 "user_name": user.first_name or user.username,
                 "reset_url": reset_url,
+                "reset_code": token,
+                "reset_email": user.email,
             },
         )
 
@@ -72,7 +74,10 @@ class EmailService:
                 subject=f"Password Reset Request - {getattr(settings, 'SITE_NAME', 'SpeakWise')}",
                 message=(
                     f"Hi {user.first_name or user.username},\n\n"
-                    f"Click the link below to reset your password:\n{reset_url}\n\n"
+                    f"A password reset was requested for your account.\n\n"
+                    f"Your reset code: {token}\n\n"
+                    f"To reset your password, go to: {reset_url}\n"
+                    f"and enter your email ({user.email}) along with the code above.\n\n"
                     "If you did not request this, you can safely ignore this email."
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,

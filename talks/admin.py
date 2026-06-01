@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from talks.models import Session, Talks
+from talks.models import Talks, TalkSession
 
 
 @admin.register(Talks)
@@ -17,10 +17,10 @@ class TalkAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(Session)
-class SessionAdmin(admin.ModelAdmin):
-    """session admin."""
+@admin.register(TalkSession)
+class TalkSessionAdmin(admin.ModelAdmin):
+    """talk session admin."""
 
-    list_display = ("talk", "type", "duration")
-    list_filter = ("talk", "type")
+    list_display = ("talk", "session_type", "duration")
+    list_filter = ("talk", "session_type")
     search_fields = ("title", "talk")

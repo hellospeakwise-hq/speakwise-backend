@@ -20,7 +20,6 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = True
 AUTH_USER_MODEL = "users.User"
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -164,17 +163,21 @@ STATIC_ROOT = os.path.join(BASE_DIR.parent, "staticfiles")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    # YOUR SETTINGS
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
-}
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "1000/hour",
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -189,32 +192,12 @@ SPECTACULAR_SETTINGS = {
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 SITE_NAME = "SpeakWise"
 
-# django-q configuration
-Q_CLUSTER = {
-    "name": "myproject",
-    "workers": 8,
-    "recycle": 500,
-    "timeout": 60,
-    "compress": True,
-    "cpu_affinity": 1,
-    "save_limit": 250,
-    "queue_limit": 500,
-    "label": "Django Q",
-    "redis": {
-        "host": "127.0.0.1",
-        "port": 6379,
-        "db": 0,
-    },
-}
-
-# simple jwt settings
-
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": False,
-    "UPDATE_LAST_LOGIN": False,
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
 }
 
 TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}

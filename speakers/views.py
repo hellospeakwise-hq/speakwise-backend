@@ -44,7 +44,9 @@ class SpeakerProfileListCreateView(APIView):
     @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
         """List all speaker profiles."""
-        speaker_profiles = SpeakerProfile.objects.all()
+        speaker_profiles = SpeakerProfile.objects.select_related(
+            "user_account"
+        ).prefetch_related("skill_tags", "social_links", "experiences", "speaker_decks")
         serializer = SpeakerProfileSerializer(
             speaker_profiles, many=True, context={"request": request}
         )
@@ -76,9 +78,15 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         return [IsAuthenticated()]
 
     def get_object(self, slug: str):
-        """Get speaker profile by ID."""
+        """Get speaker profile by slug with related data."""
         try:
-            return SpeakerProfile.objects.get(slug=slug)
+            return (
+                SpeakerProfile.objects.select_related("user_account")
+                .prefetch_related(
+                    "skill_tags", "social_links", "experiences", "speaker_decks"
+                )
+                .get(slug=slug)
+            )
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
@@ -130,7 +138,7 @@ class SpeakerExperiencesListCreateView(APIView):
         """List all speaker experiences for the authenticated user."""
         speaker_experiences = SpeakerExperiences.objects.filter(
             speaker__user_account=request.user
-        )
+        ).select_related("speaker__user_account")
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -203,7 +211,9 @@ class PublicSpeakerExperiencesListView(APIView):
 
         If the slug does not match any speaker, an empty list is returned.
         """
-        speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
+        speaker_experiences = SpeakerExperiences.objects.filter(
+            speaker__slug=slug
+        ).select_related("speaker__user_account")
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -287,7 +297,9 @@ class SpeakerSkillTagsListView(APIView):
     )
     def get(self, request):
         """List all skill tags for the authenticated user."""
-        skill_tags = self.get_objects(request.user)
+        skill_tags = self.get_objects(request.user).select_related(
+            "speaker__user_account"
+        )
         serializer = SpeakerSkillTagSerializer(skill_tags, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -498,8 +510,15 @@ class SpeakerFollowersListView(APIView):
         follows = SpeakerFollow.objects.filter(speaker=speaker).select_related(
             "follower"
         )
+        follower_ids = [f.follower_id for f in follows]
+        profiles = {
+            p.user_account_id: p
+            for p in SpeakerProfile.objects.filter(user_account_id__in=follower_ids)
+        }
         serializer = FollowerDetailSerializer(
-            follows, many=True, context={"type": "followers"}
+            follows,
+            many=True,
+            context={"type": "followers", "profiles": profiles},
         )
         return Response(
             {"followers_count": speaker.followers_count, "followers": serializer.data},
@@ -527,8 +546,15 @@ class SpeakerFollowingListView(APIView):
         follows = SpeakerFollow.objects.filter(
             follower=speaker.user_account
         ).select_related("speaker", "speaker__user_account")
+        following_ids = [f.speaker.user_account_id for f in follows]
+        profiles = {
+            p.user_account_id: p
+            for p in SpeakerProfile.objects.filter(user_account_id__in=following_ids)
+        }
         serializer = FollowerDetailSerializer(
-            follows, many=True, context={"type": "following"}
+            follows,
+            many=True,
+            context={"type": "following", "profiles": profiles},
         )
         return Response(
             {
@@ -588,7 +614,7 @@ class SpeakerDeckListCreateView(APIView):
 
         decks = SpeakerDeck.objects.filter(
             speaker__user_account=request.user, event=event
-        )
+        ).select_related("speaker__user_account")
         serializer = SpeakerDeckSerializer(decks, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -697,7 +723,7 @@ class NotificationListView(APIView):
         """List notifications for the authenticated user."""
         notifications = Notification.objects.filter(
             recipient__user_account=request.user
-        )
+        ).select_related("recipient__user_account")
 
         is_read_param = request.query_params.get("is_read")
         if is_read_param is not None:

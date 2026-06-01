@@ -1,5 +1,6 @@
 """attendees views."""
 
+from django.core.signing import TimestampSigner
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -22,6 +23,8 @@ from attendees.serializers import (
 from base.permissions import IsOrganizationAdmin, IsOrganizationOrganizer
 from base.utils import FileHandler
 from events.models import Event
+
+signer = TimestampSigner(salt="feedback-verification")
 
 
 @extend_schema(responses=AttendeeProfileSerializer, request=AttendeeProfileSerializer)
@@ -71,13 +74,15 @@ def verify_attendee(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Mark session as verified to allow feedback submission.
-    request.session["attendee_verified"] = True
-    request.session["attendee_email"] = email
-    request.session.save()
+    # Create a signed token so verification works across distributed workers.
+    verify_token = signer.sign(email)
 
     return Response(
-        {"detail": "Attendee verified. You may now submit feedback.", "email": email},
+        {
+            "detail": "Attendee verified. You may now submit feedback.",
+            "email": email,
+            "verify_token": verify_token,
+        },
         status=status.HTTP_200_OK,
     )
 
@@ -142,7 +147,8 @@ class AttendanceDetailView(APIView):
 def upload_attendance_view(request, *args, **kwargs):
     """Create attendance objects from uploaded file."""
     attendance_file = request.FILES.get("file")
-    event = Event.objects.get(id=int(request.data.get("event")))
+    event_id = request.data.get("event")
+    event = Event.objects.get(id=event_id)
 
     if not attendance_file:
         return Response(

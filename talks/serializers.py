@@ -3,16 +3,16 @@
 from rest_framework import serializers
 
 from events.models import Event
-from talks.models import Session, TalkReviewComment, Talks
+from talks.models import TalkReviewComment, Talks, TalkSession
 
 
-class SessionSerializer(serializers.ModelSerializer):
-    """Session serializer."""
+class TalkSessionSerializer(serializers.ModelSerializer):
+    """Talk session serializer."""
 
     class Meta:
         """Meta options."""
 
-        model = Session
+        model = TalkSession
         exclude = ("created_at", "updated_at", "talk")
 
 
@@ -20,7 +20,7 @@ class TalkSerializer(serializers.ModelSerializer):
     """Serializer for Talk model."""
 
     speaker_name = serializers.SerializerMethodField()
-    session = SessionSerializer(required=False, many=False)
+    session = TalkSessionSerializer(required=False, many=False)
 
     # event is optional for standalone / pre-CFP talks
     event = serializers.PrimaryKeyRelatedField(

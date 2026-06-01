@@ -46,5 +46,5 @@ USER django
 # Expose port
 EXPOSE 8000
 
-# Command to run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Command to run the application with gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "sync", "--timeout", "120", "speakwise.wsgi:application"]

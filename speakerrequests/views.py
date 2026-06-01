@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -33,7 +33,7 @@ class SpeakerRequestListView(APIView):
     This view allows organizers to list all their speaker requests and create new ones.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = SpeakerRequestSerializer
 
     def get_objects(self, organizer, organization_id=None):
@@ -50,15 +50,20 @@ class SpeakerRequestListView(APIView):
                 membership = OrganizationMembership.objects.filter(
                     user=organizer, organization_id=organization_id
                 ).first()
+                base_qs = SpeakerRequest.objects.select_related(
+                    "speaker__user_account", "event", "organizer"
+                )
                 if membership:
-                    return SpeakerRequest.objects.filter(organizer_id=organization_id)
+                    return base_qs.filter(organizer_id=organization_id)
                 else:
-                    return SpeakerRequest.objects.none()
+                    return base_qs.none()
 
             # Otherwise, get requests for all organizations the user is a member of
             memberships = OrganizationMembership.objects.filter(user=organizer)
             org_ids = memberships.values_list("organization_id", flat=True)
-            return SpeakerRequest.objects.filter(organizer_id__in=org_ids)
+            return SpeakerRequest.objects.filter(
+                organizer_id__in=org_ids
+            ).select_related("speaker__user_account", "event", "organizer")
         except Exception as err:
             raise Http404 from err
 
@@ -124,13 +129,13 @@ class SpeakerRequestListView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class SPeakerRequestDetailView(APIView):
+class SpeakerRequestDetailView(APIView):
     """View to retrieve, update, and delete a specific speaker request.
 
     This view allows organizers to manage individual speaker requests.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = SpeakerRequestSerializer
 
     def get_object(self, pk, organizer):
@@ -196,12 +201,14 @@ class SpeakerRequestsListView(APIView):
     This view allows speakers to see all requests sent to them.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_objects(self, speaker):
         """Get speaker requests by speaker."""
         try:
-            return SpeakerRequest.objects.filter(speaker__user_account=speaker)
+            return SpeakerRequest.objects.filter(
+                speaker__user_account=speaker
+            ).select_related("speaker__user_account", "event", "organizer")
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err
 
@@ -230,7 +237,7 @@ class SpeakerRequestAcceptView(APIView):
     This view allows speakers to respond to a request.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self, pk, user):
         """Get object by pk and ensure it belongs to the speaker."""
@@ -257,6 +264,7 @@ class SpeakerRequestAcceptView(APIView):
                 {"detail": "You can only update requests that are in PENDING status."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         serializer = SpeakerRequestSerializer(
             speaker_request, data=request.data, partial=True
         )

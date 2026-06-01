@@ -208,7 +208,7 @@ class UsersListView(APIView):
     @extend_schema(responses=UserSerializer(many=True))
     def get(self, request):
         """List all users."""
-        users = User.objects.all()
+        users = User.objects.all().prefetch_related("speakers_profile_user")
         user_filters = UserFilter(request.GET, queryset=users)
         serializer = UserSerializer(user_filters.qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

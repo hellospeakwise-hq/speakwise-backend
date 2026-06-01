@@ -1,5 +1,6 @@
 """CFP views."""
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import PermissionDenied
@@ -65,7 +66,9 @@ class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         """Return all submissions with co_speakers prefetched."""
-        return CFPSubmission.objects.prefetch_related("co_speakers")
+        return CFPSubmission.objects.select_related(
+            "submitter", "event"
+        ).prefetch_related("co_speakers")
 
     def get_object(self):
         """Return the submission if the user is the submitter or an organizer."""
@@ -116,10 +119,15 @@ class CFPStatusUpdateView(UpdateAPIView):
     http_method_names = ["patch", "head", "options"]
 
     def get_queryset(self):
-        """Return all submissions."""
-        return CFPSubmission.objects.all()
+        """Return all submissions with related data."""
+        return CFPSubmission.objects.select_related(
+            "submitter", "event__organizer"
+        ).prefetch_related("co_speakers")
 
+    @transaction.atomic
     def perform_update(self, serializer):
         """Save the status change and notify the submitter by email."""
         submission = serializer.save()
-        CFPEmailService.send_status_notification(submission)
+        transaction.on_commit(
+            lambda: CFPEmailService.send_status_notification(submission)
+        )

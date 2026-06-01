@@ -1,5 +1,6 @@
 """Feedback views using Generic Views."""
 
+from django.core.signing import BadSignature, TimestampSigner
 from django.urls import reverse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -11,6 +12,8 @@ from attendees.models import Attendance
 
 from .models import Feedback
 from .serializers import FeedbackSerializer
+
+signer = TimestampSigner(salt="feedback-verification")
 
 
 class FeedbackListCreateView(APIView):
@@ -37,10 +40,15 @@ class FeedbackListCreateView(APIView):
 
         Requires prior attendee verification via the verify endpoint.
         If not verified, returns 403 with a link to the verification endpoint.
+
+        Verification is passed via a signed ``verify_token`` query parameter
+        (set by the verify-attendee endpoint) so it works across distributed workers.
         """
-        if not request.session.get("attendee_verified"):
+        verify_token = request.query_params.get("verify_token") or request.data.get(
+            "verify_token"
+        )
+        if not verify_token:
             verify_url = reverse("attendees:verify-attendee")
-            # Namespace is mounted under /api/ at project level
             return Response(
                 {
                     "detail": "Attendee verification required before submitting feedback.",
@@ -49,20 +57,22 @@ class FeedbackListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        try:
+            signed_data = signer.unsign(verify_token, max_age=300)
+            email = signed_data
+        except BadSignature:
+            return Response(
+                {"detail": "Invalid or expired verification token."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
         # Mark attendance as having given feedback based on verified email.
-        email = request.session.get("attendee_email")
-        if email:
-            Attendance.objects.filter(email=email, is_given_feedback=False).update(
-                is_given_feedback=True
-            )
-
-        # Clear verification flags after successful submission.
-        request.session["attendee_verified"] = False
-        request.session.pop("attendee_email", None)
-        request.session.save()
+        Attendance.objects.filter(email=email, is_given_feedback=False).update(
+            is_given_feedback=True
+        )
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)

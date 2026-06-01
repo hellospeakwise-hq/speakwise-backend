@@ -14,7 +14,7 @@ urlpatterns = [
     ),
     path(
         "speaker-requests/<uuid:pk>/",
-        views.SPeakerRequestDetailView.as_view(),
+        views.SpeakerRequestDetailView.as_view(),
         name="speaker_request_retrieve_update_delete",
     ),
     path(

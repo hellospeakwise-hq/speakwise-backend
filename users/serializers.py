@@ -1,14 +1,13 @@
 """user serializers."""
 
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
 from speakers.serializers import SpeakerProfileSerializer
 from users.models import User
 
 
-class UserSerializer(WritableNestedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     """User model serializer."""
 
     class Meta:

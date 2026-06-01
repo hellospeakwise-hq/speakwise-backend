@@ -15,16 +15,21 @@ from talks.choices import TalkCategoryChoices
 PRESENTATION_FILES_UPLOAD_DIR = "presentation_files"
 
 
-class Session(TimeStampedModel):
+class TalkSession(TimeStampedModel):
     """talk session model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    type = models.CharField(
-        max_length=255, help_text="session type. eg. Keynote, lightning talk. etc"
+    session_type = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="session type. eg. Keynote, lightning talk. etc",
     )
-    duration = models.IntegerField(help_text="session duration in minutes")
+    duration = models.IntegerField(
+        null=True, blank=True, help_text="session duration in minutes"
+    )
     talk = models.ForeignKey(
-        "Talks", on_delete=models.CASCADE, related_name="talk_sessions"
+        "Talks", on_delete=models.CASCADE, related_name="talk_sessions", null=True
     )
 
     def __str__(self):

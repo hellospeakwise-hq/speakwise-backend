@@ -67,11 +67,10 @@ jobs:
 
               # Set proper permissions for .env file
               chmod 600 .env
-              chown www-data:www-data .env
 
               # Run Django management commands
-              python manage.py collectstatic --noinput --settings=speakwise.settings.prod
-              python manage.py migrate --settings=speakwise.settings.prod
+              python manage.py collectstatic --noinput --settings=speakwise.settings.production
+              python manage.py migrate --settings=speakwise.settings.production --noinput
 
               # Restart application services
               sudo systemctl restart gunicorn

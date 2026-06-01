@@ -123,9 +123,7 @@ class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
     event_image = serializers.ImageField(required=False, allow_null=True)
-    tags = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Tag.objects.all(), required=False
-    )
+    tags = TagSerializer(many=True, required=False)
     website = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
@@ -154,19 +152,21 @@ class EventSerializer(WritableNestedModelSerializer):
     def to_representation(self, instance):
         """Return full tag objects instead of plain UUIDs."""
         data = super().to_representation(instance)
-        data["tags"] = TagSerializer(instance.tags.all(), many=True).data
+        if instance.tags is not None:
+            try:
+                tags = instance.tags.all()
+            except ValueError:
+                tags = TagSerializer.Meta.model.objects.none()
+            data["tags"] = TagSerializer(tags, many=True).data
         return data
 
     def create(self, validated_data):
         """Create an event, resolving the nested location/country and tags."""
-        tags = validated_data.pop("tags", [])
         location_data = validated_data.pop("location", None)
         location = _resolve_location(location_data)
         if location:
             validated_data["location"] = location
         event = super(WritableNestedModelSerializer, self).create(validated_data)
-        if tags:
-            event.tags.set(tags)
         return event
 
     def update(self, instance, validated_data):

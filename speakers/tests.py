@@ -1094,7 +1094,7 @@ class SpeakerDeckViewTests(APITestCase):
         from speakerrequests.models import SpeakerRequest
 
         SpeakerRequest.objects.create(
-            organizer=self.organization,
+            organization=self.organization,
             speaker=self.speaker_profile,
             event=self.event,
             status="accepted",
@@ -1103,7 +1103,7 @@ class SpeakerDeckViewTests(APITestCase):
 
         # Rejected speaker request
         SpeakerRequest.objects.create(
-            organizer=self.organization,
+            organization=self.organization,
             speaker=self.rejected_profile,
             event=self.event,
             status="rejected",
@@ -1168,7 +1168,7 @@ class SpeakerDeckViewTests(APITestCase):
         from speakerrequests.models import SpeakerRequest
 
         SpeakerRequest.objects.create(
-            organizer=self.organization,
+            organization=self.organization,
             speaker=self.speaker_profile,
             event=self.event_disabled,
             status="accepted",

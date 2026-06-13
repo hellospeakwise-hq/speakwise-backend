@@ -8,9 +8,9 @@ from django.contrib.auth import logout
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -29,16 +29,29 @@ from users.services import EmailService
 logger = logging.getLogger(__name__)
 
 
-@extend_schema(responses=UserSerializer)
-class UserCreateView(CreateAPIView):
+class PasswordResetThrottle(UserRateThrottle):
+    """Throttle for password reset requests."""
+
+    scope = "password_reset"
+
+
+class RegistrationThrottle(UserRateThrottle):
+    """Throttle for registration requests."""
+
+    scope = "registration"
+
+
+@extend_schema(request=UserSerializer, responses=UserSerializer)
+class UserCreateView(APIView):
     """User create view."""
 
-    serializer_class = UserSerializer
-    queryset = User.objects.all()
     permission_classes = [AllowAny]
+    throttle_classes = [RegistrationThrottle]
 
-    def perform_create(self, serializer):
-        """Create user and send welcome email."""
+    def post(self, request):
+        """Create a new user."""
+        serializer = UserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         user = serializer.save()
         try:
             EmailService.send_welcome_email(user)
@@ -46,6 +59,7 @@ class UserCreateView(CreateAPIView):
             logger.warning(
                 "Welcome email failed for user ID: %s", user.id, exc_info=True
             )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class UserLogoutView(APIView):
@@ -119,8 +133,12 @@ class UserLoginView(LoginBaseClass):
         return self.user
 
     def get_extra_payload(self) -> dict:
-        """Return the speaker data."""
-        return UserSerializer(self.user).data
+        """Return minimal user data with login response."""
+        return {
+            "user_id": str(self.user.id),
+            "email": self.user.email,
+            "username": self.user.username,
+        }
 
 
 @extend_schema(responses=PasswordResetRequestSerializer)
@@ -129,6 +147,7 @@ class PasswordResetRequestView(APIView):
 
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
+    throttle_classes = [PasswordResetThrottle]
 
     @extend_schema(request=PasswordResetRequestSerializer, responses={200: None})
     def post(self, request):

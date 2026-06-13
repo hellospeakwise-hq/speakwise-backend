@@ -1,10 +1,19 @@
 import uuid
 from django.db import migrations, models
 
+from base.migration_utils import (
+    execute_sql_list_if_postgres,
+    is_postgres,
+    run_if_postgres,
+)
+
 
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing talks tables,
     including constraints from session and talkreviewcomment."""
+
+    if not is_postgres(schema_editor):
+        return
 
     cursor = schema_editor.connection.cursor()
     target_pk_tables = ["talks_talks", "talks_session"]
@@ -57,21 +66,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
+        run_if_postgres(
             sql='CREATE EXTENSION IF NOT EXISTS "pgcrypto";',
         ),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
+        execute_sql_list_if_postgres([
+            "ALTER TABLE talks_talks ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE talks_session ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE talks_talks ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+            "ALTER TABLE talks_session ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+            "ALTER TABLE talks_session ALTER COLUMN talk_id DROP NOT NULL;",
+            "ALTER TABLE talks_session ALTER COLUMN talk_id TYPE uuid USING (NULL);",
+            "ALTER TABLE talks_talkreviewcomment ALTER COLUMN talk_id DROP NOT NULL;",
+            "ALTER TABLE talks_talkreviewcomment ALTER COLUMN talk_id TYPE uuid USING (NULL);",
+        ]),
         migrations.RunSQL(
-            sql=[
-                "ALTER TABLE talks_talks ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE talks_session ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE talks_talks ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE talks_session ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE talks_session ALTER COLUMN talk_id DROP NOT NULL;",
-                "ALTER TABLE talks_session ALTER COLUMN talk_id TYPE uuid USING (NULL);",
-                "ALTER TABLE talks_talkreviewcomment ALTER COLUMN talk_id DROP NOT NULL;",
-                "ALTER TABLE talks_talkreviewcomment ALTER COLUMN talk_id TYPE uuid USING (NULL);",
-            ],
+            sql=[],
             state_operations=[
                 migrations.AlterField(
                     model_name="talks",

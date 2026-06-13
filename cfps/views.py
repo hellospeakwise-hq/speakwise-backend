@@ -1,16 +1,12 @@
 """CFP views."""
 
-from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
+from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.generics import (
-    ListAPIView,
-    ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView,
-    UpdateAPIView,
-)
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationAdminOrOrganizer
 from cfps.choices import CFPStatusChoices
@@ -21,59 +17,61 @@ from events.models import Event
 
 
 @extend_schema(tags=["CFP"])
-class CFPSubmissionListCreateView(ListCreateAPIView):
+class CFPSubmissionListCreateView(APIView):
     """GET  — organizers see all submissions for the event.
     POST — any authenticated user submits a CFP.
     """
 
-    serializer_class = CFPSubmissionSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_event(self):
-        """Return the event for this request, cached on the view instance."""
-        if not hasattr(self, "_event"):
-            self._event = get_object_or_404(Event, slug=self.kwargs["slug"])
-        return self._event
+    @extend_schema(
+        responses={200: CFPSubmissionSerializer(many=True)},
+    )
+    def get(self, request, slug=None):
+        """List submissions scoped to the event and user role."""
+        event = get_object_or_404(Event, slug=slug)
+        base_qs = CFPSubmission.objects.filter(event=event).prefetch_related(
+            "co_speakers"
+        )
 
-    def get_queryset(self):
-        """Return submissions scoped to the event and user role."""
-        event = self.get_event()
-        if IsOrganizationAdminOrOrganizer().has_object_permission(
-            self.request, self, event
-        ):
-            return CFPSubmission.objects.filter(event=event).prefetch_related(
-                "co_speakers"
-            )
-        return CFPSubmission.objects.filter(
-            event=event, submitter=self.request.user
-        ).prefetch_related("co_speakers")
+        if IsOrganizationAdminOrOrganizer().has_object_permission(request, self, event):
+            serializer = CFPSubmissionSerializer(base_qs, many=True)
+        else:
+            submissions = base_qs.filter(submitter=request.user)
+            serializer = CFPSubmissionSerializer(submissions, many=True)
 
-    def perform_create(self, serializer):
-        """Save the submission."""
-        serializer.save(event=self.get_event(), submitter=self.request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request=CFPSubmissionSerializer,
+        responses={201: CFPSubmissionSerializer},
+    )
+    def post(self, request, slug=None):
+        """Create a new CFP submission."""
+        event = get_object_or_404(Event, slug=slug)
+        serializer = CFPSubmissionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(event=event, submitter=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(tags=["CFP"])
-class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
+class CFPSubmissionDetailView(APIView):
     """GET    — submitter or organizer.
     PATCH  — submitter only, while status is pending.
     DELETE — submitter only, while status is pending.
     """
 
-    serializer_class = CFPSubmissionSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", "patch", "delete", "head", "options"]
 
-    def get_queryset(self):
-        """Return all submissions with co_speakers prefetched."""
-        return CFPSubmission.objects.select_related(
-            "submitter", "event"
-        ).prefetch_related("co_speakers")
-
-    def get_object(self):
+    def get_object(self, pk, user):
         """Return the submission if the user is the submitter or an organizer."""
-        obj = super().get_object()
-        user = self.request.user
+        obj = get_object_or_404(
+            CFPSubmission.objects.select_related("submitter", "event").prefetch_related(
+                "co_speakers"
+            ),
+            pk=pk,
+        )
         is_submitter = obj.submitter == user
         is_organizer = IsOrganizationAdminOrOrganizer().has_object_permission(
             self.request, self, obj
@@ -84,50 +82,81 @@ class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
             )
         return obj
 
-    def perform_destroy(self, instance):
-        """Delete the submission if it is still pending."""
-        if instance.submitter != self.request.user:
+    @extend_schema(responses={200: CFPSubmissionSerializer})
+    def get(self, request, pk=None):
+        """Retrieve a specific CFP submission."""
+        submission = self.get_object(pk, request.user)
+        serializer = CFPSubmissionSerializer(submission)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request=CFPSubmissionSerializer, responses={200: CFPSubmissionSerializer}
+    )
+    def patch(self, request, pk=None):
+        """Update a CFP submission (submitter only, pending status only)."""
+        submission = self.get_object(pk, request.user)
+        if submission.submitter != request.user:
+            raise PermissionDenied("Only the submitter can edit this submission.")
+
+        serializer = CFPSubmissionSerializer(
+            submission, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(responses={204: None})
+    def delete(self, request, pk=None):
+        """Delete a CFP submission (submitter only, pending status only)."""
+        submission = self.get_object(pk, request.user)
+        if submission.submitter != request.user:
             raise PermissionDenied("Only the submitter can delete this submission.")
-        if instance.status != CFPStatusChoices.PENDING:
+        if submission.status != CFPStatusChoices.PENDING:
             raise PermissionDenied("Submissions can only be deleted while pending.")
-        instance.delete()
+        submission.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(tags=["CFP"])
-class MyCFPSubmissionsView(ListAPIView):
+class MyCFPSubmissionsView(APIView):
     """GET — returns all CFP submissions by the authenticated user across all events."""
 
-    serializer_class = CFPSubmissionSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        """Return all submissions by the current user."""
-        return (
-            CFPSubmission.objects.filter(submitter=self.request.user)
+    @extend_schema(responses={200: CFPSubmissionSerializer(many=True)})
+    def get(self, request):
+        """Return all CFP submissions by the current user."""
+        submissions = (
+            CFPSubmission.objects.filter(submitter=request.user)
             .prefetch_related("co_speakers")
             .select_related("event")
             .order_by("-event__start_date_time")
         )
+        serializer = CFPSubmissionSerializer(submissions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["CFP"])
-class CFPStatusUpdateView(UpdateAPIView):
+class CFPStatusUpdateView(APIView):
     """PATCH — organizer updates submission status (accepted / rejected)."""
 
-    serializer_class = CFPStatusUpdateSerializer
     permission_classes = [IsAuthenticated, IsOrganizationAdminOrOrganizer]
-    http_method_names = ["patch", "head", "options"]
 
-    def get_queryset(self):
-        """Return all submissions with related data."""
-        return CFPSubmission.objects.select_related(
-            "submitter", "event__organizer"
-        ).prefetch_related("co_speakers")
+    @extend_schema(
+        request=CFPStatusUpdateSerializer,
+        responses={200: CFPStatusUpdateSerializer},
+    )
+    def patch(self, request, pk=None):
+        """Update submission status and notify the submitter."""
+        submission = get_object_or_404(CFPSubmission, pk=pk)
+        self.check_object_permissions(request, submission)
 
-    @transaction.atomic
-    def perform_update(self, serializer):
-        """Save the status change and notify the submitter by email."""
-        submission = serializer.save()
-        transaction.on_commit(
-            lambda: CFPEmailService.send_status_notification(submission)
+        serializer = CFPStatusUpdateSerializer(
+            submission, data=request.data, partial=True
         )
+        serializer.is_valid(raise_exception=True)
+
+        updated_submission = serializer.save()
+        CFPEmailService.send_status_notification(updated_submission)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)

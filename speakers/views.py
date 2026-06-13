@@ -1,10 +1,12 @@
 """speakers app views."""
 
+from django.db.models import Count, Exists, OuterRef
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
@@ -13,6 +15,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.cache import invalidate_cache
 from speakers.models import (
     Notification,
     SpeakerDeck,
@@ -32,8 +35,18 @@ from speakers.serializers import (
 from users.models import User
 
 
+class SpeakerProfilePagination(PageNumberPagination):
+    """Pagination for speaker profiles."""
+
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
 class SpeakerProfileListCreateView(APIView):
     """View to list and create speaker profiles."""
+
+    pagination_class = SpeakerProfilePagination
 
     def get_permissions(self):
         """Get permissions depending on the request method."""
@@ -46,7 +59,31 @@ class SpeakerProfileListCreateView(APIView):
         """List all speaker profiles."""
         speaker_profiles = SpeakerProfile.objects.select_related(
             "user_account"
-        ).prefetch_related("skill_tags", "social_links", "experiences", "speaker_decks")
+        ).prefetch_related("skill_tags", "social_links", "speaker_decks")
+
+        speaker_profiles = speaker_profiles.annotate(
+            _followers_count=Count("followers", distinct=True),
+            _following_count=Count("user_account__following_speakers", distinct=True),
+        )
+
+        if request.user.is_authenticated:
+            speaker_profiles = speaker_profiles.annotate(
+                _is_following=Exists(
+                    SpeakerFollow.objects.filter(
+                        follower=request.user,
+                        speaker=OuterRef("pk"),
+                    )
+                ),
+            )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(speaker_profiles, request)
+        if page is not None:
+            serializer = SpeakerProfileSerializer(
+                page, many=True, context={"request": request}
+            )
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = SpeakerProfileSerializer(
             speaker_profiles, many=True, context={"request": request}
         )
@@ -80,13 +117,16 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     def get_object(self, slug: str):
         """Get speaker profile by slug with related data."""
         try:
-            return (
-                SpeakerProfile.objects.select_related("user_account")
-                .prefetch_related(
-                    "skill_tags", "social_links", "experiences", "speaker_decks"
-                )
-                .get(slug=slug)
+            qs = SpeakerProfile.objects.select_related("user_account").prefetch_related(
+                "skill_tags", "social_links", "experiences", "speaker_decks"
             )
+            qs = qs.annotate(
+                _followers_count=Count("followers", distinct=True),
+                _following_count=Count(
+                    "user_account__following_speakers", distinct=True
+                ),
+            )
+            return qs.get(slug=slug)
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
@@ -109,6 +149,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        invalidate_cache("speaker_profile_detail", slug=slug)
         return Response(serializer.data)
 
     def delete(self, request, slug: str):
@@ -118,6 +159,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
             raise PermissionDenied("You do not have permission to delete this profile.")
 
         speaker_profile.delete()
+        invalidate_cache("speaker_profile_detail", slug=slug)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

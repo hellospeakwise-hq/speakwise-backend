@@ -15,7 +15,7 @@ from speakers.models import (
     SpeakerSkillTag,
     SpeakerSocialLinks,
 )
-from speakers.utils import sanitize_upload
+from speakers.services import sanitize_upload
 
 
 class SpeakerSocialLinksSerializer(ModelSerializer):
@@ -204,7 +204,10 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     def get_followers_count(self, obj) -> int:
         """Return total number of followers for this speaker."""
-        return getattr(obj, "_followers_count", obj.followers_count)
+        cached = getattr(obj, "_followers_count", None)
+        if cached is not None:
+            return cached
+        return obj.followers.count()
 
     def get_following_count(self, obj) -> int:
         """Return how many speakers this speaker follows (their following count)."""
@@ -217,9 +220,9 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         """Return True if the current authenticated user follows this speaker."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
-            following_set = getattr(obj, "_following_user_ids", None)
-            if following_set is not None:
-                return request.user.pk in following_set
+            cached = getattr(obj, "_is_following", None)
+            if cached is not None:
+                return cached
             return SpeakerFollow.objects.filter(
                 follower=request.user, speaker=obj
             ).exists()

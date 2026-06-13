@@ -10,3 +10,7 @@ class UsersConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "users"
     verbose_name = _("Users")
+
+    def ready(self):
+        """Import signal handlers when the app is ready."""
+        import users.signals  # noqa: F401

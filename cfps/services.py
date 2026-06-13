@@ -2,12 +2,10 @@
 
 import logging
 
-from django.conf import settings
-from django.core.mail import send_mail
+from base.constants import SITE_NAME
+from base.email import send_email
 
 logger = logging.getLogger(__name__)
-
-SITE_NAME = getattr(settings, "SITE_NAME", "SpeakWise")
 
 _MESSAGES = {
     "accepted": (
@@ -48,12 +46,11 @@ class CFPEmailService:
         message = body_fn(submission)
 
         try:
-            send_mail(
+            send_email(
                 subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[submission.submitter.email],
-                fail_silently=False,
+                plain_body=message,
+                html_body=None,
+                recipient=submission.submitter.email,
             )
             logger.info(
                 "CFP status email sent to %s (status=%s)",

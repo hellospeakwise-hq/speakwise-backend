@@ -1,9 +1,18 @@
 import uuid
 from django.db import migrations, models
 
+from base.migration_utils import (
+    execute_sql_list_if_postgres,
+    is_postgres,
+    run_if_postgres,
+)
+
 
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing speakerrequests_speakerrequest table."""
+
+    if not is_postgres(schema_editor):
+        return
 
     cursor = schema_editor.connection.cursor()
     target_pk_tables = ["speakerrequests_speakerrequest"]
@@ -52,15 +61,16 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
+        run_if_postgres(
             sql='CREATE EXTENSION IF NOT EXISTS "pgcrypto";',
         ),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
+        execute_sql_list_if_postgres([
+            "ALTER TABLE speakerrequests_speakerrequest ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE speakerrequests_speakerrequest ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+        ]),
         migrations.RunSQL(
-            sql=[
-                "ALTER TABLE speakerrequests_speakerrequest ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE speakerrequests_speakerrequest ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-            ],
+            sql=[],
             state_operations=[
                 migrations.AlterField(
                     model_name="speakerrequest",

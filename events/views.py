@@ -3,15 +3,26 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.cache import cache_result, invalidate_cache
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event, Tag
 from events.serializers import EventSerializer, TagSerializer
-from events.utils import create_event_payload, notify_accepted_speakers_deck_upload
+from events.services import create_event_payload
 from organizations.models import OrganizationMembership
+from speakerrequests.services import notify_accepted_speakers_deck_upload
+
+
+class EventPagination(PageNumberPagination):
+    """Pagination for event lists."""
+
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 
 class TagListView(APIView):
@@ -24,6 +35,7 @@ class TagListView(APIView):
         return [IsOrganizationAdminOrOrganizer()]
 
     @extend_schema(tags=["Tags"], responses={200: TagSerializer(many=True)})
+    @cache_result(key_prefix="tag_list")
     def get(self, request, *args, **kwargs):
         """List all tags."""
         tags = Tag.objects.all().order_by("name")
@@ -36,6 +48,7 @@ class TagListView(APIView):
         serializer = TagSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
+            invalidate_cache("tag_list")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -66,6 +79,12 @@ class EventListView(APIView):
         else:
             events = events.filter(is_active=True)
 
+        events = events.order_by("-start_date_time")
+        paginator = EventPagination()
+        page = paginator.paginate_queryset(events, request)
+        if page is not None:
+            serializer = EventSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -78,6 +97,7 @@ class EventListView(APIView):
         serializer = EventSerializer(data=payload)
         if serializer.is_valid():
             serializer.save()
+            invalidate_cache("event_list")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -113,6 +133,7 @@ class EventDetailView(APIView):
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            invalidate_cache("event_list")
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -122,6 +143,7 @@ class EventDetailView(APIView):
         event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
         event.delete()
+        invalidate_cache("event_list")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -21,6 +21,7 @@ class Feedback(TimeStampedModel):
         on_delete=models.DO_NOTHING,
         null=True,
         related_name="speaker_feedback",
+        db_index=True,
     )
     overall_rating = models.IntegerField(
         validators=RATING_VALIDATORS,

@@ -2,39 +2,40 @@
 
 from django.urls import path
 
-from speakerrequests import views
+from speakerrequests.views import (
+    CreateSpeakerRequestView,
+    EmailSpeakerRequestView,
+    SpeakerRequestByOrganizationView,
+    SpeakerRequestByRequestedSpeakerView,
+    SpeakerRequestsView,
+)
 
 app_name = "speakerrequests"
 
 urlpatterns = [
     path(
         "speaker-requests/",
-        views.SpeakerRequestListView.as_view(),
+        CreateSpeakerRequestView.as_view(),
         name="speaker_requests_list_create",
     ),
     path(
-        "speaker-requests/<uuid:pk>/",
-        views.SpeakerRequestDetailView.as_view(),
+        "speaker-requests/<str:speaker_slug>/",
+        SpeakerRequestsView.as_view(),
         name="speaker_request_retrieve_update_delete",
     ),
     path(
-        "speaker-requests/incoming/",
-        views.SpeakerRequestsListView.as_view(),
+        "speaker-requests/<str:org_slug>/requests",
+        SpeakerRequestByOrganizationView.as_view(),
         name="speaker_requests_list",
     ),
     path(
-        "speaker-requests/<uuid:pk>/respond/",
-        views.SpeakerRequestAcceptView.as_view(),
+        "speaker-requests/<str:speaker_slug>/requests/",
+        SpeakerRequestByRequestedSpeakerView.as_view(),
         name="speaker_request_respond",
     ),
     path(
         "speaker-requests/email-requests/",
-        views.SpeakerEmailRequestListView.as_view(),
+        EmailSpeakerRequestView.as_view(),
         name="speaker_email_requests_list_create",
-    ),
-    path(
-        "speaker-requests/email-requests/<uuid:pk>/",
-        views.SpeakerEmailRequestDetailView.as_view(),
-        name="speaker_email_request_retrieve_update",
     ),
 ]

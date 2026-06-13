@@ -2,7 +2,6 @@
 
 from rest_framework import serializers
 
-from organizations.choices import OrganizationRole
 from organizations.models import Organization, OrganizationMembership
 
 
@@ -35,22 +34,3 @@ class OrganizationSerializer(serializers.ModelSerializer):
         model = Organization
         exclude = ["created_at", "updated_at"]
         read_only_fields = ["id", "created_by", "slug", "status", "is_active"]
-
-    def create(self, validated_data):
-        """Create a new organization and add the creator as an admin member."""
-        request = self.context.get("request")
-        user = request.user if request else None
-        validated_data["created_by"] = user
-        organization = super().create(validated_data)
-        if user:
-            from django.db import transaction
-
-            transaction.on_commit(
-                lambda: OrganizationMembership.objects.create(
-                    organization=organization,
-                    user=user,
-                    role=OrganizationRole.ADMIN,
-                    added_by=user,
-                )
-            )
-        return organization

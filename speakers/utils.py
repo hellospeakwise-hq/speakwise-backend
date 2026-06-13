@@ -1,25 +1,36 @@
-"""Speakers Utils."""
+"""Utility functions for the speakers app."""
 
 import os
 import re
 import uuid
 
-from django.core.files.uploadedfile import UploadedFile
 
+def sanitize_upload(file):
+    """Sanitize an uploaded file's name and return a safe, unique filename.
 
-def sanitize_upload(file: UploadedFile) -> UploadedFile:
-    """Sanitize an uploaded file by cleaning its filename.
-
-    Strips path traversal components, replaces non-alphanumeric characters
-    (except dots and hyphens), and renames the file to a UUID-based name to
-    prevent filename collisions and enumeration.
+    Modifies ``file.name`` in-place:
+    * Strips path components (prevents path traversal).
+    * Replaces special characters with underscores.
+    * Collapses consecutive underscores.
+    * Preserves the extension in lowercase.
+    * Appends a 32-character hex UUID suffix.
+    * Leaves file content untouched.
     """
-    original_name = os.path.basename(file.name)
-    _, ext = os.path.splitext(original_name)
+    if not hasattr(file, "name"):
+        return file
+
+    stem, ext = os.path.splitext(file.name)
+    stem = os.path.basename(stem)
+    stem = re.sub(r"[^\w\-.]", "_", stem)
+    stem = stem.replace(" ", "_")
+    stem = re.sub(r"_+", "_", stem).strip("_")
     ext = ext.lower()
 
-    safe_stem = re.sub(r"[^\w\-]", "_", os.path.splitext(original_name)[0])
-    safe_stem = re.sub(r"_+", "_", safe_stem).strip("_")
+    suffix = uuid.uuid4().hex
+    safe_name = f"{stem}_{suffix}{ext}"
+    file.name = safe_name
 
-    file.name = f"{safe_stem}_{uuid.uuid4().hex}{ext}"
+    if hasattr(file, "_name"):
+        file._name = safe_name
+
     return file

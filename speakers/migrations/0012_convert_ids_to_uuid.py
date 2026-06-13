@@ -1,10 +1,19 @@
 import uuid
 from django.db import migrations, models
 
+from base.migration_utils import (
+    execute_sql_list_if_postgres,
+    is_postgres,
+    run_if_postgres,
+)
+
 
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing speakers tables,
     including constraints from other apps (feedbacks, talks, speakerrequests, etc.)."""
+
+    if not is_postgres(schema_editor):
+        return
 
     cursor = schema_editor.connection.cursor()
     target_pk_tables = [
@@ -78,33 +87,34 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
+        run_if_postgres(
             sql='CREATE EXTENSION IF NOT EXISTS "pgcrypto";',
         ),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
+        execute_sql_list_if_postgres([
+            "ALTER TABLE speakers_speakerprofile ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE speakers_speakerexperiences ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE speakers_speakerskilltag ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE speakers_speakersociallinks ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE speakers_speakerfollow ALTER COLUMN id DROP IDENTITY IF EXISTS;",
+            "ALTER TABLE speakers_speakerprofile ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+            "ALTER TABLE speakers_speakerexperiences ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+            "ALTER TABLE speakers_speakerskilltag ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+            "ALTER TABLE speakers_speakersociallinks ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+            "ALTER TABLE speakers_speakerfollow ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
+            "ALTER TABLE speakers_speakerexperiences ALTER COLUMN speaker_id DROP NOT NULL;",
+            "ALTER TABLE speakers_speakerexperiences ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+            "ALTER TABLE speakers_speakerskilltag ALTER COLUMN speaker_id DROP NOT NULL;",
+            "ALTER TABLE speakers_speakerskilltag ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+            "ALTER TABLE speakers_speakersociallinks ALTER COLUMN speaker_id DROP NOT NULL;",
+            "ALTER TABLE speakers_speakersociallinks ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+            "ALTER TABLE speakers_speakerfollow ALTER COLUMN speaker_id DROP NOT NULL;",
+            "ALTER TABLE speakers_speakerfollow ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
+            "ALTER TABLE speakers_speakerprofile_events_spoken ALTER COLUMN speakerprofile_id DROP NOT NULL;",
+            "ALTER TABLE speakers_speakerprofile_events_spoken ALTER COLUMN speakerprofile_id TYPE uuid USING (NULL);",
+        ]),
         migrations.RunSQL(
-            sql=[
-                "ALTER TABLE speakers_speakerprofile ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE speakers_speakerexperiences ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE speakers_speakerskilltag ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE speakers_speakersociallinks ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE speakers_speakerfollow ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE speakers_speakerprofile ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE speakers_speakerexperiences ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE speakers_speakerskilltag ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE speakers_speakersociallinks ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE speakers_speakerfollow ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE speakers_speakerexperiences ALTER COLUMN speaker_id DROP NOT NULL;",
-                "ALTER TABLE speakers_speakerexperiences ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
-                "ALTER TABLE speakers_speakerskilltag ALTER COLUMN speaker_id DROP NOT NULL;",
-                "ALTER TABLE speakers_speakerskilltag ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
-                "ALTER TABLE speakers_speakersociallinks ALTER COLUMN speaker_id DROP NOT NULL;",
-                "ALTER TABLE speakers_speakersociallinks ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
-                "ALTER TABLE speakers_speakerfollow ALTER COLUMN speaker_id DROP NOT NULL;",
-                "ALTER TABLE speakers_speakerfollow ALTER COLUMN speaker_id TYPE uuid USING (NULL);",
-                "ALTER TABLE speakers_speakerprofile_events_spoken ALTER COLUMN speakerprofile_id DROP NOT NULL;",
-                "ALTER TABLE speakers_speakerprofile_events_spoken ALTER COLUMN speakerprofile_id TYPE uuid USING (NULL);",
-            ],
+            sql=[],
             state_operations=[
                 migrations.AlterField(
                     model_name="speakerprofile",

@@ -49,13 +49,15 @@ class EventAPITestCase(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
         # Anonymous (sees active events)
         self.client.force_authenticate(user=None)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_create_event(self):
         """Test creating a new event."""
@@ -117,7 +119,8 @@ class EventAPITestCase(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data["count"], 2)
+        self.assertEqual(len(response.data["results"]), 2)
 
     def test_delete_event_unauthorized(self):
         """Test that a user from another organization cannot delete this event."""
@@ -192,7 +195,7 @@ class EventSpeakerDeckToggleTests(TestCase):
         from speakerrequests.models import SpeakerRequest
 
         SpeakerRequest.objects.create(
-            organizer=self.organization,
+            organization=self.organization,
             speaker=self.speaker_profile,
             event=self.event,
             status="accepted",

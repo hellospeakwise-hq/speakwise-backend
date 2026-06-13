@@ -8,4 +8,13 @@ class RequestStatusChoices(models.TextChoices):
 
     PENDING = "pending", "Pending"
     ACCEPTED = "accepted", "Accepted"
-    REJECTED = "rejected", "Rejected"
+    DECLINED = "declined", "Declined"
+    IS_EXPIRED = "is_expired", "Is Expired"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class SessionTypeChoices(models.TextChoices):
+    """session choices."""
+
+    ONLINE = "online", "Online"
+    IN_PERSON = "in_person", "In Person"

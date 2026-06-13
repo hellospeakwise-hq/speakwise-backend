@@ -2,14 +2,13 @@
 
 import logging
 
-from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
-logger = logging.getLogger(__name__)
+from base.constants import FRONTEND_URL, SITE_NAME
+from base.email import send_email
 
-FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://speak-wise.live")
+logger = logging.getLogger(__name__)
 
 
 class EmailService:
@@ -30,22 +29,19 @@ class EmailService:
         )
 
         try:
-            send_mail(
+            send_email(
                 subject="Welcome to SpeakWise!",
-                message=(
+                plain_body=(
                     f"Hi {user.first_name or user.username},\n\n"
                     "Welcome to SpeakWise! Your account is ready.\n\n"
                     f"Get started: {dashboard_url}"
                 ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False,
+                html_body=html_message,
+                recipient=user.email,
             )
             logger.info("Welcome email sent to user ID: %s", user.id)
         except Exception as e:
             logger.error("Failed to send welcome email to %s: %s", user.email, e)
-            raise
 
     @staticmethod
     def send_password_reset_email(user, request=None):
@@ -70,9 +66,9 @@ class EmailService:
         )
 
         try:
-            send_mail(
-                subject=f"Password Reset Request - {getattr(settings, 'SITE_NAME', 'SpeakWise')}",
-                message=(
+            send_email(
+                subject=f"Password Reset Request - {SITE_NAME}",
+                plain_body=(
                     f"Hi {user.first_name or user.username},\n\n"
                     f"A password reset was requested for your account.\n\n"
                     f"Your reset code: {token}\n\n"
@@ -80,14 +76,11 @@ class EmailService:
                     f"and enter your email ({user.email}) along with the code above.\n\n"
                     "If you did not request this, you can safely ignore this email."
                 ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False,
+                html_body=html_message,
+                recipient=user.email,
             )
             logger.info("Password reset email sent to user ID: %s", user.id)
         except Exception as e:
             logger.error("Failed to send password reset email to %s: %s", user.email, e)
-            raise
 
         return token

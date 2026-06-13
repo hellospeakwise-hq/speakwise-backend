@@ -35,6 +35,11 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
+        "CONN_MAX_AGE": 600,
+        "OPTIONS": {
+            "pool_size": 20,
+            "max_overflow": 10,
+        },
     }
 }
 

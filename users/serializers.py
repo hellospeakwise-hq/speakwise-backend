@@ -3,6 +3,7 @@
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from rest_framework import serializers
 
+from speakers.models import SpeakerProfile
 from speakers.serializers import SpeakerProfileSerializer
 from users.models import User
 
@@ -86,6 +87,25 @@ class UserProfileSerializer(UserSerializer):
 
         model = User
         exclude = ["password"]
+
+    def update(self, instance, validated_data):
+        """Update user and nested speaker profile data."""
+        speaker_data = validated_data.pop("speakers_profile_user", None)
+        user = super().update(instance, validated_data)
+
+        if speaker_data:
+            for profile_data in speaker_data:
+                profile_id = profile_data.get("id")
+                if profile_id:
+                    SpeakerProfile.objects.filter(
+                        pk=profile_id, user_account=user
+                    ).update(**profile_data)
+                else:
+                    SpeakerProfile.objects.update_or_create(
+                        user_account=user,
+                        defaults=profile_data,
+                    )
+        return user
 
 
 class LogoutSerializer(serializers.Serializer):

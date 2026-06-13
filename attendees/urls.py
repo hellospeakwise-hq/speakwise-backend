@@ -13,7 +13,9 @@ urlpatterns = [
     #     name="attendees-list-create",
     # ),
     #
-    # path("attendees/verify/", views.verify_attendee, name="verify-attendee"),
+    path(
+        "attendees/verify/", views.VerifyAttendeeView.as_view(), name="verify-attendee"
+    ),
     # path(
     #     "attendees/<uuid:pk>/",
     #     views.AttendeeRetrieveUpdateDestroyView.as_view(),
@@ -26,7 +28,7 @@ urlpatterns = [
     ),
     path(
         "attendance/upload-attendance/",
-        views.upload_attendance_view,
+        views.UploadAttendanceView.as_view(),
         name="upload-attendance",
     ),
     path(

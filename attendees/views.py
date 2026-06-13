@@ -1,14 +1,10 @@
 """attendees views."""
 
-from django.core.signing import TimestampSigner
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.generics import (
-    ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView,
-)
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,11 +16,10 @@ from attendees.serializers import (
     FileUploadSerializer,
     VerifyAttendeeSerializer,
 )
+from attendees.services import verify_attendee_email
 from base.permissions import IsOrganizationAdmin, IsOrganizationOrganizer
 from base.utils import FileHandler
 from events.models import Event
-
-signer = TimestampSigner(salt="feedback-verification")
 
 
 @extend_schema(responses=AttendeeProfileSerializer, request=AttendeeProfileSerializer)
@@ -48,54 +43,68 @@ class AttendeeRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 @extend_schema(
     request=VerifyAttendeeSerializer, responses={200: VerifyAttendeeSerializer}
 )
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def verify_attendee(request):
+class VerifyAttendeeView(APIView):
     """Verify attendee before feedback.
 
     Validates the incoming email and checks if there's an attendance record.
     If found and feedback hasn't been given yet, mark the session as verified so
     the attendee can proceed to submit feedback.
     """
-    serializer = VerifyAttendeeSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    email = serializer.validated_data["email"]
 
-    attendances = Attendance.objects.filter(email=email)
-    if not attendances.exists():
-        return Response(
-            {"detail": "Attendee not found", "email": email},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    permission_classes = [AllowAny]
 
-    if attendances.filter(is_given_feedback=True).exists():
-        return Response(
-            {"detail": "Attendee already given feedback", "email": email},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Create a signed token so verification works across distributed workers.
-    verify_token = signer.sign(email)
-
-    return Response(
-        {
-            "detail": "Attendee verified. You may now submit feedback.",
-            "email": email,
-            "verify_token": verify_token,
-        },
-        status=status.HTTP_200_OK,
+    @extend_schema(
+        request=VerifyAttendeeSerializer, responses={200: VerifyAttendeeSerializer}
     )
+    def post(self, request):
+        """Verify attendee by email."""
+        serializer = VerifyAttendeeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+
+        try:
+            result = verify_attendee_email(email)
+        except Attendance.DoesNotExist:
+            return Response(
+                {"detail": "Attendee not found", "email": email},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except ValueError as err:
+            return Response(
+                {"detail": str(err), "email": email},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class AttendancePagination(PageNumberPagination):
+    """Pagination for attendance lists."""
+
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
 
 
 class CreateAttendanceByFileUploadView(APIView):
     """Attendee list create view."""
 
     permission_classes = [IsOrganizationAdmin]
+    pagination_class = AttendancePagination
 
     def get(self, request):
-        """Return all attendance objects."""
-        attendance = Attendance.objects.all()
-        serializer = AttendanceSerializer(attendance, many=True)
+        """Return attendance objects with optional event filtering and pagination."""
+        qs = Attendance.objects.select_related("event").all()
+        event_id = request.query_params.get("event")
+        if event_id:
+            qs = qs.filter(event_id=event_id)
+        qs = qs.order_by("-check_in_time")
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(qs, request)
+        if page is not None:
+            serializer = AttendanceSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        serializer = AttendanceSerializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(request=AttendanceSerializer, responses=AttendanceSerializer)
@@ -133,6 +142,7 @@ class AttendanceDetailView(APIView):
         serializer = AttendanceSerializer(attendance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        return Response(serializer.data)
 
     @extend_schema(responses={204: None})
     def delete(self, request, pk):
@@ -142,33 +152,50 @@ class AttendanceDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@api_view(["POST"])
 @extend_schema(request=FileUploadSerializer, responses=AttendanceSerializer(many=True))
-def upload_attendance_view(request, *args, **kwargs):
+class UploadAttendanceView(APIView):
     """Create attendance objects from uploaded file."""
-    attendance_file = request.FILES.get("file")
-    event_id = request.data.get("event")
-    event = Event.objects.get(id=event_id)
 
-    if not attendance_file:
-        return Response(
-            {"detail": "No file uploaded. Use multipart/form-data with field 'file'."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    if not event:
-        return Response(
-            {"detail": "'event' is required."}, status=status.HTTP_400_BAD_REQUEST
-        )
+    permission_classes = [IsOrganizationAdmin]
 
-    try:
-        attendance = FileHandler().clean_file(file_obj=attendance_file, event=event)
-    except ValueError as e:
-        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        return Response(
-            {"detail": "Unable to process file.", "error": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    @extend_schema(
+        request=FileUploadSerializer, responses=AttendanceSerializer(many=True)
+    )
+    def post(self, request):
+        """Upload attendance file and create attendance records."""
+        attendance_file = request.FILES.get("file")
+        event_id = request.data.get("event")
 
-    serializer = AttendanceSerializer(attendance, many=True)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if not attendance_file:
+            return Response(
+                {
+                    "detail": "No file uploaded. Use multipart/form-data with field 'file'."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not event_id:
+            return Response(
+                {"detail": "'event' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            event = Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            return Response(
+                {"detail": "Event not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            attendance = FileHandler().clean_file(file_obj=attendance_file, event=event)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {"detail": "Unable to process file.", "error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = AttendanceSerializer(attendance, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -15,7 +15,7 @@ class Tag(TimeStampedModel):
     """A model for event tags in the SpeakWise application."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     color = models.CharField(max_length=20, default="#007bff")
 
     def __str__(self):
@@ -27,7 +27,7 @@ class Event(TimeStampedModel):
     """A model for events in the SpeakWise application."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255, unique=True)
+    title = models.CharField(max_length=255)
     event_nickname = models.CharField(max_length=255, blank=True, default="")
     event_image = models.ImageField(
         "image", upload_to=EVENT_IMAGE_UPLOAD, null=True, blank=True
@@ -52,7 +52,7 @@ class Event(TimeStampedModel):
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
     is_active = models.BooleanField(default=False)
     tags = models.ManyToManyField(Tag, related_name="events", blank=True)
-    slug = models.SlugField(max_length=255, unique=True, null=True)
+    slug = models.SlugField(max_length=255, null=True)
 
     # CFP configuration
     accepts_cfp = models.BooleanField(
@@ -98,6 +98,16 @@ class Event(TimeStampedModel):
         default=False,
         help_text="When enabled, accepted speakers can upload their presentation materials.",
     )
+
+    class Meta:
+        """Meta options for the Event model."""
+
+        unique_together = ("title", "organizer", "slug")
+
+    @property
+    def organization(self):
+        """Return the organization that owns this event."""
+        return self.organizer
 
     def get_absolute_url(self):
         """Return the URL to access a particular event instance."""

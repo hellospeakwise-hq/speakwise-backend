@@ -52,6 +52,11 @@ class Session(TimeStampedModel):
     max_attendees = models.IntegerField(default=20)
     is_draft = models.BooleanField(default=False)  # allow draft sessions
 
+    @property
+    def organization(self):
+        """Return the organization that owns this session's event."""
+        return self.event.organizer if self.event_id else None
+
     class Meta:
         """Meta options for Session model."""
 

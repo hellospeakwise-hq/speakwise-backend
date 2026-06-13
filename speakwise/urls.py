@@ -1,8 +1,12 @@
 """project urls."""
 
+import logging
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.db import connections
+from django.db.utils import OperationalError
 from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import (
@@ -11,9 +15,28 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def health_check(request):
     """Health check endpoint for load balancers and orchestrators."""
+    try:
+        connections["default"].cursor().execute("SELECT 1")
+    except OperationalError as e:
+        logger.error("Health check failed: DB unavailable: %s", e)
+        return JsonResponse(
+            {"status": "error", "detail": "database unavailable"}, status=503
+        )
+
+    try:
+        from django.core.cache import cache
+
+        cache.set("health_check_ping", "ok", 5)
+        if cache.get("health_check_ping") != "ok":
+            raise RuntimeError("Cache set/get mismatch")
+    except Exception as e:
+        logger.warning("Health check: cache degraded: %s", e)
+
     return JsonResponse({"status": "ok"}, status=200)
 
 

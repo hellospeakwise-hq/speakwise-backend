@@ -8,7 +8,7 @@ class UserManager(BaseUserManager):
 
     use_in_migrations = True
 
-    def create(self, email, password, **extra_fields):
+    def create(self, email, password=None, **extra_fields):
         """Create and save a User with the given email and password."""
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
@@ -16,15 +16,11 @@ class UserManager(BaseUserManager):
             raise ValueError("The given email must be set")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(using=self._db)
-        return self._create_speaker_profile(user)
-
-    def _create_speaker_profile(self, user):
-        """Create speaker profile."""
-        from speakers.models import SpeakerProfile
-
-        SpeakerProfile.objects.create(user_account=user)
         return user
 
     def create_superuser(self, email, password, **extra_fields):

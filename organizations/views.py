@@ -18,6 +18,7 @@ from organizations.serializers import (
     OrganizationMembershipSerializer,
     OrganizationSerializer,
 )
+from organizations.services import create_organization_with_admin
 
 
 class OrganizationListCreateView(APIView):
@@ -44,13 +45,15 @@ class OrganizationListCreateView(APIView):
     )
     def post(self, request) -> Response:
         """Create a new organization."""
-        serializer = OrganizationSerializer(
-            data=request.data, context={"request": request}
+        serializer = OrganizationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        organization = create_organization_with_admin(
+            serializer.validated_data, request.user
         )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = OrganizationSerializer(organization)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class OrganizationDetailView(APIView):
@@ -81,7 +84,7 @@ class OrganizationDetailView(APIView):
         self.check_object_permissions(request, organization)
 
         serializer = OrganizationSerializer(
-            organization, data=request.data, partial=True, context={"request": request}
+            organization, data=request.data, partial=True
         )
         if serializer.is_valid():
             serializer.save()

@@ -234,6 +234,7 @@ class Notification(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="notifications",
         help_text="The user who receives this notification.",
+        db_index=True,
     )
     title = models.CharField(max_length=255)
     message = models.TextField()

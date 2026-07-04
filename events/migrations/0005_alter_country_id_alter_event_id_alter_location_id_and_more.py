@@ -4,9 +4,17 @@ import uuid
 from django.db import migrations, models
 
 
+def pgcrypto_if_postgres(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+
+
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing the tables we're converting to UUID,
     including constraints from other apps (attendees, speakers, speakerrequests, etc.)."""
+
+    if schema_editor.connection.vendor != "postgresql":
+        return
 
     cursor = schema_editor.connection.cursor()
     target_pk_tables = [
@@ -59,36 +67,38 @@ def drop_fk_constraints(apps, schema_editor):
             converted_fks.append((table_name, column_name, constraint_name))
 
 
+def convert_columns_to_uuid(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute("ALTER TABLE events_country ALTER COLUMN id DROP IDENTITY IF EXISTS;")
+        schema_editor.execute("ALTER TABLE events_location ALTER COLUMN id DROP IDENTITY IF EXISTS;")
+        schema_editor.execute("ALTER TABLE events_event ALTER COLUMN id DROP IDENTITY IF EXISTS;")
+        schema_editor.execute("ALTER TABLE events_tag ALTER COLUMN id DROP IDENTITY IF EXISTS;")
+        schema_editor.execute("ALTER TABLE events_country ALTER COLUMN id TYPE uuid USING (gen_random_uuid());")
+        schema_editor.execute("ALTER TABLE events_location ALTER COLUMN id TYPE uuid USING (gen_random_uuid());")
+        schema_editor.execute("ALTER TABLE events_event ALTER COLUMN id TYPE uuid USING (gen_random_uuid());")
+        schema_editor.execute("ALTER TABLE events_tag ALTER COLUMN id TYPE uuid USING (gen_random_uuid());")
+        schema_editor.execute("ALTER TABLE events_location ALTER COLUMN country_id DROP NOT NULL;")
+        schema_editor.execute("ALTER TABLE events_location ALTER COLUMN country_id TYPE uuid USING (NULL);")
+        schema_editor.execute("ALTER TABLE events_event ALTER COLUMN location_id DROP NOT NULL;")
+        schema_editor.execute("ALTER TABLE events_event ALTER COLUMN location_id TYPE uuid USING (NULL);")
+        schema_editor.execute("TRUNCATE events_event_tags;")
+        schema_editor.execute("ALTER TABLE events_event_tags ALTER COLUMN event_id DROP NOT NULL;")
+        schema_editor.execute("ALTER TABLE events_event_tags ALTER COLUMN event_id TYPE uuid USING (NULL);")
+        schema_editor.execute("ALTER TABLE events_event_tags ALTER COLUMN tag_id DROP NOT NULL;")
+        schema_editor.execute("ALTER TABLE events_event_tags ALTER COLUMN tag_id TYPE uuid USING (NULL);")
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("events", "0004_event_slug_alter_country_code_alter_country_name_and_more"),
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql='CREATE EXTENSION IF NOT EXISTS "pgcrypto";',
-        ),
+        migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
+        migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
         migrations.RunSQL(
-            sql=[
-                "ALTER TABLE events_country ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE events_location ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE events_event ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE events_tag ALTER COLUMN id DROP IDENTITY IF EXISTS;",
-                "ALTER TABLE events_country ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE events_location ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE events_event ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE events_tag ALTER COLUMN id TYPE uuid USING (gen_random_uuid());",
-                "ALTER TABLE events_location ALTER COLUMN country_id DROP NOT NULL;",
-                "ALTER TABLE events_location ALTER COLUMN country_id TYPE uuid USING (NULL);",
-                "ALTER TABLE events_event ALTER COLUMN location_id DROP NOT NULL;",
-                "ALTER TABLE events_event ALTER COLUMN location_id TYPE uuid USING (NULL);",
-                "TRUNCATE events_event_tags;",
-                "ALTER TABLE events_event_tags ALTER COLUMN event_id DROP NOT NULL;",
-                "ALTER TABLE events_event_tags ALTER COLUMN event_id TYPE uuid USING (NULL);",
-                "ALTER TABLE events_event_tags ALTER COLUMN tag_id DROP NOT NULL;",
-                "ALTER TABLE events_event_tags ALTER COLUMN tag_id TYPE uuid USING (NULL);",
-            ],
+            sql=[],
             state_operations=[
                 migrations.AlterField(
                     model_name="country",

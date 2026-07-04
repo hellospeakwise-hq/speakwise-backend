@@ -2,8 +2,16 @@ import uuid
 from django.db import migrations, models
 
 
+def pgcrypto_if_postgres(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+
+
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing the feedbacks table."""
+
+    if schema_editor.connection.vendor != "postgresql":
+        return
 
     cursor = schema_editor.connection.cursor()
     target_pk_tables = ["feedbacks"]
@@ -47,6 +55,12 @@ def drop_fk_constraints(apps, schema_editor):
             )
 
 
+def convert_columns_to_uuid(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('ALTER TABLE "feedbacks" ALTER COLUMN id DROP IDENTITY IF EXISTS;')
+        schema_editor.execute('ALTER TABLE "feedbacks" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -55,15 +69,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql='CREATE EXTENSION IF NOT EXISTS "pgcrypto";',
-        ),
+        migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
+        migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
         migrations.RunSQL(
-            sql=[
-                'ALTER TABLE "feedbacks" ALTER COLUMN id DROP IDENTITY IF EXISTS;',
-                'ALTER TABLE "feedbacks" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());',
-            ],
+            sql=[],
             state_operations=[
                 migrations.AlterField(
                     model_name="feedback",

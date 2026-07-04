@@ -2,8 +2,16 @@ import uuid
 from django.db import migrations, models
 
 
+def pgcrypto_if_postgres(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+
+
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing attendees tables."""
+
+    if schema_editor.connection.vendor != "postgresql":
+        return
 
     cursor = schema_editor.connection.cursor()
     target_pk_tables = [
@@ -54,6 +62,18 @@ def drop_fk_constraints(apps, schema_editor):
             )
 
 
+def convert_columns_to_uuid(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute("ALTER TABLE attendees_attendeeprofile ALTER COLUMN id DROP IDENTITY IF EXISTS;")
+        schema_editor.execute("ALTER TABLE attendees_attendeesociallinks ALTER COLUMN id DROP IDENTITY IF EXISTS;")
+        schema_editor.execute("ALTER TABLE attendees_attendance ALTER COLUMN id DROP IDENTITY IF EXISTS;")
+        schema_editor.execute("ALTER TABLE attendees_attendeeprofile ALTER COLUMN id TYPE uuid USING (gen_random_uuid());")
+        schema_editor.execute("ALTER TABLE attendees_attendeesociallinks ALTER COLUMN id TYPE uuid USING (gen_random_uuid());")
+        schema_editor.execute("ALTER TABLE attendees_attendance ALTER COLUMN id TYPE uuid USING (gen_random_uuid());")
+        schema_editor.execute("ALTER TABLE attendees_attendeesociallinks ALTER COLUMN attendee_id DROP NOT NULL;")
+        schema_editor.execute("ALTER TABLE attendees_attendeesociallinks ALTER COLUMN attendee_id TYPE uuid USING (NULL);")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -61,11 +81,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql='CREATE EXTENSION IF NOT EXISTS "pgcrypto";',
-        ),
+        migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
+        migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
         migrations.RunSQL(
+<<<<<<< HEAD
             sql=[
                 "ALTER TABLE attendees_attendeeprofile ALTER COLUMN id DROP IDENTITY IF EXISTS;",
                 "ALTER TABLE attendees_attendeesociallinks ALTER COLUMN id DROP IDENTITY IF EXISTS;",
@@ -79,6 +99,9 @@ class Migration(migrations.Migration):
 >>>>>>> 2dee7cf (model IDs from int to UUID)
                 "ALTER TABLE attendees_attendeesociallinks ALTER COLUMN attendee_id TYPE uuid USING (NULL);",
             ],
+=======
+            sql=[],
+>>>>>>> 903c2e1 (fix migrations failure for test server deployment)
             state_operations=[
                 migrations.AlterField(
                     model_name="attendeeprofile",

@@ -2,8 +2,16 @@ import uuid
 from django.db import migrations, models
 
 
+def pgcrypto_if_postgres(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+
+
 def drop_fk_constraints(apps, schema_editor):
     """Dynamically find and drop ALL FK constraints referencing team tables."""
+
+    if schema_editor.connection.vendor != "postgresql":
+        return
 
     cursor = schema_editor.connection.cursor()
     target_pk_tables = ["team_member", "team_social"]
@@ -47,6 +55,16 @@ def drop_fk_constraints(apps, schema_editor):
             )
 
 
+def convert_columns_to_uuid(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('ALTER TABLE "team_member" ALTER COLUMN id DROP IDENTITY IF EXISTS;')
+        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN id DROP IDENTITY IF EXISTS;')
+        schema_editor.execute('ALTER TABLE "team_member" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());')
+        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());')
+        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN team_member_id DROP NOT NULL;')
+        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN team_member_id TYPE uuid USING (NULL);')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -54,19 +72,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql='CREATE EXTENSION IF NOT EXISTS "pgcrypto";',
-        ),
+        migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
+        migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
         migrations.RunSQL(
-            sql=[
-                'ALTER TABLE "team_member" ALTER COLUMN id DROP IDENTITY IF EXISTS;',
-                'ALTER TABLE "team_social" ALTER COLUMN id DROP IDENTITY IF EXISTS;',
-                'ALTER TABLE "team_member" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());',
-                'ALTER TABLE "team_social" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());',
-                'ALTER TABLE "team_social" ALTER COLUMN team_member_id DROP NOT NULL;',
-                'ALTER TABLE "team_social" ALTER COLUMN team_member_id TYPE uuid USING (NULL);',
-            ],
+            sql=[],
             state_operations=[
                 migrations.AlterField(
                     model_name="teammember",

@@ -928,12 +928,12 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         notif = Notification.objects.create(
-            recipient=self.profile,
+            recipient=self.user,
             title="Test Notification",
             message="This is a test.",
             link="https://example.com/test",
         )
-        self.assertEqual(notif.recipient, self.profile)
+        self.assertEqual(notif.recipient, self.user)
         self.assertEqual(notif.title, "Test Notification")
         self.assertFalse(notif.is_read)
         self.assertIn("Test Notification", str(notif))
@@ -944,7 +944,7 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         notif = Notification.objects.create(
-            recipient=self.profile,
+            recipient=self.user,
             title="Unread Test",
             message="Should be unread by default.",
         )
@@ -955,7 +955,7 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         Notification.objects.create(
-            recipient=self.profile,
+            recipient=self.user,
             title="Cascade Test",
             message="Should be deleted with user.",
         )
@@ -1040,10 +1040,6 @@ class SpeakerDeckViewTests(APITestCase):
             email="deck_view@example.com",
             password="pass123",
         )
-        self.speaker_profile = SpeakerProfile.objects.create(
-            user_account=self.speaker_user,
-            organization="Deck View Org",
-        )
 
         # Non-speaker user (has no speaker profile)
         self.other_user = User.objects.create(
@@ -1057,6 +1053,18 @@ class SpeakerDeckViewTests(APITestCase):
             username="rejected_speaker",
             email="rejected@example.com",
             password="pass123",
+        )
+
+        # Wipe stale SpeakerProfile records that leaked from TestCase.setUpTestData
+        # (user_account has no unique constraint, so .first() in the view can pick
+        # up a stale profile with a different pk, breaking speaker-request lookups)
+        SpeakerProfile.objects.filter(
+            user_account__in=[self.speaker_user, self.other_user, self.rejected_user],
+        ).delete()
+
+        self.speaker_profile = SpeakerProfile.objects.create(
+            user_account=self.speaker_user,
+            organization="Deck View Org",
         )
         self.rejected_profile = SpeakerProfile.objects.create(
             user_account=self.rejected_user,
@@ -1464,20 +1472,20 @@ class NotificationViewTests(APITestCase):
         from speakers.models import Notification
 
         self.notif1 = Notification.objects.create(
-            recipient=self.profile,
+            recipient=self.user,
             title="Upload Your Deck",
             message="Please upload your presentation.",
             link="https://example.com/upload",
         )
         self.notif2 = Notification.objects.create(
-            recipient=self.profile,
+            recipient=self.user,
             title="Reminder",
             message="Don't forget to upload.",
             is_read=True,
         )
         # Another user's notification (should not appear)
         self.notif_other = Notification.objects.create(
-            recipient=self.other_profile,
+            recipient=self.other_user,
             title="Other's Notification",
             message="Not for you.",
         )

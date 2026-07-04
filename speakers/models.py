@@ -194,18 +194,27 @@ class SpeakerDeck(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="speaker_decks",
         help_text="The speaker who uploaded this deck.",
+        blank=True,
+        null=True,
     )
     event = models.ForeignKey(
         "events.Event",
         on_delete=models.CASCADE,
         related_name="speaker_decks",
         help_text="The event this deck is associated with.",
+        blank=True,
+        null=True,
     )
     file = models.FileField(upload_to=SPEAKER_DECK_UPLOAD_DIR)
     original_filename = models.CharField(
-        max_length=255, help_text="Original name of the uploaded file."
+        max_length=255,
+        help_text="Original name of the uploaded file.",
+        blank=True,
+        null=True,
     )
-    file_size = models.PositiveIntegerField(help_text="File size in bytes.")
+    file_size = models.PositiveIntegerField(
+        help_text="File size in bytes.", blank=True, null=True
+    )
     description = models.TextField(
         blank=True, default="", help_text="Optional description of the presentation."
     )

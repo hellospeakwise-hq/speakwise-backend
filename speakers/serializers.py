@@ -3,7 +3,7 @@
 from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import ModelSerializer, SerializerMethodField
+from rest_framework.serializers import ModelSerializer, SerializerMethodField, UUIDField
 
 from speakers.models import (
     Notification,
@@ -243,6 +243,8 @@ MAX_DECK_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 class SpeakerDeckSerializer(ModelSerializer):
     """Serializer for speaker presentation deck uploads."""
 
+    event = UUIDField(source="event_id", read_only=True)
+
     class Meta:
         """Meta options."""
 
@@ -253,6 +255,8 @@ class SpeakerDeckSerializer(ModelSerializer):
     def validate_file(self, value):
         """Validate uploaded file extension and size."""
         import os
+
+        from speakers.utils import sanitize_upload
 
         ext = os.path.splitext(value.name)[1].lower()
         if ext not in ALLOWED_DECK_EXTENSIONS:
@@ -265,7 +269,7 @@ class SpeakerDeckSerializer(ModelSerializer):
             max_mb = MAX_DECK_FILE_SIZE // (1024 * 1024)
             raise ValidationError(f"File too large. Maximum size is {max_mb} MB.")
 
-        return value
+        return sanitize_upload(value)
 
 
 # ---------- Notification ----------

@@ -5,6 +5,7 @@ import uuid
 from django.db import models
 
 from base.models import TimeStampedModel
+from organizations.models import OrganizationMembership
 from speakerrequests.choices import RequestStatusChoices
 from speakers.models import SpeakerProfile
 from users.models import User
@@ -15,7 +16,14 @@ class SpeakerRequestQuerySet(models.QuerySet):
 
     def for_organizer(self, user):
         """Requests for organizations where user is a member."""
+<<<<<<< HEAD
         return self.filter(organizer__organization_memberships__user=user)
+=======
+        org_ids = OrganizationMembership.objects.filter(user=user).values_list(
+            "organization_id", flat=True
+        )
+        return self.filter(organizer_id__in=org_ids)
+>>>>>>> cfbae2c (resolve test failure)
 
     def for_speaker(self, user):
         """Requests sent to this speaker."""
@@ -41,10 +49,13 @@ class SpeakerRequestManager(models.Manager):
         """Proxy to QuerySet."""
         return self.get_queryset().for_speaker(user)
 
+<<<<<<< HEAD
     def with_prefetches(self):
         """Proxy to QuerySet."""
         return self.get_queryset().with_prefetches()
 
+=======
+>>>>>>> cfbae2c (resolve test failure)
 
 class SpeakerRequest(TimeStampedModel):
     """speaker request model."""
@@ -52,6 +63,8 @@ class SpeakerRequest(TimeStampedModel):
     objects = SpeakerRequestManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    objects = SpeakerRequestManager()
+
     organizer = models.ForeignKey(
         "organizations.Organization", on_delete=models.CASCADE
     )

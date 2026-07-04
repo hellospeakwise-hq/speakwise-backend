@@ -18,17 +18,3 @@ class EventScheduleSerializer(serializers.ModelSerializer):
         model = EventSchedule
         exclude = ["created_at", "updated_at"]
         read_only_fields = ("id",)
-
-    def validate(self, attrs):
-        """Validate event schedule data."""
-        event = self.context.get("event")
-        sessions = attrs.get("sessions", [])
-
-        # check if all sessions belong to the event
-        for sess in sessions:
-            if sess.event != event:
-                raise serializers.ValidationError(
-                    {"sessions": "Sessions must belong to the event."}
-                )
-
-        return attrs

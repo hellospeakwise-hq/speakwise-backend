@@ -86,11 +86,11 @@ class EventScheduleAPITestCase(APITestCase):
         """Test creating an event schedule."""
         url = reverse(
             "eventschedules:event-schedules-create",
-            kwargs={"event_slug": self.event.slug},
+            kwargs={"event_slug": self.event2.slug},
         )
         data = {
-            "event": self.event.id,
-            "sessions": [self.session.id],
+            "event": self.event2.id,
+            "sessions": [self.session2.id],
         }
 
         # Unauthorized
@@ -170,6 +170,6 @@ class EventScheduleAPITestCase(APITestCase):
         """Test serializer validation."""
         from eventschedules.serializers import EventScheduleSerializer
 
-        data = {"event": self.event.id}
-        serializer = EventScheduleSerializer(data=data, context={"event": self.event})
+        data = {"event": self.event2.id}
+        serializer = EventScheduleSerializer(data=data, context={"event": self.event2})
         self.assertTrue(serializer.is_valid())

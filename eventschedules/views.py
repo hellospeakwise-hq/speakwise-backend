@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event
+from eventschedules.utils import create_event_schedule_payload
 
 from .models import EventSchedule
 from .serializers import EventScheduleSerializer
@@ -43,9 +44,8 @@ class EventScheduleListCreateView(APIView):
         """Create an event schedule."""
         event = get_object_or_404(Event, slug=event_slug)
         self.check_object_permissions(request, event)
-        serializer = EventScheduleSerializer(
-            data=request.data, context={"request": request, "event": event}
-        )
+        payload = create_event_schedule_payload(event)
+        serializer = EventScheduleSerializer(data=payload)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -88,10 +88,7 @@ class EventScheduleRetrieveUpdateDestroyView(APIView):
         event_schedule = get_object_or_404(EventSchedule, id=schedule_id)
         self.check_object_permissions(request, event_schedule)
         serializer = EventScheduleSerializer(
-            event_schedule,
-            data=request.data,
-            context={"event": event_schedule.event},
-            partial=True,
+            event_schedule, data=request.data, partial=True
         )
         if serializer.is_valid():
             serializer.save()

@@ -4,7 +4,7 @@ from django.conf import settings
 
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
-from speakerrequests.utils import send_speaker_deck_upload_email
+from speakerrequests.tasks import send_speaker_deck_upload_email
 from speakers.models import Notification
 
 

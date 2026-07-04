@@ -1,123 +1,78 @@
-"""Speaker request model."""
+"""speaker request model."""
 
 import uuid
 
 from django.db import models
 
 from base.models import TimeStampedModel
-from speakerrequests.choices import RequestStatusChoices, SessionTypeChoices
+from organizations.models import OrganizationMembership
+from speakerrequests.choices import RequestStatusChoices
 from speakers.models import SpeakerProfile
 from users.models import User
 
 
+class SpeakerRequestQuerySet(models.QuerySet):
+    """QuerySet for SpeakerRequests to optimize common queries."""
+
+    def for_organizer(self, user):
+        """Requests for organizations where user is a member."""
+        org_ids = OrganizationMembership.objects.filter(user=user).values_list(
+            "organization_id", flat=True
+        )
+        return self.filter(organizer_id__in=org_ids)
+
+    def for_speaker(self, user):
+        """Requests sent to this speaker."""
+        return self.filter(speaker__user_account=user)
+
+    def with_prefetches(self):
+        """Common select_related for optimized fetching."""
+        return self.select_related("organizer", "speaker__user_account", "event")
+
+
+class SpeakerRequestManager(models.Manager):
+    """Manager for SpeakerRequest model."""
+
+    def get_queryset(self):
+        """Use custom QuerySet."""
+        return SpeakerRequestQuerySet(self.model, using=self._db)
+
+    def for_organizer(self, user):
+        """Proxy to QuerySet."""
+        return self.get_queryset().for_organizer(user)
+
+    def for_speaker(self, user):
+        """Proxy to QuerySet."""
+        return self.get_queryset().for_speaker(user)
+
+
 class SpeakerRequest(TimeStampedModel):
-    """Speaker request model."""
+    """speaker request model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    requested_by = models.ForeignKey(
-        "speakers.SpeakerProfile",
-        on_delete=models.CASCADE,
-        related_name="requests_made",
-        null=True,
-    )
-    organization = models.ForeignKey(
+    objects = SpeakerRequestManager()
+
+    organizer = models.ForeignKey(
         "organizations.Organization", on_delete=models.CASCADE
     )
-    speaker = models.ForeignKey(
-        SpeakerProfile,
-        on_delete=models.CASCADE,
-        related_name="requests_received",
-        db_index=True,
-    )
-    event = models.ForeignKey("events.Event", on_delete=models.CASCADE, db_index=True)
+    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.CASCADE)
+    event = models.ForeignKey("events.Event", on_delete=models.CASCADE)
     status = models.CharField(
-        max_length=20,
+        max_length=10,
         choices=RequestStatusChoices.choices,
         default=RequestStatusChoices.PENDING,
-        db_index=True,
     )
     message = models.TextField(null=False)
-    proposed_topic = models.CharField(max_length=255, null=True)
-    proposed_session_type = models.CharField(
-        max_length=50,
-        choices=SessionTypeChoices.choices,
-        default=SessionTypeChoices.IN_PERSON,
-    )
-    proposed_duration = models.PositiveIntegerField(
-        null=True, help_text="Proposed duration in minutes"
-    )
-    speaker_fee = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        help_text="Honorarium or fee offered to the speaker, if any",
-    )
-    travel_covered = models.BooleanField(
-        default=False, help_text="Whether travel expenses are covered by the organizer"
-    )
-    accommodation_covered = models.BooleanField(
-        default=False, help_text="Whether accommodation is covered by the organizer"
-    )
-    response_message = models.TextField(
-        null=True, help_text="Speaker's response or reason for declining"
-    )
-    responded_at = models.DateTimeField(null=True)
-    response_deadline = models.DateTimeField(
-        null=True, help_text="Deadline for the speaker to respond to the request"
-    )
-    notes = models.TextField(
-        null=True, help_text="Internal organizer notes, not visible to the speaker"
-    )
 
     class Meta:
         """Meta options for SpeakerRequest."""
 
-        unique_together = ("organization", "speaker", "event")
+        unique_together = ("organizer", "speaker", "event")
         ordering = ["-created_at"]
 
     def __str__(self):
         """Str."""
-        return f"{self.speaker.user_account.username} - {self.event} ({self.status})"
-
-    def is_expired(self):
-        """Check if the response deadline has passed without a response."""
-        from django.utils import timezone
-
-        if self.response_deadline and self.status == RequestStatusChoices.PENDING:
-            self.status = RequestStatusChoices.IS_EXPIRED
-            self.save(update_fields=["status"])
-            return timezone.now() > self.response_deadline
-        return False
-
-    def accept(self, response_message=None):
-        """Mark the request as accepted by the speaker."""
-        from django.utils import timezone
-
-        self.status = RequestStatusChoices.ACCEPTED
-        self.responded_at = timezone.now()
-        if response_message:
-            self.response_message = response_message
-        self.save(update_fields=["status", "responded_at", "response_message"])
-
-    def decline(self, response_message=None):
-        """Mark the request as declined by the speaker."""
-        from django.utils import timezone
-
-        self.status = RequestStatusChoices.DECLINED
-        self.responded_at = timezone.now()
-        if response_message:
-            self.response_message = response_message
-        self.save(update_fields=["status", "responded_at", "response_message"])
-
-    def cancel(self, response_message=None):
-        """Mark the request as cancelled by the speaker."""
-        from django.utils import timezone
-
-        self.status = RequestStatusChoices.CANCELLED
-        self.responded_at = timezone.now()
-        if response_message:
-            self.response_message = response_message
-        self.save(update_fields=["status", "responded_at", "response_message"])
+        return f"{self.speaker.user_account.username} request"
 
 
 class SpeakerEmailRequests(TimeStampedModel):

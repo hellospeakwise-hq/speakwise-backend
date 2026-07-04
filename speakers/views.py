@@ -539,8 +539,6 @@ class SpeakerFollowingListView(APIView):
 
 
 # ---------- Speaker Deck Views ----------
-
-
 @extend_schema(tags=["speaker decks"])
 class SpeakerDeckListCreateView(APIView):
     """List and upload speaker decks for an event.
@@ -595,17 +593,7 @@ class SpeakerDeckListCreateView(APIView):
 
         return event, speaker_profile, None
 
-    @extend_schema(
-        responses=SpeakerDeckSerializer(many=True),
-        parameters=[
-            {
-                "name": "event",
-                "in": "query",
-                "required": True,
-                "schema": {"type": "string", "format": "uuid"},
-            }
-        ],
-    )
+    @extend_schema(responses=SpeakerDeckSerializer(many=True))
     def get(self, request):
         """List speaker decks for the authenticated speaker and event."""
         event, speaker_profile, error = self._get_event_and_speaker(request)
@@ -648,15 +636,17 @@ class SpeakerDeckListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        original_file = request.FILES.get("file")
+        original_name = original_file.name if original_file else None
+
         serializer = SpeakerDeckSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        uploaded_file = serializer.validated_data["file"]
         serializer.save(
             speaker=speaker_profile,
             event=event,
-            original_filename=uploaded_file.name,
-            file_size=uploaded_file.size,
+            original_filename=original_name,
+            file_size=original_file.size if original_file else 0,
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -694,9 +684,10 @@ class SpeakerDeckRetrieveUpdateDestroyView(APIView):
         # If a new file is uploaded, update the metadata fields
         save_kwargs = {}
         if "file" in serializer.validated_data:
-            uploaded_file = serializer.validated_data["file"]
-            save_kwargs["original_filename"] = uploaded_file.name
-            save_kwargs["file_size"] = uploaded_file.size
+            uploaded_file = request.FILES.get("file")
+            if uploaded_file:
+                save_kwargs["original_filename"] = uploaded_file.name
+                save_kwargs["file_size"] = uploaded_file.size
 
         serializer.save(**save_kwargs)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -721,17 +712,7 @@ class NotificationListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        responses=NotificationSerializer(many=True),
-        parameters=[
-            {
-                "name": "is_read",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "string", "enum": ["true", "false"]},
-            }
-        ],
-    )
+    @extend_schema(responses=NotificationSerializer(many=True))
     def get(self, request):
         """List notifications for the authenticated user."""
         notifications = Notification.objects.filter(recipient=request.user)

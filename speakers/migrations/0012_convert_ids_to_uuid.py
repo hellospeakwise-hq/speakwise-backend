@@ -158,6 +158,7 @@ class Migration(migrations.Migration):
         migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
         migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
+<<<<<<< HEAD
         migrations.RunSQL(
 <<<<<<< HEAD
             sql=[
@@ -244,5 +245,56 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
+=======
+        migrations.AlterField(
+            model_name="speakerprofile",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+        ),
+        migrations.AlterField(
+            model_name="speakerexperiences",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+        ),
+        migrations.AlterField(
+            model_name="speakerskilltag",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+        ),
+        migrations.AlterField(
+            model_name="speakersociallinks",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+        ),
+        migrations.AlterField(
+            model_name="speakerfollow",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+>>>>>>> 992caa2 (fix test pass between sqlite and postgres)
         ),
     ]

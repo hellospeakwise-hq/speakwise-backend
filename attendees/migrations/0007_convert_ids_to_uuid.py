@@ -84,6 +84,7 @@ class Migration(migrations.Migration):
         migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
         migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
+<<<<<<< HEAD
         migrations.RunSQL(
 <<<<<<< HEAD
             sql=[
@@ -134,5 +135,36 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
+=======
+        migrations.AlterField(
+            model_name="attendeeprofile",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+        ),
+        migrations.AlterField(
+            model_name="attendeesociallinks",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+        ),
+        migrations.AlterField(
+            model_name="attendance",
+            name="id",
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                primary_key=True,
+                serialize=False,
+            ),
+>>>>>>> 992caa2 (fix test pass between sqlite and postgres)
         ),
     ]

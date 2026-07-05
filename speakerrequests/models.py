@@ -11,9 +11,6 @@ from speakers.models import SpeakerProfile
 from users.models import User
 
 
-from organizations.models import OrganizationMembership
-
-
 class SpeakerRequestQuerySet(models.QuerySet):
     """QuerySet for SpeakerRequests to optimize common queries."""
 

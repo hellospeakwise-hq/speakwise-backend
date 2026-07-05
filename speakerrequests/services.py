@@ -34,10 +34,10 @@ class SpeakerRequestService:
                 message=message,
                 status=RequestStatusChoices.PENDING,
             )
-        except IntegrityError:
+        except IntegrityError as err:
             raise ValueError(
                 "A speaker request for this speaker and event already exists."
-            )
+            ) from err
 
         # Notify speaker via email
         send_speaker_request_email.enqueue(

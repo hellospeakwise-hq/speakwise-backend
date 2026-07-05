@@ -1,6 +1,5 @@
 """custom users permissions."""
 
-from rest_framework import permissions
 from rest_framework.permissions import BasePermission
 
 from organizations.models import OrganizationMembership

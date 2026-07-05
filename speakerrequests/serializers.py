@@ -82,6 +82,8 @@ class SpeakerRequestCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating SpeakerRequest (input)."""
 
     class Meta:
+        """Meta class for speaker request creation serializer."""
+
         model = SpeakerRequest
         fields = [
             "speaker",
@@ -139,6 +141,8 @@ class EmailRequestCreateSerializer(serializers.ModelSerializer):
     event = serializers.PrimaryKeyRelatedField(queryset=Event.objects.all())
 
     class Meta:
+        """Meta class for email request creation serializer."""
+
         model = SpeakerEmailRequests
         fields = ["request_to", "event", "message"]
 

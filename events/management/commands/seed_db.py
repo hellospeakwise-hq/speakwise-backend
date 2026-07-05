@@ -1,22 +1,36 @@
+"""Django management command to seed the database with sample data for all models."""
+
 import random
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from users.models import User
-from organizations.models import Organization, OrganizationMembership
-from events.models import Tag, Country, Location, Event
-from attendees.models import AttendeeProfile, Attendance
-from speakers.models import SpeakerProfile, SpeakerSkillTag, SpeakerExperiences, SpeakerSocialLinks, SpeakerFollow
-from talks.models import Talks, Session, TalkReviewComment
+
+from attendees.models import Attendance, AttendeeProfile
+from events.models import Country, Event, Location, Tag
 from feedbacks.models import Feedback
-from teams.models import TeamMember, TeamSocial
-from speakerrequests.models import SpeakerRequest
 from organizations.choices import OrganizationRole
+from organizations.models import Organization, OrganizationMembership
+from speakerrequests.models import SpeakerRequest
+from speakers.models import (
+    SpeakerExperiences,
+    SpeakerFollow,
+    SpeakerProfile,
+    SpeakerSkillTag,
+    SpeakerSocialLinks,
+)
 from talks.choices import TalkCategoryChoices
+from talks.models import Session, TalkReviewComment, Talks
+from teams.models import TeamMember, TeamSocial
+from users.models import User
+
 
 class Command(BaseCommand):
+    """Command to seed the database with sample data."""
+
     help = "Seed the database with sample data for all models."
 
     def handle(self, *args, **kwargs):
+        """Handle the command to seed the database."""
         self.stdout.write("Seeding database...")
 
         # 1. Users
@@ -28,7 +42,7 @@ class Command(BaseCommand):
                 password="password123",
                 first_name=f"First_{i}",
                 last_name=f"Last_{i}",
-                nationality=random.choice(["US", "UK", "KE", "NG", "DE", "FR"])
+                nationality=random.choice(["US", "UK", "KE", "NG", "DE", "FR"]),
             )
             users.append(user)
         self.stdout.write(self.style.SUCCESS(f"Created {len(users)} users"))
@@ -44,10 +58,10 @@ class Command(BaseCommand):
                 is_active=True,
                 status="approved",
                 created_by=random.choice(users),
-                slug=f"org-{i}"
+                slug=f"org-{i}",
             )
             orgs.append(org)
-            
+
             # Organization Memberships
             for user in random.sample(users, 3):
                 OrganizationMembership.objects.create(
@@ -55,23 +69,37 @@ class Command(BaseCommand):
                     user=user,
                     role=random.choice(OrganizationRole.values),
                     is_active=True,
-                    added_by=random.choice(users)
+                    added_by=random.choice(users),
                 )
-        self.stdout.write(self.style.SUCCESS(f"Created {len(orgs)} organizations and memberships"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Created {len(orgs)} organizations and memberships")
+        )
 
         # 3. Tags & Countries
         tags = []
         tag_names = ["Python", "Django", "AI", "DevOps", "Web", "Cloud"]
         for name in tag_names:
-            tag, _ = Tag.objects.get_or_create(name=name, color=random.choice(["#ff0000", "#00ff00", "#0000ff", "#ffff00"]))
+            tag, _ = Tag.objects.get_or_create(
+                name=name,
+                color=random.choice(["#ff0000", "#00ff00", "#0000ff", "#ffff00"]),
+            )
             tags.append(tag)
-        
+
         countries = []
-        country_data = [("Kenya", "KE"), ("Nigeria", "NG"), ("United States", "US"), ("United Kingdom", "UK")]
+        country_data = [
+            ("Kenya", "KE"),
+            ("Nigeria", "NG"),
+            ("United States", "US"),
+            ("United Kingdom", "UK"),
+        ]
         for name, code in country_data:
             country, _ = Country.objects.get_or_create(name=name, code=code)
             countries.append(country)
-        self.stdout.write(self.style.SUCCESS(f"Created {len(tags)} tags and {len(countries)} countries"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Created {len(tags)} tags and {len(countries)} countries"
+            )
+        )
 
         # 4. Locations
         locations = []
@@ -80,7 +108,7 @@ class Command(BaseCommand):
                 venue=f"Venue {i}",
                 address=f"{i} Main St",
                 city="Nairobi",
-                country=random.choice(countries)
+                country=random.choice(countries),
             )
             locations.append(loc)
         self.stdout.write(self.style.SUCCESS(f"Created {len(locations)} locations"))
@@ -96,7 +124,7 @@ class Command(BaseCommand):
                 start_date_time=timezone.now() + timezone.timedelta(days=i),
                 end_date_time=timezone.now() + timezone.timedelta(days=i, hours=2),
                 is_active=True,
-                organizer=random.choice(orgs)
+                organizer=random.choice(orgs),
             )
             event.tags.set(random.sample(tags, 2))
             events.append(event)
@@ -104,20 +132,22 @@ class Command(BaseCommand):
 
         # 6. Attendee Profiles & Attendance
         for user in users[:5]:
-            profile = AttendeeProfile.objects.create(
+            AttendeeProfile.objects.create(
                 user_account=user,
                 notification_preference="email",
                 organization="Tech Co",
-                is_verified=True
+                is_verified=True,
             )
             for event in random.sample(events, 2):
                 Attendance.objects.create(
                     event=event,
                     email=user.email,
                     username=user.username,
-                    is_verified=True
+                    is_verified=True,
                 )
-        self.stdout.write(self.style.SUCCESS("Created attendee profiles and attendance"))
+        self.stdout.write(
+            self.style.SUCCESS("Created attendee profiles and attendance")
+        )
 
         # 7. Speaker Profiles & Related Data
         speakers = []
@@ -127,16 +157,14 @@ class Command(BaseCommand):
                 organization="Speaker Org",
                 short_bio="I am a speaker",
                 long_bio="Detailed bio here",
-                country="Kenya"
+                country="Kenya",
             )
             speaker.events_spoken.set(random.sample(events, 2))
             speakers.append(speaker)
 
             # Skill Tags
             SpeakerSkillTag.objects.create(
-                name="Public Speaking",
-                duration=random.randint(1, 10),
-                speaker=speaker
+                name="Public Speaking", duration=random.randint(1, 10), speaker=speaker
             )
 
             # Experiences
@@ -144,23 +172,24 @@ class Command(BaseCommand):
                 event_name="Past Event",
                 event_date=timezone.now().date() - timezone.timedelta(days=30),
                 topic="How to Speak",
-                speaker=speaker
+                speaker=speaker,
             )
 
             # Social Links
             SpeakerSocialLinks.objects.create(
                 speaker=speaker,
                 name="Twitter",
-                url=f"https://twitter.com/{user.username}"
+                url=f"https://twitter.com/{user.username}",
             )
-            
+
             # Follows
             for follower in random.sample(users[:5], 2):
-                SpeakerFollow.objects.create(
-                    follower=follower,
-                    speaker=speaker
-                )
-        self.stdout.write(self.style.SUCCESS(f"Created {len(speakers)} speaker profiles and related data"))
+                SpeakerFollow.objects.create(follower=follower, speaker=speaker)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Created {len(speakers)} speaker profiles and related data"
+            )
+        )
 
         # 8. Talks & Sessions
         talks_list = []
@@ -172,24 +201,20 @@ class Command(BaseCommand):
                 duration=45,
                 category=random.choice(TalkCategoryChoices.values),
                 is_public=True,
-                event=random.choice(events)
+                event=random.choice(events),
             )
             talks_list.append(talk)
 
             # Sessions
-            Session.objects.create(
-                type="Main Hall",
-                duration=45,
-                talk=talk
-            )
+            Session.objects.create(type="Main Hall", duration=45, talk=talk)
 
             # Review Comments
             TalkReviewComment.objects.create(
-                talk=talk,
-                rating=random.randint(1, 5),
-                comment="Great talk!"
+                talk=talk, rating=random.randint(1, 5), comment="Great talk!"
             )
-        self.stdout.write(self.style.SUCCESS(f"Created {len(talks_list)} talks and sessions"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Created {len(talks_list)} talks and sessions")
+        )
 
         # 9. Feedbacks
         for speaker in random.sample(speakers, 2):
@@ -201,7 +226,7 @@ class Command(BaseCommand):
                 content_depth=7,
                 speaker_knowledge=9,
                 practical_relevance=8,
-                comments="Really enjoyed it"
+                comments="Really enjoyed it",
             )
         self.stdout.write(self.style.SUCCESS("Created feedbacks"))
 
@@ -211,12 +236,12 @@ class Command(BaseCommand):
                 name=f"Team Member {i}",
                 role="Developer",
                 short_bio="Helping build SpeakWise",
-                display_order=i
+                display_order=i,
             )
             TeamSocial.objects.create(
                 team_member=team_member,
                 name="LinkedIn",
-                url=f"https://linkedin.com/member{i}"
+                url=f"https://linkedin.com/member{i}",
             )
         self.stdout.write(self.style.SUCCESS("Created team members"))
 
@@ -227,7 +252,7 @@ class Command(BaseCommand):
                 speaker=speaker,
                 event=random.choice(events),
                 status="pending",
-                message="Please speak at our event"
+                message="Please speak at our event",
             )
         self.stdout.write(self.style.SUCCESS("Created speaker requests"))
 

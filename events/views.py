@@ -10,10 +10,9 @@ from rest_framework.views import APIView
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event, EventSpeakers, Tag
 from events.serializers import EventSerializer, TagSerializer
-from events.models import Event, EventSpeakers
-from events.serializers import EventSerializer
 from events.utils import create_event_payload
 from organizations.models import OrganizationMembership
+from speakers.models import SpeakerDeck
 
 
 class TagListView(APIView):
@@ -124,6 +123,7 @@ class EventSpeakersListView(APIView):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     def get(self, request, event_slug: str):
 =======
     def get(self, request, event_slug:str):
@@ -131,10 +131,16 @@ class EventSpeakersListView(APIView):
 =======
     def get(self, request, event_slug: str):
 >>>>>>> 7255978 (refactor speakerrequest API)
+=======
+    permission_classes = [AllowAny]
+
+    def get(self, request, event_slug: str):
+>>>>>>> 19a22e8 (resolve confilcts)
         """Retrieve event speakers."""
         speakers = EventSpeakers.objects.filter(event__slug=event_slug)
         serializer = EventSerializer(speakers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
     POST toggles the speaker_deck_upload_enabled flag.
@@ -184,3 +190,22 @@ class EventSpeakersListView(APIView):
 >>>>>>> e858683 (refactor: migrate email utilities to tasks.py and reorganize notification logic across modules)
 =======
 >>>>>>> 8be53aa (push to continue)
+=======
+
+
+class EventSpeakerDeckToggleView(APIView):
+    """Toggle speaker deck for an event."""
+
+    permission_classes = [IsOrganizationAdminOrOrganizer]
+
+    def post(self, request, event_slug: str, speaker_id: int):
+        """Toggle speaker deck."""
+        event = get_object_or_404(Event, slug=event_slug)
+        self.check_object_permissions(request, event)
+        speaker = get_object_or_404(SpeakerDeck, id=speaker_id, event=event)
+        speaker.is_deck_enabled = not speaker.is_deck_enabled
+        speaker.save()
+        return Response(
+            {"is_deck_enabled": speaker.is_deck_enabled}, status=status.HTTP_200_OK
+        )
+>>>>>>> 19a22e8 (resolve confilcts)

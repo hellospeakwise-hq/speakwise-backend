@@ -7,6 +7,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 from django.shortcuts import get_object_or_404
+<<<<<<< HEAD
 from django_filters.rest_framework import DjangoFilterBackend
 =======
 from django.db.models import Q
@@ -17,6 +18,8 @@ from django.conf import settings
 from django.db.models import Q
 from django.http.response import Http404
 >>>>>>> 947d65b (Add welcome email templates for organizers and speakers)
+=======
+>>>>>>> 19a22e8 (resolve confilcts)
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.pagination import PageNumberPagination
@@ -35,7 +38,6 @@ from rest_framework.views import APIView
 <<<<<<< HEAD
 from base.permissions import IsOrganizationAdminOrOrganizer, IsSpeakerRequestRecipient
 from organizations.models import OrganizationMembership
-from speakerrequests.filters import EmailRequestsFilter, SpeakerRequestFilter
 from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.serializers import (
     EmailRequestCreateSerializer,
@@ -144,6 +146,7 @@ class OrganizerSpeakerRequestListCreateAPIView(APIView):
     @extend_schema(
         request=SpeakerRequestCreateSerializer,
         responses={201: SpeakerRequestSerializer},
+<<<<<<< HEAD
     )
     def post(self, request, *args, **kwargs):
         """Create a new speaker request."""
@@ -812,6 +815,8 @@ class OrganizerSpeakerRequestRetrieveUpdateDeleteAPIView(
 
     @extend_schema(
         request=SpeakerRequestCreateSerializer, responses={201: SpeakerRequestSerializer}
+=======
+>>>>>>> 19a22e8 (resolve confilcts)
     )
     def post(self, request, *args, **kwargs):
         """Create a new speaker request."""
@@ -975,7 +980,9 @@ class SpeakerEmailRequestRespondAPIView(APIView):
 
     def get_object(self, id):
         """Get object and check ownership."""
-        obj = get_object_or_404(SpeakerEmailRequests, id=id, request_to=self.request.user)
+        obj = get_object_or_404(
+            SpeakerEmailRequests, id=id, request_to=self.request.user
+        )
         return obj
 
     @extend_schema(

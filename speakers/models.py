@@ -218,6 +218,10 @@ class SpeakerDeck(TimeStampedModel):
     description = models.TextField(
         blank=True, default="", help_text="Optional description of the presentation."
     )
+    is_deck_enabled = models.BooleanField(
+        default=False,
+        help_text="Indicates if the speaker deck upload feature is enabled for this event.",
+    )
 
     class Meta:
         """Meta options for SpeakerDeck."""

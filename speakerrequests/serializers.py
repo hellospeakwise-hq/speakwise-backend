@@ -10,15 +10,12 @@ from users.models import User  # Assuming User model is in users.models
 
 class SpeakerRequestSerializer(serializers.ModelSerializer):
     """speaker request serializer for output (read-only)."""
-<<<<<<< HEAD
 
     organization_name = serializers.CharField(source="organizer.name", read_only=True)
     speaker_name = serializers.CharField(
         source="speaker.user_account.get_full_name", read_only=True
     )
     event_title = serializers.CharField(source="event.title", read_only=True)
-=======
->>>>>>> 0dcd31b (fix merge conficts and added improvements)
 
     organization_name = serializers.CharField(source="organizer.name", read_only=True)
     speaker_name = serializers.CharField(
@@ -32,49 +29,17 @@ class SpeakerRequestSerializer(serializers.ModelSerializer):
         model = SpeakerRequest
         fields = [
             "id",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-            "organizer",
->>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
-=======
->>>>>>> 7255978 (refactor speakerrequest API)
-=======
-            "organizer",
->>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
-=======
->>>>>>> 0dcd31b (fix merge conficts and added improvements)
             "organization_name",
             "speaker",
             "speaker_name",
             "event",
             "event_title",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
             "organizer",
-=======
->>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
-=======
-            "organizer",
->>>>>>> 7255978 (refactor speakerrequest API)
-=======
->>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
-=======
-            "organizer",
->>>>>>> 0dcd31b (fix merge conficts and added improvements)
             "status",
             "message",
             "created_at",
             "updated_at",
         ]
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 0dcd31b (fix merge conficts and added improvements)
         read_only_fields = fields  # All fields are read-only for this output serializer
 
 
@@ -82,8 +47,6 @@ class SpeakerRequestCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating SpeakerRequest (input)."""
 
     class Meta:
-        """Meta class for speaker request creation serializer."""
-
         model = SpeakerRequest
         fields = [
             "speaker",
@@ -96,12 +59,6 @@ class SpeakerRequestRespondSerializer(serializers.Serializer):
     """Serializer for responding to a speaker request (input)."""
 
     status = serializers.ChoiceField(choices=RequestStatusChoices.choices)
-<<<<<<< HEAD
-=======
-        read_only_fields = ["status", "created_at", "updated_at"]
->>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
-=======
->>>>>>> 0dcd31b (fix merge conficts and added improvements)
 
 
 class EmailRequestsSerializer(serializers.ModelSerializer):
@@ -131,43 +88,6 @@ class EmailRequestsSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields  # All fields are read-only for this output serializer
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-class EmailRequestCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating email requests (input)."""
-
-    request_to = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    event = serializers.PrimaryKeyRelatedField(queryset=Event.objects.all())
-
-    class Meta:
-        """Meta class for email request creation serializer."""
-
-        model = SpeakerEmailRequests
-        fields = ["request_to", "event", "message"]
-
-
-class EmailRequestsRespondSerializer(serializers.Serializer):
-    """Serializer for responding to an email request (input)."""
-
-    status = serializers.ChoiceField(choices=RequestStatusChoices.choices)
-=======
-    def validate(self, attrs):
-        """Validate email request data."""
-        if not attrs.get("request_to") and not attrs.get("request_from"):
-             raise serializers.ValidationError(
-                {"error": "request_to and request_from are required."}
-            )
-        return attrs
-<<<<<<< HEAD
-
-<<<<<<< HEAD
->>>>>>> 8dfda2b (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
-=======
->>>>>>> 7255978 (refactor speakerrequest API)
-=======
->>>>>>> 9e60841 (source /home/ezra/workspace/speakwise-backend/.venv/bin/activate)
-=======
 
 class EmailRequestCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating email requests (input)."""
@@ -184,4 +104,3 @@ class EmailRequestsRespondSerializer(serializers.Serializer):
     """Serializer for responding to an email request (input)."""
 
     status = serializers.ChoiceField(choices=RequestStatusChoices.choices)
->>>>>>> 0dcd31b (fix merge conficts and added improvements)

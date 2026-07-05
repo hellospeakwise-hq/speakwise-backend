@@ -8,11 +8,7 @@ from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.utils import (
     send_request_accepted_email,
-<<<<<<< HEAD
     send_speaker_request_declined_email,
-=======
-    send_request_declined_email,
->>>>>>> 0dcd31b (fix merge conficts and added improvements)
     send_speaker_request_email,
 )
 
@@ -34,10 +30,10 @@ class SpeakerRequestService:
                 message=message,
                 status=RequestStatusChoices.PENDING,
             )
-        except IntegrityError as err:
+        except IntegrityError:
             raise ValueError(
                 "A speaker request for this speaker and event already exists."
-            ) from err
+            )
 
         # Notify speaker via email
         send_speaker_request_email.enqueue(

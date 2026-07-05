@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event, EventSpeakers, Tag
-from events.serializers import EventSerializer, TagSerializer
+from events.serializers import EventSerializer, EventSpeakersSerializer, TagSerializer
 from events.utils import create_event_payload
 from organizations.models import OrganizationMembership
 from speakers.models import SpeakerDeck
@@ -120,77 +120,16 @@ class EventDetailView(APIView):
 class EventSpeakersListView(APIView):
     """get event speakers list view."""
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    def get(self, request, event_slug: str):
-=======
-    def get(self, request, event_slug:str):
->>>>>>> 8be53aa (push to continue)
-=======
-    def get(self, request, event_slug: str):
->>>>>>> 7255978 (refactor speakerrequest API)
-=======
     permission_classes = [AllowAny]
 
     def get(self, request, event_slug: str):
->>>>>>> 19a22e8 (resolve confilcts)
-        """Retrieve event speakers."""
-        speakers = EventSpeakers.objects.filter(event__slug=event_slug)
-        serializer = EventSerializer(speakers, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-    POST toggles the speaker_deck_upload_enabled flag.
-    When enabling, sends notifications to all accepted speakers.
-    """
-
-    permission_classes = [IsOrganizationAdminOrOrganizer]
-
-    @extend_schema(
-        tags=["Events"],
-        request=None,
-        responses={
-            200: {
-                "type": "object",
-                "properties": {
-                    "speaker_deck_upload_enabled": {"type": "boolean"},
-                    "detail": {"type": "string"},
-                },
-            }
-        },
-    )
-    def post(self, request, slug, *args, **kwargs):
-        """Toggle the speaker deck upload flag for an event."""
-        from events.notifications import notify_accepted_speakers_deck_upload
-
-        event = get_object_or_404(Event, slug=slug)
-        self.check_object_permissions(request, event)
-
-        # Toggle the flag
-        event.speaker_deck_upload_enabled = not event.speaker_deck_upload_enabled
-        event.save(update_fields=["speaker_deck_upload_enabled", "updated_at"])
-
-        detail = "Speaker deck upload has been "
-        if event.speaker_deck_upload_enabled:
-            detail += "enabled."
-            notify_accepted_speakers_deck_upload(event)
-        else:
-            detail += "disabled."
-
-        return Response(
-            {
-                "speaker_deck_upload_enabled": event.speaker_deck_upload_enabled,
-                "detail": detail,
-            },
-            status=status.HTTP_200_OK,
+        """List speakers for an event."""
+        event = get_object_or_404(Event, slug=event_slug)
+        speakers = EventSpeakers.objects.filter(event=event).select_related(
+            "speaker", "speaker__user_account"
         )
->>>>>>> e858683 (refactor: migrate email utilities to tasks.py and reorganize notification logic across modules)
-=======
->>>>>>> 8be53aa (push to continue)
-=======
+        serializer = EventSpeakersSerializer(speakers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class EventSpeakerDeckToggleView(APIView):
@@ -208,4 +147,3 @@ class EventSpeakerDeckToggleView(APIView):
         return Response(
             {"is_deck_enabled": speaker.is_deck_enabled}, status=status.HTTP_200_OK
         )
->>>>>>> 19a22e8 (resolve confilcts)

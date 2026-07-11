@@ -12,7 +12,7 @@ class EventSchedule(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     event = models.OneToOneField(
-        "events.Event", on_delete=models.CASCADE, related_name="event_schedules"
+        "events.Event", on_delete=models.CASCADE, related_name="event_schedule"
     )
     sessions = models.ManyToManyField(
         "eventsessions.Session", related_name="event_schedules"

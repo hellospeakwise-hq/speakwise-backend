@@ -70,7 +70,7 @@ class EmailSpeakerRequestsSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Validate email request data."""
-        if not attrs.get("request_to", "request_from"):
+        if not attrs.get("request_to") or not attrs.get("request_from"):
             raise serializers.ValidationError(
                 {"error": "request_to and request_from are required."}
             )

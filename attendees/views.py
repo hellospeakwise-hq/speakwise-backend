@@ -164,8 +164,6 @@ class UploadAttendanceView(APIView):
     def post(self, request):
         """Upload attendance file and create attendance records."""
         attendance_file = request.FILES.get("file")
-        event_id = request.data.get("event")
-
         if not attendance_file:
             return Response(
                 {
@@ -173,6 +171,24 @@ class UploadAttendanceView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # File validation
+        if attendance_file.size > 10 * 1024 * 1024:  # 10 MB
+            return Response(
+                {"detail": "File size exceeds 10MB limit."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        import os
+
+        ext = os.path.splitext(attendance_file.name)[1].lower()
+        if ext not in [".csv", ".xlsx", ".xls"]:
+            return Response(
+                {"detail": "Invalid file type. Only CSV and Excel are allowed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        event_id = request.data.get("event")
         if not event_id:
             return Response(
                 {"detail": "'event' is required."},

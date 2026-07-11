@@ -3,7 +3,7 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -28,11 +28,10 @@ class OrganizationListCreateView(APIView):
 
     @extend_schema(
         operation_id="organizations_list",
-        request=OrganizationSerializer,
-        responses={201: OrganizationSerializer},
+        responses={200: OrganizationSerializer(many=True)},
     )
     def get(self, request) -> Response:
-        """List all organizations."""
+        """List all organizations the user belongs to."""
         organizations = Organization.objects.filter(
             organization_memberships__user=request.user,
             organization_memberships__is_active=True,
@@ -116,7 +115,7 @@ class OrganizationMembershipListCreateView(APIView):
         self.check_object_permissions(request, organization)
         organization_members = OrganizationMembership.objects.filter(
             organization=organization
-        )
+        ).select_related("user")
         members_filters = OrganizationMembershipFilter(
             request.GET, queryset=organization_members
         )
@@ -139,19 +138,27 @@ class OrganizationMembershipListCreateView(APIView):
 
 
 class OrganizationMembershipDeleteView(APIView):
-    """community membership delete view."""
+    """View for removing a member from an organization."""
 
     permission_classes = [IsOrganizationAdminOrOrganizer]
 
-    @extend_schema(responses={200: None})
+    @extend_schema(responses={204: None})
     def delete(self, request, org_slug: str, username: str) -> Response:
         """Remove a member from an organization."""
         organization = get_object_or_404(Organization, slug=org_slug)
         self.check_object_permissions(request, organization)
-        try:
-            OrganizationMembership.objects.get(
-                organization=organization, user__username=username
-            ).delete()
-        except OrganizationMembership.DoesNotExist:
-            return NotFound(detail="Member not found")
+
+        membership = get_object_or_404(
+            OrganizationMembership, organization=organization, user__username=username
+        )
+
+        # Safety: check if trying to remove the last admin
+        if membership.role == "ADMIN":
+            admin_count = OrganizationMembership.objects.filter(
+                organization=organization, role="ADMIN", is_active=True
+            ).count()
+            if admin_count <= 1:
+                raise PermissionDenied("Cannot remove the last active admin.")
+
+        membership.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

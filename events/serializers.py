@@ -141,7 +141,29 @@ class EventSerializer(WritableNestedModelSerializer):
         """Meta class for the EventSerializer."""
 
         model = Event
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "title",
+            "name",
+            "slug",
+            "organizer",
+            "website",
+            "event_image",
+            "short_description",
+            "long_description",
+            "start_date_time",
+            "end_date_time",
+            "date",
+            "date_range",
+            "location",
+            "tags",
+            "is_active",
+            "cfp_open",
+            "cfp_open_date",
+            "cfp_deadline",
+            "cfp_speaker_notification_date",
+            "speaker_deck_upload_enabled",
+        ]
 
     # ------------------------------------------------------------------
     # Override create/update to resolve location → country via get_or_create

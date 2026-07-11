@@ -1,11 +1,15 @@
 """speakers models."""
+
+import itertools
+import uuid
+
 from django.db import models
 from django.utils.text import slugify
 
 from base.models import SocialLinks, TimeStampedModel
 from users.models import User
 
-# Speakers file upload directory
+# Speakers' file upload directory
 SPEAKERS_UPLOAD_DIR = "speakers/avatars/"
 
 
@@ -15,7 +19,7 @@ class SpeakerSkillTag(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(
         max_length=255, null=True, help_text="name of skill. Eg. Software Engineer"
-    )  # Consider making this non-nullable if a skill must have a name.
+    )
     description = models.TextField(
         blank=True, null=True, help_text="A brief description of the skill"
     )
@@ -29,12 +33,12 @@ class SpeakerSkillTag(TimeStampedModel):
 
     def __str__(self):
         """String representation of the speaker skill."""
-        return self.name
+        return self.name or "Unnamed Skill"
 
 
 class SpeakerExperiences(TimeStampedModel):
     """speaker experience model.
-    This model holds speaker's presentation or speaking experiences.
+    This model holds a speaker's presentation or speaking experiences.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -51,12 +55,6 @@ class SpeakerExperiences(TimeStampedModel):
     )
     video_recording_link = models.URLField(
         blank=True, null=True, help_text="Link to the video recording of the talk"
-    )
-    speaker = models.ForeignKey(
-        "speakers.SpeakerProfile",
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="experiences",
     )
     speaker = models.ForeignKey(
         "speakers.SpeakerProfile",
@@ -101,14 +99,14 @@ class SpeakerProfile(TimeStampedModel):
         if s := slugify(name):
             return s
         if s := slugify(self.user_account.username):
-            return s
+            return str(s)
         return str(self.user_account.id)
 
     def _generate_unique_slug(self) -> str:
         """Generate a unique slug, appending numeric suffix when needed."""
         base = self._base_slug()
         candidate = base
-        for i in count(2):
+        for i in itertools.count(2):
             exists = (
                 SpeakerProfile.objects.filter(slug=candidate)
                 .exclude(pk=self.pk)
@@ -136,6 +134,61 @@ class SpeakerProfile(TimeStampedModel):
     def followers_count(self) -> int:
         """Return the number of users following this speaker."""
         return self.followers.count()
+
+
+class SpeakerFollow(TimeStampedModel):
+    """Model for following speakers."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    follower = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="following"
+    )
+    speaker = models.ForeignKey(
+        SpeakerProfile, on_delete=models.CASCADE, related_name="followers"
+    )
+
+    class Meta:
+        """Meta options."""
+
+        unique_together = ("follower", "speaker")
+
+    def __str__(self):
+        """String representation of the follow."""
+        return f"{self.follower.username} follows {self.speaker.user_account.username}"
+
+
+class SpeakerDeck(TimeStampedModel):
+    """Speaker deck model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    speaker = models.ForeignKey(
+        SpeakerProfile, on_delete=models.CASCADE, related_name="decks"
+    )
+    event = models.ForeignKey(
+        "events.Event", on_delete=models.CASCADE, related_name="speaker_decks"
+    )
+    file = models.FileField(upload_to="speaker_decks/")
+    original_filename = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField()
+
+    def __str__(self):
+        """String representation."""
+        return f"{self.speaker.user_account.username} - {self.event.name}"
+
+
+class Notification(TimeStampedModel):
+    """Notification model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications"
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+
+    def __str__(self):
+        """String representation."""
+        return f"Notification for {self.user.username}"
 
 
 class SpeakerSocialLinks(SocialLinks):

@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event, Tag
 from events.serializers import EventSerializer, TagSerializer
-from events.utils import create_event_payload
+from events.services import create_event_payload
 from organizations.models import OrganizationMembership
 
 
@@ -65,6 +65,13 @@ class EventListView(APIView):
                 events = events.filter(is_active=True)
         else:
             events = events.filter(is_active=True)
+
+        from speakers.views import get_paginated_response, paginate_queryset
+
+        page = paginate_queryset(self, events)
+        if page is not None:
+            serializer = EventSerializer(page, many=True)
+            return get_paginated_response(self, serializer.data)
 
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

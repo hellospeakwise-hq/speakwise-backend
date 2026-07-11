@@ -43,7 +43,21 @@ class CFPSubmissionSerializer(serializers.ModelSerializer):
         """Meta options for CFPSubmissionSerializer."""
 
         model = CFPSubmission
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "title",
+            "description",
+            "short_description",
+            "notes_to_organizer",
+            "event",
+            "event_slug",
+            "event_title",
+            "submitter",
+            "submitter_email",
+            "co_speakers",
+            "co_speakers_detail",
+            "status",
+        ]
         read_only_fields = [
             "id",
             "submitter",

@@ -1,5 +1,7 @@
 """speaker serializers."""
 
+from typing import Any
+
 from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.exceptions import ValidationError
@@ -23,7 +25,7 @@ class SpeakerSocialLinksSerializer(ModelSerializer):
         """meta options."""
 
         model = SpeakerSocialLinks
-        exclude = ["created_at", "updated_at", "speaker"]
+        fields = ["id", "name", "url", "speaker"]
 
 
 class SpeakerSkillTagSerializer(ModelSerializer):
@@ -33,7 +35,7 @@ class SpeakerSkillTagSerializer(ModelSerializer):
         """meta options."""
 
         model = SpeakerSkillTag
-        exclude = ["created_at", "updated_at", "speaker"]
+        fields = ["id", "name", "description", "duration", "speaker"]
 
 
 class SpeakerExperiencesSerializer(ModelSerializer):
@@ -43,7 +45,16 @@ class SpeakerExperiencesSerializer(ModelSerializer):
         """meta options."""
 
         model = SpeakerExperiences
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "event_name",
+            "event_date",
+            "topic",
+            "description",
+            "presentation_link",
+            "video_recording_link",
+            "speaker",
+        ]
 
     def create(self, validated_data) -> SpeakerExperiences:
         """Create speaker experience with validation."""
@@ -146,7 +157,7 @@ class FollowerDetailSerializer(ModelSerializer):
         return profile.short_bio if profile else ""
 
     def get_country(self, obj) -> str:
-        """Return the country."""
+        """Return country."""
         profile = self._profile(obj)
         return profile.country if profile else ""
 
@@ -173,7 +184,24 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         """meta options."""
 
         model = SpeakerProfile
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "user_account",
+            "speaker_name",
+            "organization",
+            "short_bio",
+            "long_bio",
+            "country",
+            "avatar",
+            "slug",
+            "social_links",
+            "skill_tags",
+            "experiences",
+            "followers_count",
+            "following_count",
+            "is_following",
+            "events_spoken",
+        ]
         read_only_fields = ("slug", "user_account")
 
     @transaction.atomic
@@ -200,11 +228,13 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         full = f"{first} {last}".strip()
         return full if full else obj.user_account.username
 
-    def get_followers_count(self, obj) -> int:
-        """Return total number of followers for this speaker."""
+    def get_followers_count(
+        self, obj
+    ) -> None | bool | list[Any] | dict[Any, Any] | int | Any:
+        """Return the total number of followers for this speaker."""
         return getattr(obj, "_followers_count", obj.followers_count)
 
-    def get_following_count(self, obj) -> int:
+    def get_following_count(self, obj) -> int | None | Any:
         """Return how many speakers this speaker follows (their following count)."""
         cached = getattr(obj, "_following_count", None)
         if cached is not None:
@@ -261,7 +291,15 @@ class SpeakerDeckSerializer(ModelSerializer):
         """Meta options."""
 
         model = SpeakerDeck
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "speaker",
+            "event",
+            "file",
+            "original_filename",
+            "file_size",
+            "description",
+        ]
         read_only_fields = ("id", "speaker", "original_filename", "file_size")
 
     def validate_file(self, value):
@@ -296,10 +334,8 @@ class NotificationSerializer(ModelSerializer):
         model = Notification
         fields = [
             "id",
-            "title",
             "message",
             "is_read",
-            "link",
             "created_at",
         ]
         read_only_fields = fields

@@ -14,7 +14,15 @@ class OrganizationMembershipSerializer(serializers.ModelSerializer):
         """Meta options for OrganizationMembershipSerializer."""
 
         model = OrganizationMembership
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "organization",
+            "user",
+            "username",
+            "role",
+            "is_active",
+            "added_by",
+        ]
         read_only_fields = [
             "id",
             "username",
@@ -32,5 +40,16 @@ class OrganizationSerializer(serializers.ModelSerializer):
         """Meta class for OrganizationSerializer."""
 
         model = Organization
-        exclude = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "email",
+            "website",
+            "logo",
+            "status",
+            "is_active",
+            "created_by",
+            "slug",
+        ]
         read_only_fields = ["id", "created_by", "slug", "status", "is_active"]

@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from organizations.models import Organization
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
 from speakerrequests.serializers import (
@@ -62,12 +63,20 @@ class SpeakerRequestsView(APIView):
     def get(self, request, speaker_slug: str) -> Response:
         """Get a speaker request by pk."""
         speaker_request = get_object_or_404(SpeakerRequest, speaker__slug=speaker_slug)
+        if speaker_request.speaker.user_account != request.user:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You do not have permission to access this request.")
         serializer = SpeakerRequestSerializer(speaker_request)
         return Response(serializer.data)
 
     def patch(self, request, speaker_slug: str) -> Response:
         """Update a speaker request by pk."""
         speaker_request = get_object_or_404(SpeakerRequest, speaker__slug=speaker_slug)
+        if speaker_request.speaker.user_account != request.user:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You do not have permission to update this request.")
         serializer = SpeakerRequestAcceptDeclineSerializer(
             speaker_request, data=request.data
         )
@@ -90,8 +99,10 @@ class SpeakerRequestByOrganizationView(APIView):
     )
     def get(self, request, org_slug: str) -> Response:
         """Get speaker requests by organization."""
+        organization = get_object_or_404(Organization, slug=org_slug)
+        self.check_object_permissions(request, organization)
         speaker_requests = SpeakerRequest.objects.filter(
-            organization__slug=org_slug
+            organization=organization
         ).select_related("speaker__user_account", "event", "requested_by")
         serializer = SpeakerRequestSerializer(speaker_requests, many=True)
         return Response(serializer.data)
@@ -105,7 +116,9 @@ class SpeakerRequestByOrganizationView(APIView):
 
         PUT in this endpoint is used to update the state of the request.
         """
-        speaker_request = get_object_or_404(SpeakerRequest, organization__slug=org_slug)
+        organization = get_object_or_404(Organization, slug=org_slug)
+        self.check_object_permissions(request, organization)
+        speaker_request = get_object_or_404(SpeakerRequest, organization=organization)
         serializer = OrganizationSpeakerRequestCancelSerializer(
             speaker_request, data=request.data
         )
@@ -119,7 +132,9 @@ class SpeakerRequestByOrganizationView(APIView):
     )
     def patch(self, request, org_slug: str) -> Response:
         """Partially update a speaker request by organization."""
-        speaker_request = get_object_or_404(SpeakerRequest, organization__slug=org_slug)
+        organization = get_object_or_404(Organization, slug=org_slug)
+        self.check_object_permissions(request, organization)
+        speaker_request = get_object_or_404(SpeakerRequest, organization=organization)
         serializer = SpeakerRequestUpdateSerializer(
             speaker_request, data=request.data, partial=True
         )
@@ -130,7 +145,9 @@ class SpeakerRequestByOrganizationView(APIView):
 
     def delete(self, request, org_slug: str) -> Response:
         """Delete a speaker request by organization."""
-        speaker_request = get_object_or_404(SpeakerRequest, organization__slug=org_slug)
+        organization = get_object_or_404(Organization, slug=org_slug)
+        self.check_object_permissions(request, organization)
+        speaker_request = get_object_or_404(SpeakerRequest, organization=organization)
         speaker_request.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -144,6 +161,10 @@ class SpeakerRequestByRequestedSpeakerView(APIView):
     def get(self, request, pk: UUID) -> Response:
         """Get a speaker request by requested speaker."""
         speaker_request = get_object_or_404(SpeakerRequest, pk=pk)
+        if speaker_request.speaker.user_account != request.user:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You do not have permission to access this request.")
         serializer = SpeakerRequestSerializer(speaker_request)
         return Response(serializer.data)
 
@@ -154,6 +175,10 @@ class SpeakerRequestByRequestedSpeakerView(APIView):
     def put(self, request, pk: UUID) -> Response:
         """Update a speaker request by requested speaker."""
         speaker_request = get_object_or_404(SpeakerRequest, pk=pk)
+        if speaker_request.speaker.user_account != request.user:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You do not have permission to update this request.")
         serializer = SpeakerRequestAcceptDeclineSerializer(
             speaker_request, data=request.data
         )
@@ -166,6 +191,10 @@ class SpeakerRequestByRequestedSpeakerView(APIView):
     def patch(self, request, pk: UUID) -> Response:
         """Partially update a speaker request by requested speaker."""
         speaker_request = get_object_or_404(SpeakerRequest, pk=pk)
+        if speaker_request.speaker.user_account != request.user:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You do not have permission to update this request.")
         serializer = SpeakerRequestSerializer(
             speaker_request, data=request.data, partial=True
         )
@@ -177,6 +206,10 @@ class SpeakerRequestByRequestedSpeakerView(APIView):
     def delete(self, request, pk: UUID) -> Response:
         """Delete a speaker request by requested speaker."""
         speaker_request = get_object_or_404(SpeakerRequest, pk=pk)
+        if speaker_request.speaker.user_account != request.user:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You do not have permission to delete this request.")
         speaker_request.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

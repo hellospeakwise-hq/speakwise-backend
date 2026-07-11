@@ -1,5 +1,6 @@
 """speakers app views."""
 
+from django.db.models import Count
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -43,7 +44,23 @@ class SpeakerProfileListCreateView(APIView):
     @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
         """List all speaker profiles."""
-        speaker_profiles = SpeakerProfile.objects.all()
+        # Optimize by annotating counts and prefetching
+        speaker_profiles = (
+            SpeakerProfile.objects.all()
+            .select_related("user_account")
+            .prefetch_related("social_links", "skill_tags", "experiences")
+            .annotate(
+                _followers_count=Count("followers", distinct=True),
+            )
+        )
+        # Apply pagination
+        page = paginate_queryset(self, speaker_profiles)
+        if page is not None:
+            serializer = SpeakerProfileSerializer(
+                page, many=True, context={"request": request}
+            )
+            return get_paginated_response(self, serializer.data)
+
         serializer = SpeakerProfileSerializer(
             speaker_profiles, many=True, context={"request": request}
         )
@@ -52,13 +69,14 @@ class SpeakerProfileListCreateView(APIView):
     @extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
     def post(self, request):
         """Create a new speaker profile."""
-        serializer = SpeakerProfileSerializer(data=request.data)
+        serializer = SpeakerProfileSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
 class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker profile.
 
@@ -75,35 +93,48 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         return [IsAuthenticated()]
 
     def get_object(self, slug: str):
-        """Get speaker profile by ID."""
+        """Get speaker profile by slug."""
         try:
             return SpeakerProfile.objects.get(slug=slug)
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
+    @extend_schema(responses=SpeakerProfileSerializer)
     def get(self, request, slug: str):
-        """Retrieve a specific speaker profile by ID."""
-        speaker_profile = self.get_object(slug)
+        """Retrieve a specific speaker profile by slug."""
+        try:
+            speaker_profile = (
+                SpeakerProfile.objects.select_related("user_account")
+                .prefetch_related("social_links", "skill_tags", "experiences")
+                .annotate(_followers_count=Count("followers", distinct=True))
+                .get(slug=slug)
+            )
+        except SpeakerProfile.DoesNotExist as err:
+            raise Http404 from err
+
         serializer = SpeakerProfileSerializer(
             speaker_profile, context={"request": request}
         )
         return Response(serializer.data)
 
     def patch(self, request, slug: str):
-        """Update a specific speaker profile by ID."""
+        """Update a specific speaker profile by slug."""
         speaker_profile = self.get_object(slug)
         if speaker_profile.user_account != request.user:
             raise PermissionDenied("You do not have permission to edit this profile.")
 
         serializer = SpeakerProfileSerializer(
-            speaker_profile, data=request.data, partial=True
+            speaker_profile,
+            data=request.data,
+            partial=True,
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
     def delete(self, request, slug: str):
-        """Delete a specific speaker profile by ID."""
+        """Delete a specific speaker profile by slug."""
         speaker_profile = self.get_object(slug)
         if speaker_profile.user_account != request.user:
             raise PermissionDenied("You do not have permission to delete this profile.")
@@ -112,16 +143,8 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(
-    request=SpeakerExperiencesSerializer,
-    responses=SpeakerExperiencesSerializer(many=True),
-    tags=["speaker experiences"],
-)
 class SpeakerExperiencesListCreateView(APIView):
-    """View to list and create speaker experiences.
-
-    This view allows users to view a list of speaker experiences and create a new one.
-    """
+    """View to list and create speaker experiences."""
 
     permission_classes = [IsAuthenticated]
 
@@ -144,33 +167,25 @@ class SpeakerExperiencesListCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(
-    request=SpeakerExperiencesSerializer,
-    responses=SpeakerExperiencesSerializer,
-    tags=["speaker experiences"],
-)
 class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
-    """View to retrieve, update, and delete a speaker experience.
-
-    This view allows users to manage a specific speaker experience.
-    """
+    """View to retrieve, update, and delete a speaker experience."""
 
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, pk: int, speaker: User):
+    def get_object(self, pk: str, speaker: User):
         """Get speaker experience by primary key and user."""
         try:
             return SpeakerExperiences.objects.get(pk=pk, speaker__user_account=speaker)
-        except SpeakerExperiences.DoesNotExist as err:
+        except (SpeakerExperiences.DoesNotExist, ValueError) as err:
             raise Http404 from err
 
-    def get(self, request, pk: int) -> Response:
+    def get(self, request, pk: str) -> Response:
         """Retrieve a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         serializer = SpeakerExperiencesSerializer(speaker_experience)
         return Response(serializer.data)
 
-    def patch(self, request, pk: int) -> Response:
+    def patch(self, request, pk: str) -> Response:
         """Update a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         serializer = SpeakerExperiencesSerializer(
@@ -181,7 +196,7 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk: int) -> Response:
+    def delete(self, request, pk: str) -> Response:
         """Delete a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         speaker_experience.delete()
@@ -198,18 +213,12 @@ class PublicSpeakerExperiencesListView(APIView):
         tags=["speaker experiences (public view)"],
     )
     def get(self, request, slug: str = None):
-        """List all speaker experiences for the provided speaker slug.
-
-        If the slug does not match any speaker, an empty list is returned.
-        """
+        """List all speaker experiences for the provided speaker slug."""
         speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@extend_schema(
-    tags=["speaker experiences (private view)"],
-)
 class PrivateSpeakerExperienceListView(APIView):
     """View to list all speaker experiences."""
 
@@ -230,28 +239,27 @@ class PrivateSpeakerExperienceListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(tags=["speaker experiences (private view)"])
 class PrivateSpeakerExperienceRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker experience."""
 
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk: int, speaker: User):
+    def get_object(self, pk: str, speaker: User):
         """Get speaker experience by primary key and user."""
         try:
             return SpeakerExperiences.objects.get(pk=pk, speaker__user_account=speaker)
-        except SpeakerExperiences.DoesNotExist as err:
+        except (SpeakerExperiences.DoesNotExist, ValueError) as err:
             raise Http404 from err
 
     @extend_schema(responses=SpeakerExperiencesSerializer)
-    def get(self, request, pk: int) -> Response:
+    def get(self, request, pk: str) -> Response:
         """Retrieve a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         serializer = SpeakerExperiencesSerializer(speaker_experience)
         return Response(serializer.data)
 
     @extend_schema(responses=SpeakerExperiencesSerializer)
-    def patch(self, request, pk: int) -> Response:
+    def patch(self, request, pk: str) -> Response:
         """Update a speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         serializer = SpeakerExperiencesSerializer(
@@ -262,15 +270,14 @@ class PrivateSpeakerExperienceRetrieveUpdateDestroyView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={200: None})
-    def delete(self, request, pk: int) -> Response:
+    @extend_schema(responses={204: None})
+    def delete(self, request, pk: str) -> Response:
         """Delete a speaker's experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         speaker_experience.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["speaker skill tags"])
 class SpeakerSkillTagsListView(APIView):
     """List and create skill tags for the authenticated user's speaker profile."""
 
@@ -308,21 +315,20 @@ class SpeakerSkillTagsListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(tags=["speaker skill tags"])
 class SpeakerSkillTagsDetailView(APIView):
     """Retrieve, update, and delete a skill tag owned by the authenticated user."""
 
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk: int, speaker: User):
+    def get_object(self, pk: str, speaker: User):
         """Get a speaker skill tag by primary key and user."""
         try:
             return SpeakerSkillTag.objects.get(pk=pk, speaker__user_account=speaker)
-        except SpeakerSkillTag.DoesNotExist as err:
+        except (SpeakerSkillTag.DoesNotExist, ValueError) as err:
             raise Http404 from err
 
     @extend_schema(responses=SpeakerSkillTagSerializer)
-    def get(self, request, pk: int) -> Response:
+    def get(self, request, pk: str) -> Response:
         """Retrieve a specific speaker skill tag by primary key and user."""
         speaker_skill_tag = self.get_object(pk, request.user)
         serializer = SpeakerSkillTagSerializer(speaker_skill_tag)
@@ -331,7 +337,7 @@ class SpeakerSkillTagsDetailView(APIView):
     @extend_schema(
         responses=SpeakerSkillTagSerializer, request=SpeakerSkillTagSerializer
     )
-    def patch(self, request, pk: int) -> Response:
+    def patch(self, request, pk: str) -> Response:
         """Update a specific speaker skill tag by primary key and user."""
         speaker_skill_tag = self.get_object(pk, request.user)
         serializer = SpeakerSkillTagSerializer(
@@ -342,22 +348,33 @@ class SpeakerSkillTagsDetailView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(responses={200: None})
-    def delete(self, request, pk: int) -> Response:
+    @extend_schema(responses={204: None})
+    def delete(self, request, pk: str) -> Response:
         """Delete a specific speaker skill tag by primary key and user."""
         speaker_skill_tag = self.get_object(pk, request.user)
         speaker_skill_tag.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def get_paginated_response(view, data):
+    """Helper to get paginated response."""
+    from rest_framework.pagination import PageNumberPagination
+
+    paginator = PageNumberPagination()
+    return paginator.get_paginated_response(data)
+
+
+def paginate_queryset(view, queryset):
+    """Helper to paginate queryset."""
+    from rest_framework.pagination import PageNumberPagination
+
+    paginator = PageNumberPagination()
+    return paginator.paginate_queryset(queryset, view.request, view=view)
+
+
 @extend_schema(tags=["speaker follow"])
 class SpeakerFollowView(APIView):
-    """Follow, unfollow, or check follow status for a speaker.
-
-    POST   /speakers/<slug>/follow/  → follow
-    DELETE /speakers/<slug>/follow/  → unfollow
-    GET    /speakers/<slug>/follow/  → check if authenticated user follows this speaker
-    """
+    """Follow, unfollow, or check follow status for a speaker."""
 
     permission_classes = [IsAuthenticated]
 
@@ -386,7 +403,6 @@ class SpeakerFollowView(APIView):
         is_following = SpeakerFollow.objects.filter(
             follower=request.user, speaker=speaker
         ).exists()
-        # following_count = how many speakers THIS speaker follows (not the logged-in user)
         following_count = SpeakerFollow.objects.filter(
             follower=speaker.user_account
         ).count()
@@ -412,7 +428,7 @@ class SpeakerFollowView(APIView):
         },
     )
     def post(self, request, slug: str) -> Response:
-        """Follow a speaker. Returns 201 on success, 400 if already following."""
+        """Follow a speaker."""
         speaker = self.get_speaker(slug)
         if speaker.user_account == request.user:
             return Response(
@@ -427,7 +443,6 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are already following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # following_count = how many speakers THIS speaker follows (not the logged-in user)
         following_count = SpeakerFollow.objects.filter(
             follower=speaker.user_account
         ).count()
@@ -453,7 +468,7 @@ class SpeakerFollowView(APIView):
         },
     )
     def delete(self, request, slug: str) -> Response:
-        """Unfollow a speaker. Returns 200 on success, 400 if not following."""
+        """Unfollow a speaker."""
         speaker = self.get_speaker(slug)
         deleted_count, _ = SpeakerFollow.objects.filter(
             follower=request.user, speaker=speaker
@@ -463,7 +478,6 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are not following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # following_count = how many speakers THIS speaker follows (not the logged-in user)
         following_count = SpeakerFollow.objects.filter(
             follower=speaker.user_account
         ).count()
@@ -538,18 +552,9 @@ class SpeakerFollowingListView(APIView):
         )
 
 
-# ---------- Speaker Deck Views ----------
 @extend_schema(tags=["speaker decks"])
 class SpeakerDeckListCreateView(APIView):
-    """List and upload speaker decks for an event.
-
-    GET  ?event=<uuid>  — list the authenticated speaker's decks for the event.
-    POST ?event=<uuid>  — upload a new deck (multipart/form-data).
-
-    Validation:
-    - Speaker must have an accepted SpeakerRequest for the event.
-    - Event must have speaker_deck_upload_enabled=True.
-    """
+    """List and upload speaker decks for an event."""
 
     permission_classes = [IsAuthenticated]
 
@@ -570,7 +575,7 @@ class SpeakerDeckListCreateView(APIView):
 
         try:
             event = Event.objects.get(pk=event_id)
-        except Event.DoesNotExist:
+        except (Event.DoesNotExist, ValueError):
             return (
                 None,
                 None,
@@ -614,14 +619,12 @@ class SpeakerDeckListCreateView(APIView):
         if error:
             return error
 
-        # Check upload is enabled
         if not event.speaker_deck_upload_enabled:
             return Response(
                 {"detail": "Speaker deck uploads are not enabled for this event."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Check speaker is accepted for this event
         is_accepted = SpeakerRequest.objects.filter(
             event=event,
             speaker=speaker_profile,
@@ -653,18 +656,15 @@ class SpeakerDeckListCreateView(APIView):
 
 @extend_schema(tags=["speaker decks"])
 class SpeakerDeckRetrieveUpdateDestroyView(APIView):
-    """Retrieve, update, or delete a single speaker deck.
-
-    Only the owning speaker can modify or delete.
-    """
+    """Retrieve, update, or delete a single speaker deck."""
 
     permission_classes = [IsAuthenticated]
 
     def get_object(self, pk, user):
-        """Get a speaker deck, ensuring it belongs to the authenticated speaker."""
+        """Get a speaker deck owned by the user."""
         try:
             return SpeakerDeck.objects.get(pk=pk, speaker__user_account=user)
-        except SpeakerDeck.DoesNotExist as err:
+        except (SpeakerDeck.DoesNotExist, ValueError) as err:
             raise Http404 from err
 
     @extend_schema(responses=SpeakerDeckSerializer)
@@ -676,12 +676,11 @@ class SpeakerDeckRetrieveUpdateDestroyView(APIView):
 
     @extend_schema(request=SpeakerDeckSerializer, responses=SpeakerDeckSerializer)
     def patch(self, request, pk):
-        """Update a speaker deck (description or file replacement)."""
+        """Update a speaker deck."""
         deck = self.get_object(pk, request.user)
         serializer = SpeakerDeckSerializer(deck, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        # If a new file is uploaded, update the metadata fields
         save_kwargs = {}
         if "file" in serializer.validated_data:
             uploaded_file = request.FILES.get("file")
@@ -700,22 +699,16 @@ class SpeakerDeckRetrieveUpdateDestroyView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# ---------- Notification Views ----------
-
-
 @extend_schema(tags=["notifications"])
 class NotificationListView(APIView):
-    """List notifications for the authenticated user.
-
-    Supports filtering with ?is_read=true or ?is_read=false.
-    """
+    """List notifications for the authenticated user."""
 
     permission_classes = [IsAuthenticated]
 
     @extend_schema(responses=NotificationSerializer(many=True))
     def get(self, request):
-        """List notifications for the authenticated user."""
-        notifications = Notification.objects.filter(recipient=request.user)
+        """List notifications."""
+        notifications = Notification.objects.filter(user=request.user)
 
         is_read_param = request.query_params.get("is_read")
         if is_read_param is not None:
@@ -736,8 +729,8 @@ class NotificationMarkReadView(APIView):
     def patch(self, request, pk):
         """Mark a single notification as read."""
         try:
-            notification = Notification.objects.get(pk=pk, recipient=request.user)
-        except Notification.DoesNotExist:
+            notification = Notification.objects.get(pk=pk, user=request.user)
+        except (Notification.DoesNotExist, ValueError):
             return Response(
                 {"detail": "Notification not found."},
                 status=status.HTTP_404_NOT_FOUND,

@@ -229,5 +229,14 @@ class UsersListView(APIView):
         """List all users."""
         users = User.objects.all().prefetch_related("speakers_profile_user")
         user_filters = UserFilter(request.GET, queryset=users)
-        serializer = UserSerializer(user_filters.qs, many=True)
+        qs = user_filters.qs
+
+        from speakers.views import get_paginated_response, paginate_queryset
+
+        page = paginate_queryset(self, qs)
+        if page is not None:
+            serializer = UserSerializer(page, many=True)
+            return get_paginated_response(self, serializer.data)
+
+        serializer = UserSerializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

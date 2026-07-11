@@ -44,9 +44,9 @@ class EventScheduleListCreateView(APIView):
     def post(self, request, event_slug):
         """Create an event schedule."""
         event = get_object_or_404(Event, slug=event_slug)
-        self.check_object_permissions(request, event.id)
+        self.check_object_permissions(request, event)
         try:
-            payload = create_event_schedule_payload(event)
+            payload = create_event_schedule_payload(event.pk)
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -1,4 +1,8 @@
 """speakers models."""
+
+import uuid
+from itertools import count
+
 from django.db import models
 from django.utils.text import slugify
 
@@ -51,12 +55,6 @@ class SpeakerExperiences(TimeStampedModel):
     )
     video_recording_link = models.URLField(
         blank=True, null=True, help_text="Link to the video recording of the talk"
-    )
-    speaker = models.ForeignKey(
-        "speakers.SpeakerProfile",
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="experiences",
     )
     speaker = models.ForeignKey(
         "speakers.SpeakerProfile",
@@ -146,6 +144,115 @@ class SpeakerSocialLinks(SocialLinks):
         SpeakerProfile, on_delete=models.CASCADE, related_name="social_links"
     )
 
+    class Meta:
+        """meta options."""
+
+        unique_together = ("speaker", "name")
+
     def __str__(self):
         """String rep of speakwise social."""
         return self.name
+
+
+class SpeakerFollow(TimeStampedModel):
+    """A user following a speaker profile."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="following_speakers",
+        help_text="The user who is following the speaker.",
+    )
+    speaker = models.ForeignKey(
+        SpeakerProfile,
+        on_delete=models.CASCADE,
+        related_name="followers",
+        help_text="The speaker profile being followed.",
+    )
+
+    class Meta:
+        """meta options."""
+
+        unique_together = ("follower", "speaker")
+
+    def __str__(self):
+        """String representation showing who follows whom."""
+        return f"{self.follower.username} follows {self.speaker}"
+
+
+class SpeakerDeck(TimeStampedModel):
+    """A presentation file uploaded by an accepted speaker for an event."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    speaker = models.ForeignKey(
+        SpeakerProfile,
+        on_delete=models.CASCADE,
+        related_name="speaker_decks",
+        blank=True,
+        null=True,
+        help_text="The speaker who uploaded this deck.",
+    )
+    event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.CASCADE,
+        related_name="speaker_decks",
+        blank=True,
+        null=True,
+        help_text="The event this deck is associated with.",
+    )
+    file = models.FileField(upload_to="speaker_decks/")
+    original_filename = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Original name of the uploaded file.",
+    )
+    file_size = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        help_text="File size in bytes.",
+    )
+    description = models.TextField(
+        blank=True,
+        default="",
+        help_text="Optional description of the presentation.",
+    )
+
+    class Meta:
+        """meta options."""
+
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        """String representation showing filename and speaker."""
+        return f"{self.original_filename} by {self.speaker}"
+
+
+class Notification(TimeStampedModel):
+    """An in-app notification for a user."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        help_text="The user who receives this notification.",
+    )
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    link = models.URLField(
+        blank=True,
+        default="",
+        help_text="Optional action URL.",
+    )
+
+    class Meta:
+        """meta options."""
+
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        """String representation showing title and recipient."""
+        return f"{self.title} -> {self.recipient.username}"

@@ -135,7 +135,6 @@ class EventScheduleAPITestCase(APITestCase):
         self.client.force_authenticate(user=self.user_admin)
         response = self.client.post(url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        
 
     def test_retrieve_event_schedule(self):
         """Test retrieving an event schedule."""
@@ -205,7 +204,8 @@ class EventScheduleAPITestCase(APITestCase):
         from eventschedules.serializers import EventScheduleSerializer
 
         data = {"event": self.event2.id, "sessions": [self.session2.id]}
-        serializer = EventScheduleSerializer(data=data, context={"event": 
-                                                                     self.event2.id})
-       
+        serializer = EventScheduleSerializer(
+            data=data, context={"event": self.event2.id}
+        )
+
         self.assertTrue(serializer.is_valid())

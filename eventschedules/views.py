@@ -1,5 +1,6 @@
 """event schedule views."""
 
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -9,6 +10,7 @@ from rest_framework.views import APIView
 
 from base.permissions import IsOrganizationAdminOrOrganizer
 from events.models import Event
+from eventschedules.utils import create_event_schedule_payload
 
 from .models import EventSchedule
 from .serializers import EventScheduleSerializer
@@ -35,19 +37,28 @@ class EventScheduleListCreateView(APIView):
         Response: EventSchedule object.
         """
         event = get_object_or_404(Event, slug=event_slug)
-        event_schedules = EventSchedule.objects.filter(event=event)
-        serializer = EventScheduleSerializer(event_schedules, many=True)
+        event_schedule = EventSchedule.objects.filter(event=event).first()
+        serializer = EventScheduleSerializer(event_schedule)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, event_slug):
         """Create an event schedule."""
         event = get_object_or_404(Event, slug=event_slug)
         self.check_object_permissions(request, event)
-        serializer = EventScheduleSerializer(
-            data=request.data, context={"request": request, "event": event}
-        )
+        try:
+            payload = create_event_schedule_payload(event.pk)
+        except ValueError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = EventScheduleSerializer(data=payload)
         if serializer.is_valid():
-            serializer.save()
+            try:
+                serializer.save()
+            except IntegrityError:
+                return Response(
+                    {"detail": "Event schedule already exists for this event."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -73,11 +84,7 @@ class EventScheduleRetrieveUpdateDestroyView(APIView):
         """Update event schedule."""
         event_schedule = get_object_or_404(EventSchedule, id=schedule_id)
         self.check_object_permissions(request, event_schedule)
-        serializer = EventScheduleSerializer(
-            event_schedule,
-            data=request.data,
-            context={"event": event_schedule.event},
-        )
+        serializer = EventScheduleSerializer(event_schedule, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -88,10 +95,7 @@ class EventScheduleRetrieveUpdateDestroyView(APIView):
         event_schedule = get_object_or_404(EventSchedule, id=schedule_id)
         self.check_object_permissions(request, event_schedule)
         serializer = EventScheduleSerializer(
-            event_schedule,
-            data=request.data,
-            context={"event": event_schedule.event},
-            partial=True,
+            event_schedule, data=request.data, partial=True
         )
         if serializer.is_valid():
             serializer.save()

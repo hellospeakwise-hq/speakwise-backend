@@ -79,18 +79,17 @@ class EventScheduleAPITestCase(APITestCase):
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(str(response.data[0]["event"]), str(self.event.id))
+        self.assertEqual(str(response.data["event"]), str(self.event.id))
 
     def test_create_event_schedule(self):
         """Test creating an event schedule."""
         url = reverse(
             "eventschedules:event-schedules-create",
-            kwargs={"event_slug": self.event.slug},
+            kwargs={"event_slug": self.event2.slug},
         )
         data = {
-            "event": self.event.id,
-            "sessions": [self.session.id],
+            "event": self.event2.id,
+            "sessions": [self.session2.id],
         }
 
         # Unauthorized
@@ -102,6 +101,40 @@ class EventScheduleAPITestCase(APITestCase):
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(EventSchedule.objects.count(), 2)
+
+        # Verify sessions are attached
+        schedule = EventSchedule.objects.get(event=self.event2)
+        self.assertEqual(schedule.sessions.count(), 1)
+        self.assertEqual(schedule.sessions.first().id, self.session2.id)
+
+    def test_create_event_schedule_no_sessions(self):
+        """Test creating an event schedule for an event with no sessions."""
+        event_no_sessions = Event.objects.create(
+            title="No Sessions Event",
+            organizer=self.organization,
+        )
+        url = reverse(
+            "eventschedules:event-schedules-create",
+            kwargs={"event_slug": event_no_sessions.slug},
+        )
+        self.client.force_authenticate(user=self.user_admin)
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["detail"],
+            f"No sessions found for event {event_no_sessions.id}",
+        )
+
+    def test_create_duplicate_event_schedule(self):
+        """Test creating a duplicate event schedule."""
+        # self.event already has a schedule (created in setUp)
+        url = reverse(
+            "eventschedules:event-schedules-create",
+            kwargs={"event_slug": self.event.slug},
+        )
+        self.client.force_authenticate(user=self.user_admin)
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_retrieve_event_schedule(self):
         """Test retrieving an event schedule."""
@@ -170,6 +203,9 @@ class EventScheduleAPITestCase(APITestCase):
         """Test serializer validation."""
         from eventschedules.serializers import EventScheduleSerializer
 
-        data = {"event": self.event.id}
-        serializer = EventScheduleSerializer(data=data, context={"event": self.event})
+        data = {"event": self.event2.id, "sessions": [self.session2.id]}
+        serializer = EventScheduleSerializer(
+            data=data, context={"event": self.event2.id}
+        )
+
         self.assertTrue(serializer.is_valid())

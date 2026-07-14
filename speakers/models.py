@@ -144,18 +144,18 @@ class SpeakerSocialLinks(SocialLinks):
         SpeakerProfile, on_delete=models.CASCADE, related_name="social_links"
     )
 
-    def __str__(self):
-        """String rep of speakwise social."""
-        return self.name
-
     class Meta:
         """meta options."""
 
         unique_together = ("speaker", "name")
 
+    def __str__(self):
+        """String rep of speakwise social."""
+        return self.name
+
 
 class SpeakerFollow(TimeStampedModel):
-    """Model to track which users follow which speaker profiles."""
+    """A user following a speaker profile."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     follower = models.ForeignKey(
@@ -172,65 +172,65 @@ class SpeakerFollow(TimeStampedModel):
     )
 
     class Meta:
-        """Ensure a user can only follow a speaker once."""
+        """meta options."""
 
         unique_together = ("follower", "speaker")
 
     def __str__(self):
-        """String representation of a follow relationship."""
-        return f"{self.follower.username} → {self.speaker}"
-
-
-# Speaker deck file upload directory
-SPEAKER_DECK_UPLOAD_DIR = "speaker_decks/"
+        """String representation showing who follows whom."""
+        return f"{self.follower.username} follows {self.speaker}"
 
 
 class SpeakerDeck(TimeStampedModel):
-    """Model to store speaker presentation uploads (decks) for events."""
+    """A presentation file uploaded by an accepted speaker for an event."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     speaker = models.ForeignKey(
         SpeakerProfile,
         on_delete=models.CASCADE,
         related_name="speaker_decks",
-        help_text="The speaker who uploaded this deck.",
         blank=True,
         null=True,
+        help_text="The speaker who uploaded this deck.",
     )
     event = models.ForeignKey(
         "events.Event",
         on_delete=models.CASCADE,
         related_name="speaker_decks",
-        help_text="The event this deck is associated with.",
         blank=True,
         null=True,
+        help_text="The event this deck is associated with.",
     )
-    file = models.FileField(upload_to=SPEAKER_DECK_UPLOAD_DIR)
+    file = models.FileField(upload_to="speaker_decks/")
     original_filename = models.CharField(
         max_length=255,
-        help_text="Original name of the uploaded file.",
         blank=True,
         null=True,
+        help_text="Original name of the uploaded file.",
     )
     file_size = models.PositiveIntegerField(
-        help_text="File size in bytes.", blank=True, null=True
+        blank=True,
+        null=True,
+        help_text="File size in bytes.",
     )
     description = models.TextField(
-        blank=True, default="", help_text="Optional description of the presentation."
+        blank=True,
+        default="",
+        help_text="Optional description of the presentation.",
     )
 
     class Meta:
-        """Meta options for SpeakerDeck."""
+        """meta options."""
 
         ordering = ["-created_at"]
 
     def __str__(self):
-        """String representation of a speaker deck."""
-        return f"{self.original_filename} — {self.speaker}"
+        """String representation showing filename and speaker."""
+        return f"{self.original_filename} by {self.speaker}"
 
 
 class Notification(TimeStampedModel):
-    """Lightweight in-app notification model."""
+    """An in-app notification for a user."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     recipient = models.ForeignKey(
@@ -242,13 +242,17 @@ class Notification(TimeStampedModel):
     title = models.CharField(max_length=255)
     message = models.TextField()
     is_read = models.BooleanField(default=False)
-    link = models.URLField(blank=True, default="", help_text="Optional action URL.")
+    link = models.URLField(
+        blank=True,
+        default="",
+        help_text="Optional action URL.",
+    )
 
     class Meta:
-        """Meta options for Notification."""
+        """meta options."""
 
         ordering = ["-created_at"]
 
     def __str__(self):
-        """String representation of a notification."""
-        return f"{self.title} → {self.recipient.username}"
+        """String representation showing title and recipient."""
+        return f"{self.title} -> {self.recipient.username}"

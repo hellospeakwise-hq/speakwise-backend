@@ -28,7 +28,8 @@ class FileHandler:
         normalized_pairs = []
         for email, name in zip(email_list, name_list, strict=False):
             try:
-                v = validate_email(email, check_deliverability=True, strict=True)
+                # Disable DNS lookups for bulk processing to avoid blocking
+                v = validate_email(email, check_deliverability=False, strict=True)
                 normalized_email = v.normalized  # canonical form
             except EmailNotValidError as err:
                 raise ValueError("Email is not valid: ", str(email)) from err

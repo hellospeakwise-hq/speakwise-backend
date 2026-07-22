@@ -29,7 +29,7 @@ class AttendeeListCreateView(ListCreateAPIView):
     """attendee list create view."""
 
     serializer_class = AttendeeProfileSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     queryset = AttendeeProfile.objects.all()
 
 
@@ -138,6 +138,7 @@ class AttendanceDetailView(APIView):
 
 
 @api_view(["POST"])
+@permission_classes([IsOrganizationAdmin])
 @extend_schema(request=FileUploadSerializer, responses=AttendanceSerializer(many=True))
 def upload_attendance_view(request, *args, **kwargs):
     """Create attendance objects from uploaded file."""

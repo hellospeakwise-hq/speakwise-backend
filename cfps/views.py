@@ -15,7 +15,7 @@ from base.permissions import IsOrganizationAdminOrOrganizer
 from cfps.choices import CFPStatusChoices
 from cfps.models import CFPSubmission
 from cfps.serializers import CFPStatusUpdateSerializer, CFPSubmissionSerializer
-from cfps.services import CFPEmailService
+from cfps.tasks import send_cfp_status_notification
 from events.models import Event
 
 
@@ -122,4 +122,4 @@ class CFPStatusUpdateView(UpdateAPIView):
     def perform_update(self, serializer):
         """Save the status change and notify the submitter by email."""
         submission = serializer.save()
-        CFPEmailService.send_status_notification(submission)
+        send_cfp_status_notification.enqueue(str(submission.id))

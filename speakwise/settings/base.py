@@ -210,9 +210,14 @@ Q_CLUSTER = {
     },
 }
 
-# Task queue configuration
-# ImmediateBackend runs tasks synchronously within the request cycle.
-# Sufficient for email/notification workloads at current scale.
-# To move to async later, swap this for a production backend like
-# django-tasks-redis (requires Django 6.0+).
+# simple jwt settings
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
+}
+
 TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}

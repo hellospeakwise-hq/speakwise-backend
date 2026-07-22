@@ -61,6 +61,7 @@ class SpeakerRequest(TimeStampedModel):
         max_length=10,
         choices=RequestStatusChoices.choices,
         default=RequestStatusChoices.PENDING,
+        db_index=True,
     )
     message = models.TextField(null=False)
 
@@ -85,13 +86,13 @@ class SpeakerEmailRequests(TimeStampedModel):
     location = models.CharField(max_length=255)
     request_from = models.ForeignKey(
         User,
-        on_delete=models.DO_NOTHING,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_requests",
     )
     request_to = models.ForeignKey(
         User,
-        on_delete=models.DO_NOTHING,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_requests_received",
     )

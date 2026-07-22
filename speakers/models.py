@@ -241,7 +241,7 @@ class Notification(TimeStampedModel):
     )
     title = models.CharField(max_length=255)
     message = models.TextField()
-    is_read = models.BooleanField(default=False)
+    is_read = models.BooleanField(default=False, db_index=True)
     link = models.URLField(
         blank=True,
         default="",

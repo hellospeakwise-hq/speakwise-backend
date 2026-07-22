@@ -21,23 +21,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://speak-wise.live",
 ]
 
-# Or for development, you can allow all origins (less secure):
-CORS_ALLOW_ALL_ORIGINS = True
-
 CORS_ALLOW_CREDENTIALS = True
-
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-
 
 CORS_ALLOW_HEADERS = [
     "accept",
@@ -64,6 +48,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
+        "CONN_MAX_AGE": 600,
     }
 }
 

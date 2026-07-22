@@ -79,8 +79,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # whitenoise middleware
-    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
 
@@ -166,17 +164,29 @@ STATIC_ROOT = os.path.join(BASE_DIR.parent, "staticfiles")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    # YOUR SETTINGS
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "1000/hour",
+    },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -191,32 +201,11 @@ SPECTACULAR_SETTINGS = {
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 SITE_NAME = "SpeakWise"
 
-# django-q configuration
-Q_CLUSTER = {
-    "name": "myproject",
-    "workers": 8,
-    "recycle": 500,
-    "timeout": 60,
-    "compress": True,
-    "cpu_affinity": 1,
-    "save_limit": 250,
-    "queue_limit": 500,
-    "label": "Django Q",
-    "redis": {
-        "host": "127.0.0.1",
-        "port": 6379,
-        "db": 0,
-    },
+# Cache
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
 }
 
-# simple jwt settings
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": False,
-    "UPDATE_LAST_LOGIN": False,
-}
-
-TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
+# Task queue configuration

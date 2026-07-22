@@ -50,7 +50,7 @@ class Event(TimeStampedModel):
     )
     start_date_time = models.DateTimeField(default=timezone.now, null=True)
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False, db_index=True)
     tags = models.ManyToManyField(Tag, related_name="events", blank=True)
     slug = models.SlugField(max_length=255, unique=True, null=True)
 

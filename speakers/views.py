@@ -1,5 +1,6 @@
 """speakers app views."""
 
+from django.db.models import Count
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -43,7 +44,12 @@ class SpeakerProfileListCreateView(APIView):
     @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
         """List all speaker profiles."""
-        speaker_profiles = SpeakerProfile.objects.all()
+        speaker_profiles = SpeakerProfile.objects.annotate(
+            _prefetched_followers_count=Count("followers", distinct=True),
+            _prefetched_following_count=Count(
+                "user_account__speaker_following", distinct=True
+            ),
+        )
         serializer = SpeakerProfileSerializer(
             speaker_profiles, many=True, context={"request": request}
         )

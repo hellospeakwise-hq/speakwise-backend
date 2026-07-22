@@ -50,7 +50,7 @@ class Session(TimeStampedModel):
     start_date_time = models.DateTimeField(default=timezone.now)
     end_date_time = models.DateTimeField(default=timezone.now)
     max_attendees = models.IntegerField(default=20)
-    is_draft = models.BooleanField(default=False)  # allow draft sessions
+    is_draft = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         """Meta options for Session model."""

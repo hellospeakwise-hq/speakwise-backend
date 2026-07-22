@@ -1,22 +1,32 @@
 """speaker request tasks."""
 
+import logging
+
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django_tasks import task
 
+logger = logging.getLogger(__name__)
+
 FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://speak-wise.live")
 
 
 def _send(subject: str, plain_text: str, html: str, recipient: str) -> None:
-    send_mail(
-        subject=subject,
-        message=plain_text,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[recipient],
-        html_message=html,
-        fail_silently=False,
-    )
+    """Send an email, logging success or failure."""
+    try:
+        send_mail(
+            subject=subject,
+            message=plain_text,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[recipient],
+            html_message=html,
+            fail_silently=False,
+        )
+        logger.info("Email sent to %s: %s", recipient, subject)
+    except Exception:
+        logger.exception("Failed to send email to %s: %s", recipient, subject)
+        raise
 
 
 @task()
@@ -176,10 +186,21 @@ def send_speaker_deck_upload_email(
         f"Best regards,\n"
         f"The {settings.SITE_NAME} Team"
     )
-    send_mail(
-        subject=subject,
-        message=body,
-        recipient_list=[speaker_email],
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject=subject,
+            message=body,
+            recipient_list=[speaker_email],
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            fail_silently=False,
+        )
+        logger.info(
+            "Deck upload email sent to %s for event %s", speaker_email, event_name
+        )
+    except Exception:
+        logger.exception(
+            "Failed to send deck upload email to %s for event %s",
+            speaker_email,
+            event_name,
+        )
+        raise

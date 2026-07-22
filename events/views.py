@@ -52,7 +52,7 @@ class EventListView(APIView):
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         """List events."""
-        events = Event.objects.all()
+        events = Event.objects.prefetch_related("tags")
         if request.user.is_authenticated:
             user_orgs = OrganizationMembership.objects.filter(
                 user=request.user, is_active=True

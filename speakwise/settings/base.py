@@ -211,20 +211,8 @@ Q_CLUSTER = {
 }
 
 # Task queue configuration
-# Development: ImmediateBackend (synchronous, for simplicity)
-# Production: RedisKQBackend (async, requires Redis)
-if os.environ.get("DJANGO_SETTINGS_MODULE", "").endswith("production"):
-    TASKS = {
-        "default": {
-            "BACKEND": "django_tasks.backends.rediskq.RedisKQBackend",
-            "BACKEND_OPTIONS": {
-                "connection": {
-                    "host": os.environ.get("REDIS_HOST", "localhost"),
-                    "port": int(os.environ.get("REDIS_PORT", 6379)),
-                    "db": 0,
-                }
-            },
-        }
-    }
-else:
-    TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
+# ImmediateBackend runs tasks synchronously within the request cycle.
+# Sufficient for email/notification workloads at current scale.
+# To move to async later, swap this for a production backend like
+# django-tasks-redis (requires Django 6.0+).
+TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}

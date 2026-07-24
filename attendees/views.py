@@ -4,6 +4,7 @@ from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -22,11 +23,12 @@ from attendees.serializers import (
 from base.permissions import IsOrganizationAdmin, IsOrganizationOrganizer
 from base.utils import FileHandler
 from events.models import Event
+from organizations.models import OrganizationMembership
 
 
 @extend_schema(responses=AttendeeProfileSerializer, request=AttendeeProfileSerializer)
 class AttendeeListCreateView(ListCreateAPIView):
-    """attendee list create view."""
+    """attendee list create `view."""
 
     serializer_class = AttendeeProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -144,6 +146,13 @@ def upload_attendance_view(request, *args, **kwargs):
     """Create attendance objects from uploaded file."""
     attendance_file = request.FILES.get("file")
     event = Event.objects.get(id=int(request.data.get("event")))
+
+    if not event.organizer:
+        raise PermissionDenied("Event has no organizer organization.")
+    if not OrganizationMembership.objects.filter(
+        organization=event.organizer, user=request.user, role="ADMIN"
+    ).exists():
+        raise PermissionDenied("You must be an admin of the event's organization.")
 
     if not attendance_file:
         return Response(

@@ -24,6 +24,7 @@ from cfps.serializers import (
     CFPSubmissionSerializer,
     CFPSubmissionWithScoreSerializer,
 )
+
 # from cfps.services import CFPEmailService
 from events.models import Event
 
@@ -145,10 +146,7 @@ class CFPStatusUpdateView(UpdateAPIView):
 
     def perform_update(self, serializer):
         """Save the status change and notify the submitter by email."""
-        serializer.is_valid(raise_exception=True)
-        serializer.save(submitter=self.request.user)
-        submission = serializer.save()
-        # CFPEmailService.send_status_notification(submission)
+        serializer.save()
 
 
 @extend_schema(tags=["CFP"])

@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('feedbacks', '0004_convert_ids_to_uuid'),
+        ('feedbacks', '0005_feedback_event_eventfeedbackpreference'),
         ('speakers', '0016_alter_notification_is_read'),
     ]
 

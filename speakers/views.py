@@ -607,7 +607,9 @@ class SpeakerDeckListCreateView(APIView):
             return error
 
         decks = SpeakerDeck.objects.filter(speaker=speaker_profile, event=event)
-        serializer = SpeakerDeckSerializer(decks, many=True)
+        serializer = SpeakerDeckSerializer(
+            decks, many=True, context={"request": request}
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(request=SpeakerDeckSerializer, responses=SpeakerDeckSerializer)
@@ -627,12 +629,23 @@ class SpeakerDeckListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Check speaker is accepted for this event
-        is_accepted = SpeakerRequest.objects.filter(
-            event=event,
-            speaker=speaker_profile,
-            status=RequestStatusChoices.ACCEPTED,
-        ).exists()
+        # Check speaker is accepted for this event via either path:
+        # 1. Organizer-invited (SpeakerRequest), 2. CFP submission accepted
+        from cfps.choices import CFPStatusChoices
+        from cfps.models import CFPSubmission
+
+        is_accepted = (
+            SpeakerRequest.objects.filter(
+                event=event,
+                speaker=speaker_profile,
+                status=RequestStatusChoices.ACCEPTED,
+            ).exists()
+            or CFPSubmission.objects.filter(
+                event=event,
+                submitter=request.user,
+                status=CFPStatusChoices.ACCEPTED,
+            ).exists()
+        )
 
         if not is_accepted:
             return Response(
@@ -645,7 +658,9 @@ class SpeakerDeckListCreateView(APIView):
         original_file = request.FILES.get("file")
         original_name = original_file.name if original_file else None
 
-        serializer = SpeakerDeckSerializer(data=request.data)
+        serializer = SpeakerDeckSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
 
         serializer.save(

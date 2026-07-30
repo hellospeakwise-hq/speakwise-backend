@@ -113,3 +113,35 @@ class CFPSubmission(TimeStampedModel):
     def __str__(self):
         """Return string representation of the submission."""
         return f"{self.submitter} — {self.title}"
+
+
+class CFPReview(TimeStampedModel):
+    """Organizer/reviewer score for a CFP submission."""
+
+    SCORE_CHOICES = [(i, str(i)) for i in range(1, 6)]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        CFPSubmission, on_delete=models.CASCADE, related_name="reviews"
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="cfp_reviews",
+    )
+    score = models.IntegerField(
+        choices=SCORE_CHOICES, help_text="1 (weak) – 5 (excellent)"
+    )
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        """Meta options."""
+
+        verbose_name = "CFP Review"
+        verbose_name_plural = "CFP Reviews"
+        unique_together = [("submission", "reviewer")]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        """Return string representation of the review."""
+        return f"{self.reviewer} → {self.submission} ({self.score}/5)"

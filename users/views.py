@@ -24,7 +24,7 @@ from users.serializers import (
     UserProfileSerializer,
     UserSerializer,
 )
-from users.services import EmailService
+from users.tasks import send_password_reset_email_task, send_welcome_email_task
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +40,7 @@ class UserCreateView(CreateAPIView):
     def perform_create(self, serializer):
         """Create user and send welcome email."""
         user = serializer.save()
-        try:
-            EmailService.send_welcome_email(user)
-        except Exception:
-            logger.warning(
-                "Welcome email failed for user ID: %s", user.id, exc_info=True
-            )
+        send_welcome_email_task.enqueue(str(user.id))
 
 
 class UserLogoutView(APIView):
@@ -139,7 +134,7 @@ class PasswordResetRequestView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.context["user"]
 
-        EmailService.send_password_reset_email(user, request)
+        send_password_reset_email_task.enqueue(str(user.id))
 
         return Response(
             {"detail": "Password reset email sent successfully."},

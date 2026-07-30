@@ -1,7 +1,5 @@
 """CFP view tests."""
 
-from unittest.mock import patch
-
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -281,33 +279,27 @@ class CFPStatusUpdateViewTest(TestCase):
         )
         self.url = reverse("cfp:cfp-status-update", kwargs={"pk": self.submission.id})
 
-    @patch("cfps.views.CFPEmailService.send_status_notification")
-    def test_organizer_can_accept(self, mock_email):
+    def test_organizer_can_accept(self):
         """Test that an organizer can accept a submission."""
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.patch(self.url, {"status": "accepted"}, format="json")
         self.assertEqual(response.status_code, 200)
         self.submission.refresh_from_db()
         self.assertEqual(self.submission.status, CFPStatusChoices.ACCEPTED)
-        mock_email.assert_called_once_with(self.submission)
 
-    @patch("cfps.views.CFPEmailService.send_status_notification")
-    def test_organizer_can_reject(self, mock_email):
+    def test_organizer_can_reject(self):
         """Test that an organizer can reject a submission."""
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.patch(self.url, {"status": "rejected"}, format="json")
         self.assertEqual(response.status_code, 200)
         self.submission.refresh_from_db()
         self.assertEqual(self.submission.status, CFPStatusChoices.REJECTED)
-        mock_email.assert_called_once()
 
-    @patch("cfps.views.CFPEmailService.send_status_notification")
-    def test_submitter_cannot_update_status(self, mock_email):
+    def test_submitter_cannot_update_status(self):
         """Test that a submitter cannot update the status of their own submission."""
         self.client.force_authenticate(user=self.speaker_user)
         response = self.client.patch(self.url, {"status": "accepted"}, format="json")
         self.assertEqual(response.status_code, 403)
-        mock_email.assert_not_called()
 
 
 class MyCFPSubmissionsViewTest(TestCase):

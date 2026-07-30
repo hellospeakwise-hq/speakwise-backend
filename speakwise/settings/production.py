@@ -24,8 +24,6 @@ ALLOWED_HOSTS = [
 ]
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# Use PostgreSQL in production
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -34,6 +32,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
+        "CONN_MAX_AGE": 600,
     }
 }
 
@@ -108,8 +107,10 @@ LOGGING = {
     "handlers": {
         "file": {
             "level": "INFO",
-            "class": "logging.FileHandler",
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": os.path.join(BASE_DIR, "django.log"),
+            "maxBytes": 1024 * 1024 * 5,  # 5 MB
+            "backupCount": 5,
             "formatter": "verbose",
         },
         "console": {

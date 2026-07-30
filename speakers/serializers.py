@@ -99,9 +99,19 @@ class FollowerDetailSerializer(ModelSerializer):
             "created_at",
         ]
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the serializer."""
+        super().__init__(*args, **kwargs)
+        self._profile_cache = {}
+
     def _get_profile(self, user):
-        """Get the SpeakerProfile for a user, if it exists."""
-        return SpeakerProfile.objects.filter(user_account=user).first()
+        """Get the SpeakerProfile for a user, with per-instance caching."""
+        user_id = user.id
+        if user_id not in self._profile_cache:
+            self._profile_cache[user_id] = SpeakerProfile.objects.filter(
+                user_account=user
+            ).first()
+        return self._profile_cache[user_id]
 
     def _get_user(self, obj):
         """Get the relevant user depending on context (follower or following)."""
@@ -196,19 +206,28 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     def get_followers_count(self, obj) -> int:
         """Return total number of followers for this speaker."""
-        return obj.followers_count
+        return getattr(obj, "_prefetched_followers_count", obj.followers.count())
 
     def get_following_count(self, obj) -> int:
         """Return how many speakers this speaker follows (their following count)."""
-        return SpeakerFollow.objects.filter(follower=obj.user_account).count()
+        return getattr(
+            obj,
+            "_prefetched_following_count",
+            SpeakerFollow.objects.filter(follower=obj.user_account).count(),
+        )
 
     def get_is_following(self, obj) -> bool:
         """Return True if the current authenticated user follows this speaker."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
-            return SpeakerFollow.objects.filter(
-                follower=request.user, speaker=obj
-            ).exists()
+            cache_key = f"is_following_{request.user.id}_{obj.id}"
+            if not hasattr(self, "_is_following_cache"):
+                self._is_following_cache = {}
+            if cache_key not in self._is_following_cache:
+                self._is_following_cache[cache_key] = SpeakerFollow.objects.filter(
+                    follower=request.user, speaker=obj
+                ).exists()
+            return self._is_following_cache[cache_key]
         return False
 
     @transaction.atomic

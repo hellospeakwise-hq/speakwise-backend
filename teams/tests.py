@@ -228,7 +228,7 @@ class TestTeamMemberListView(APITestCase):
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
-        data = response.json()
+        data = response.json()["results"]
 
         # Should return only active members
         assert len(data) == 2
@@ -243,7 +243,7 @@ class TestTeamMemberListView(APITestCase):
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
-        data = response.json()
+        data = response.json()["results"]
 
         # Find Bob Wilson's data
         bob_data = next(
@@ -260,7 +260,7 @@ class TestTeamMemberListView(APITestCase):
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
-        data = response.json()
+        data = response.json()["results"]
 
         # Verify inactive member is not included
         member_names = [member["name"] for member in data]
@@ -273,7 +273,7 @@ class TestTeamMemberListView(APITestCase):
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
-        data = response.json()
+        data = response.json()["results"]
 
         # Check first team member has all expected fields
         first_member = data[0]
@@ -298,7 +298,7 @@ class TestTeamMemberListView(APITestCase):
         response = self.client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
-        data = response.json()
+        data = response.json()["results"]
         assert len(data) == 0  # Empty list
 
     def test_prefetch_optimization(self):
@@ -306,9 +306,10 @@ class TestTeamMemberListView(APITestCase):
         url = reverse("teams:team-list")
 
         # This should execute only 2 queries:
-        # 1. Get team members
-        # 2. Prefetch social links
-        with self.assertNumQueries(2):
+        # 1. Count query for pagination
+        # 2. Get team members
+        # 3. Prefetch social links
+        with self.assertNumQueries(3):
             response = self.client.get(url)
             response.json()  # Force serialization
 

@@ -68,9 +68,12 @@ class OrganizationMembership(TimeStampedModel):
         User, on_delete=models.CASCADE, related_name="user_memberships"
     )
     role = models.CharField(
-        max_length=20, choices=OrganizationRole.choices, default=OrganizationRole.MEMBER
+        max_length=20,
+        choices=OrganizationRole.choices,
+        default=OrganizationRole.MEMBER,
+        db_index=True,
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     added_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="added_memberships"
     )

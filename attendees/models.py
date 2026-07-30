@@ -53,7 +53,7 @@ class Attendance(TimeStampedModel):
         "events.Event", on_delete=models.CASCADE, related_name="event_attendance"
     )
     check_in_time = models.DateTimeField(auto_now_add=True)
-    email = models.EmailField(null=True)
+    email = models.EmailField(null=True, db_index=True)
     username = models.CharField(max_length=255, null=True)
     is_verified = models.BooleanField(default=False)
     is_given_feedback = models.BooleanField(default=False)

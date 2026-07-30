@@ -48,7 +48,7 @@ class Talks(TimeStampedModel):
     )
 
     slug = models.SlugField(unique=True, max_length=255, null=True, blank=True)
-    is_public = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=False, db_index=True)
     is_reviewable = models.BooleanField(default=True)
 
     event = models.ForeignKey(

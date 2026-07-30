@@ -118,7 +118,7 @@ class CFPSubmissionListCreateViewTest(TestCase):
         self.client.force_authenticate(user=self.speaker_user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_organizer_sees_all_submissions(self):
         """Test that an organizer sees all submissions for the event."""
@@ -131,7 +131,7 @@ class CFPSubmissionListCreateViewTest(TestCase):
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data["results"]), 2)
 
     def test_returns_404_for_nonexistent_event(self):
         """Test that a 404 is returned for a nonexistent event."""
@@ -369,24 +369,24 @@ class MyCFPSubmissionsViewTest(TestCase):
         self.client.force_authenticate(user=self.speaker)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        ids = {s["id"] for s in response.data}
+        ids = {s["id"] for s in response.data["results"]}
         self.assertIn(str(self.sub_a.id), ids)
         self.assertIn(str(self.sub_b.id), ids)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data["results"]), 2)
 
     def test_other_user_sees_only_their_own(self):
         """Test that a different user only sees their own submissions."""
         self.client.force_authenticate(user=self.other)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_response_includes_event_slug_and_title(self):
         """Test that each result includes event_slug and event_title."""
         self.client.force_authenticate(user=self.speaker)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        for item in response.data:
+        for item in response.data["results"]:
             self.assertIn("event_slug", item)
             self.assertIn("event_title", item)
             self.assertIsNotNone(item["event_slug"])

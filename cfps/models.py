@@ -95,6 +95,7 @@ class CFPSubmission(TimeStampedModel):
         max_length=20,
         choices=CFPStatusChoices.choices,
         default=CFPStatusChoices.PENDING,
+        db_index=True,
     )
 
     class Meta:

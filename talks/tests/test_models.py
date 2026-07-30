@@ -80,7 +80,7 @@ class TestTalkSerializer(TestCase):
         assert data["duration"] == self.talk.duration
         assert data["category"] == self.talk.category
         assert data["speaker"] == self.talk.speaker.id
-        assert data["id"] == self.talk.id
+        assert data["id"] == str(self.talk.id)
 
     def test_invalid_category(self):
         """Test that an invalid category raises a validation error."""

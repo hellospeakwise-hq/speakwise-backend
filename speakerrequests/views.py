@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -33,7 +33,7 @@ class SpeakerRequestListView(APIView):
     This view allows organizers to list all their speaker requests and create new ones.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = SpeakerRequestSerializer
 
     def get_objects(self, organizer, organization_id=None):
@@ -130,7 +130,7 @@ class SPeakerRequestDetailView(APIView):
     This view allows organizers to manage individual speaker requests.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = SpeakerRequestSerializer
 
     def get_object(self, pk, organizer):
@@ -196,7 +196,7 @@ class SpeakerRequestsListView(APIView):
     This view allows speakers to see all requests sent to them.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_objects(self, speaker):
         """Get speaker requests by speaker."""
@@ -230,7 +230,7 @@ class SpeakerRequestAcceptView(APIView):
     This view allows speakers to respond to a request.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self, pk, user):
         """Get object by pk and ensure it belongs to the speaker."""
@@ -372,6 +372,8 @@ class SpeakerEmailRequestListView(APIView):
 )
 class SpeakerEmailRequestDetailView(APIView):
     """Detail view of Speaker request sent through email."""
+
+    permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk=None):
         """Update status of a specific speaker request."""

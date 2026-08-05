@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.12-slim-bullseye AS builder
+FROM python:3.14-slim AS builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,12 +9,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements/ /app/requirements/
+COPY pyproject.toml uv.lock ./
 RUN pip install uv \
-    && uv pip install --system -r requirements/production.txt
+    && uv sync --frozen --no-install-project
 
 # Final stage
-FROM python:3.12-slim-bullseye
+FROM python:3.14-slim
 
 # Create a non-root user
 RUN addgroup --system django && \
@@ -23,14 +23,14 @@ RUN addgroup --system django && \
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8000 \
+    PATH="/app/.venv/bin:$PATH"
 
 # Set work directory
 WORKDIR /app
 
 # Copy installed python packages from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy project files
 COPY . .

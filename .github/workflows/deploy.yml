@@ -48,9 +48,6 @@ jobs:
               # Pull latest changes
               git pull origin main
 
-              # Activate virtual environment
-              source venv/bin/activate
-
               # Install/update dependencies
               uv sync
 
@@ -73,8 +70,8 @@ jobs:
               chown www-data:www-data .env
 
               # Run Django management commands
-              python manage.py collectstatic --noinput --settings=speakwise.settings.prod
-              python manage.py migrate --settings=speakwise.settings.prod
+              uv run python manage.py collectstatic --noinput --settings=speakwise.settings.prod
+              uv run python manage.py migrate --settings=speakwise.settings.prod
 
               # Restart application services
               sudo systemctl restart gunicorn

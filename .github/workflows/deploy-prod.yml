@@ -22,16 +22,14 @@ jobs:
 
             pip install uv
 
-            echo "Activating virtualenv and installing requirements..."
-            source .venv/bin/activate
+            echo "Syncing dependencies with uv..."
             uv sync
-            
 
             echo "Applying migrations..."
-            python manage.py migrate
+            uv run python manage.py migrate
 
             echo "Collecting static files..."
-            python manage.py collectstatic --noinput
+            uv run python manage.py collectstatic --noinput
 
             echo "Restarting Gunicorn..."
             sudo systemctl restart gunicorn

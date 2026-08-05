@@ -48,6 +48,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "corsheaders",
     "django_tasks",
+    "django_ckeditor_5",
     # "debug_toolbar",
 ]
 
@@ -65,6 +66,7 @@ LOCAL_APPS = [
     "cfps",
     "eventsessions",
     "eventschedules",
+    "blogs",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -200,6 +202,32 @@ SPECTACULAR_SETTINGS = {
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 SITE_NAME = "SpeakWise"
+
+# django-ckeditor-5 settings
+CKEDITOR_5_CONFIGS = {
+    "default": {
+        "toolbar": [
+            "heading",
+            "|",
+            "bold",
+            "italic",
+            "link",
+            "bulletedList",
+            "numberedList",
+            "blockQuote",
+            "imageUpload",
+            "insertTable",
+            "mediaEmbed",
+            "|",
+            "undo",
+            "redo",
+        ],
+        "height": 300,
+    },
+}
+# File uploads through the CKEditor are restricted to staff, matching the
+# behaviour of the previous ckeditor_uploader integration.
+CKEDITOR_5_FILE_UPLOAD_PERMISSION = "staff"
 
 # Cache
 CACHES = {

@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("cfps", "0002_add_cfp_fields_allow_multiple"),
+        ("cfps", "0003_alter_cfpsubmission_status"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

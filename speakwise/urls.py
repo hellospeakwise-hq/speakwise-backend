@@ -32,6 +32,8 @@ urlpatterns = [
     path("api/", include("cfps.urls", namespace="cfp")),
     path("api/", include("eventsessions.urls", namespace="sessions")),
     path("api/", include("eventschedules.urls", namespace="eventschedules")),
+    path("api/", include("blogs.urls", namespace="blogs")),
+    path("ckeditor5/", include("django_ckeditor_5.urls")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

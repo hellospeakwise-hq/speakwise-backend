@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0009_event_speaker_deck_upload_enabled"),
-        ("feedbacks", "0004_convert_ids_to_uuid"),
+        ("feedbacks", "0005_alter_feedback_speaker"),
         (
             "speakers",
             "0015_alter_notification_recipient_alter_speakerdeck_event_and_more",

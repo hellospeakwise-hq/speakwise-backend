@@ -20,7 +20,7 @@ jobs:
             echo "Pulling latest changes..."
             git pull origin main
 
-            curl -LsSf https://astral.sh/uv/install.sh | less
+            sudo apt install uv
 
             echo "Activating virtualenv and installing requirements..."
             source .venv/bin/activate

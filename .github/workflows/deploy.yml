@@ -42,8 +42,8 @@ jobs:
               # Navigate to application directory
               cd ${{ secrets.DO_APP_PATH }}
 
-              # install uv 
-              curl -LsSf https://astral.sh/uv/install.sh | less
+              # install uv
+              sudo apt install uv
 
               # Pull latest changes
               git pull origin main

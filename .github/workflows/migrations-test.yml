@@ -40,8 +40,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements/production.txt
-          pip install psycopg2-binary
+          curl -LsSf https://astral.sh/uv/install.sh | less
+          uv sync
+          uv add psycopg2-binary
 
       - name: Wait for PostgreSQL
         run: |
@@ -92,8 +93,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements/production.txt
-          pip install psycopg2-binary
+          curl -LsSf https://astral.sh/uv/install.sh | less
+          uv sync
+          uv add psycopg2-binary
 
       - name: Wait for PostgreSQL
         run: |

@@ -42,6 +42,9 @@ jobs:
               # Navigate to application directory
               cd ${{ secrets.DO_APP_PATH }}
 
+              # install uv 
+              curl -LsSf https://astral.sh/uv/install.sh | less
+
               # Pull latest changes
               git pull origin main
 
@@ -49,7 +52,7 @@ jobs:
               source venv/bin/activate
 
               # Install/update dependencies
-              pip install -r requirements/production.txt
+              uv sync
 
               # Create production environment file from GitHub secrets
               echo "⚙️ Setting up production environment variables..."

@@ -20,9 +20,11 @@ jobs:
             echo "Pulling latest changes..."
             git pull origin main
 
+            curl -LsSf https://astral.sh/uv/install.sh | less
+
             echo "Activating virtualenv and installing requirements..."
             source .venv/bin/activate
-            pip install -r requirements/production.txt
+            uv sync
 
             echo "Applying migrations..."
             python manage.py migrate

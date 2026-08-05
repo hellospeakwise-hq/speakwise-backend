@@ -43,6 +43,7 @@ jobs:
           pip install uv
           uv sync
           uv add psycopg2-binary
+          uv add python-dotenv
 
       - name: Wait for PostgreSQL
         run: |
@@ -93,9 +94,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | less
+          pip install uv
           uv sync
           uv add psycopg2-binary
+          uv add python-dotenv
 
       - name: Wait for PostgreSQL
         run: |

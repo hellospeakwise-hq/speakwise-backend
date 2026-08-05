@@ -25,6 +25,7 @@ jobs:
             echo "Activating virtualenv and installing requirements..."
             source .venv/bin/activate
             uv sync
+            
 
             echo "Applying migrations..."
             python manage.py migrate

@@ -43,7 +43,7 @@ jobs:
               cd ${{ secrets.DO_APP_PATH }}
 
               # install uv
-              sudo apt install uv
+              pip install uv
 
               # Pull latest changes
               git pull origin main

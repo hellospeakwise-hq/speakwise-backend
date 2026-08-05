@@ -15,7 +15,7 @@ jobs:
                   python-version: "3.12"
 
             - name: Install dependencies
-              run: sudo apt install uv && uv sync
+              run: pip install uv && uv sync
 
             - name: Run migrations
               run: python manage.py migrate

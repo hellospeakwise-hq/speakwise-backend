@@ -20,7 +20,7 @@ jobs:
             echo "Pulling latest changes..."
             git pull origin main
 
-            sudo apt install uv
+            pip install uv
 
             echo "Activating virtualenv and installing requirements..."
             source .venv/bin/activate

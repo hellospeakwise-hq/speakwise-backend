@@ -20,15 +20,16 @@ jobs:
             echo "Pulling latest changes..."
             git pull origin main
 
-            echo "Activating virtualenv and installing requirements..."
-            source .venv/bin/activate
-            pip install -r requirements/production.txt
+            pip install uv
+
+            echo "Syncing dependencies with uv..."
+            uv sync
 
             echo "Applying migrations..."
-            python manage.py migrate
+            uv run python manage.py migrate
 
             echo "Collecting static files..."
-            python manage.py collectstatic --noinput
+            uv run python manage.py collectstatic --noinput
 
             echo "Restarting Gunicorn..."
             sudo systemctl restart gunicorn

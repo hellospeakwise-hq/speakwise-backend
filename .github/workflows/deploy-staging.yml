@@ -12,19 +12,19 @@ jobs:
 
             - uses: actions/setup-python@v5
               with:
-                  python-version: "3.12"
+                  python-version: "3.14"
 
             - name: Install dependencies
-              run: pip install uv && uv pip install --system -r requirements/local.txt
+              run: pip install uv && uv sync
 
             - name: Run migrations
-              run: python manage.py migrate
+              run: uv run python manage.py migrate
               env:
                   DJANGO_SETTINGS_MODULE: speakwise.settings.test
                   SECRET_KEY: test-secret-key
 
             - name: Run tests
-              run: python manage.py test
+              run: uv run python manage.py test
               env:
                   DJANGO_SETTINGS_MODULE: speakwise.settings.test
                   SECRET_KEY: test-secret-key

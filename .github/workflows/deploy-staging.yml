@@ -29,26 +29,26 @@ jobs:
                   DJANGO_SETTINGS_MODULE: speakwise.settings.test
                   SECRET_KEY: test-secret-key
 
-    deploy-backend-staging:
-        needs: [test-backend]
-        runs-on: ubuntu-latest
-        steps:
-            - name: Deploy backend to staging via SSH
-              uses: appleboy/ssh-action@v1
-              with:
-                  host: ${{ secrets.VPS_HOST }}
-                  username: ${{ secrets.VPS_USER }}
-                  key: ${{ secrets.VPS_SSH_KEY }}
-                  script: |
-                      cd /home/speakwise/speakwise-backend-staging
-
-                      echo "--- Pulling latest development branch ---"
-                      git fetch origin
-                      git checkout development
-                      git pull origin development
-
-                      echo "--- Rebuilding and restarting staging backend ---"
-                      docker compose -f docker-compose.yml -f docker-compose.staging.yml build --no-cache
-                      docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
-
-                      echo "--- Staging backend live at https://apis-staging.speak-wise.live ---"
+  # deploy-backend-staging:
+  #     needs: [test-backend]
+  #     runs-on: ubuntu-latest
+  #     steps:
+  #         - name: Deploy backend to staging via SSH
+  #           uses: appleboy/ssh-action@v1
+  #           with:
+  #               host: ${{ secrets.VPS_HOST }}
+  #               username: ${{ secrets.VPS_USER }}
+  #               key: ${{ secrets.VPS_SSH_KEY }}
+  #               script: |
+  #                   cd /home/speakwise/speakwise-backend-staging
+  #
+  #                   echo "--- Pulling latest development branch ---"
+  #                   git fetch origin
+  #                   git checkout development
+  #                   git pull origin development
+  #
+  #                   echo "--- Rebuilding and restarting staging backend ---"
+  #                   docker compose -f docker-compose.yml -f docker-compose.staging.yml build --no-cache
+  #                   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+  #
+  #                   echo "--- Staging backend live at https://apis-staging.speak-wise.live ---"

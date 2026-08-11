@@ -6,7 +6,6 @@ from django.db import migrations
 class Migration(migrations.Migration):
     dependencies = [
         ("events", "0002_alter_country_updated_at_alter_event_updated_at_and_more"),
-        ("organizations", "0001_initial"),
         ("speakerrequests", "0005_rename_emailrequests_speakeremailrequests"),
         ("speakers", "0011_alter_speakerexperiences_updated_at_and_more"),
     ]
@@ -18,6 +17,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name="speakerrequest",
-            unique_together={("organizer", "speaker", "event")},
+            unique_together={("speaker", "event")},
         ),
     ]

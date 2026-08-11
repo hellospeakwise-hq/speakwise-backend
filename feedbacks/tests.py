@@ -9,7 +9,6 @@ from rest_framework.test import APITestCase
 
 from events.models import Event
 from feedbacks.models import EventFeedbackPreference, Feedback
-from organizations.models import Organization
 from speakerrequests.models import SpeakerRequest
 from speakers.models import SpeakerProfile
 
@@ -36,11 +35,6 @@ class TestFeedback(TestCase):
             email="attendee@mail.com",
             password="testpass123",
         )
-
-        # Create attendee profile with minimal setup
-        from attendees.models import AttendeeProfile
-
-        self.attendee = AttendeeProfile.objects.create(user_account=self.user)
 
         # Create a feedback instance
         self.feedback = Feedback.objects.create(
@@ -104,32 +98,22 @@ class FeedbackTestDataMixin:
             organization="Rejected Org",
         )
 
-        self.organization = Organization.objects.create(
-            name="Feedback Org",
-            email="feedbackorg@example.com",
-            created_by=self.no_profile_user,
-        )
-
         self.event = Event.objects.create(
             title="Feedback Conference",
             is_active=True,
-            organizer=self.organization,
         )
         self.other_event = Event.objects.create(
             title="Other Conference",
             is_active=True,
-            organizer=self.organization,
         )
 
         SpeakerRequest.objects.create(
-            organizer=self.organization,
             speaker=self.speaker_profile,
             event=self.event,
             status="accepted",
             message="Welcome!",
         )
         SpeakerRequest.objects.create(
-            organizer=self.organization,
             speaker=self.rejected_profile,
             event=self.event,
             status="rejected",
@@ -326,17 +310,9 @@ class FeedbackSubmissionGatingTests(FeedbackTestDataMixin, APITestCase):
     """Tests for feedback submission being gated by the speaker's preference."""
 
     def setUp(self):
-        """Set up test data and a verified attendee session."""
+        """Set up test data."""
         self.create_feedback_test_data()
         self.url = reverse("feedbacks:feedbacks_list_create")
-        self._verify_attendee_session()
-
-    def _verify_attendee_session(self):
-        """Mark the client session as a verified attendee."""
-        session = self.client.session
-        session["attendee_verified"] = True
-        session["attendee_email"] = "attendee@example.com"
-        session.save()
 
     def _feedback_payload(self, **overrides):
         """Build a valid feedback submission payload."""

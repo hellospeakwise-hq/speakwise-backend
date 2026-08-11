@@ -862,13 +862,11 @@ class SpeakerDeckModelTests(TestCase):
             file="speaker_decks/test.pdf",
             original_filename="test.pdf",
             file_size=1024,
-            description="My presentation",
         )
         self.assertEqual(deck.speaker, self.profile)
         self.assertEqual(deck.event, self.event)
         self.assertEqual(deck.original_filename, "test.pdf")
         self.assertEqual(deck.file_size, 1024)
-        self.assertEqual(deck.description, "My presentation")
         self.assertIn("test.pdf", str(deck))
 
     def test_speaker_deck_cascade_on_speaker_delete(self):
@@ -928,15 +926,13 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         notif = Notification.objects.create(
-            recipient=self.user,
-            title="Test Notification",
+            user=self.user,
             message="This is a test.",
-            link="https://example.com/test",
         )
-        self.assertEqual(notif.recipient, self.user)
-        self.assertEqual(notif.title, "Test Notification")
+        self.assertEqual(notif.user, self.user)
+        self.assertEqual(notif.message, "This is a test.")
         self.assertFalse(notif.is_read)
-        self.assertIn("Test Notification", str(notif))
+        self.assertIn("This is a test.", str(notif))
         self.assertIn(self.user.username, str(notif))
 
     def test_notification_default_is_unread(self):
@@ -944,8 +940,7 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         notif = Notification.objects.create(
-            recipient=self.user,
-            title="Unread Test",
+            user=self.user,
             message="Should be unread by default.",
         )
         self.assertFalse(notif.is_read)
@@ -955,8 +950,7 @@ class NotificationModelTests(TestCase):
         from speakers.models import Notification
 
         Notification.objects.create(
-            recipient=self.user,
-            title="Cascade Test",
+            user=self.user,
             message="Should be deleted with user.",
         )
         self.assertEqual(Notification.objects.count(), 1)
@@ -1071,15 +1065,6 @@ class SpeakerDeckViewTests(APITestCase):
             organization="Rejected Org",
         )
 
-        # Organization
-        from organizations.models import Organization
-
-        self.organization = Organization.objects.create(
-            name="Deck View Org",
-            email="deckorg@example.com",
-            created_by=self.other_user,
-        )
-
         # Event with uploads enabled
         from events.models import Event
 
@@ -1087,7 +1072,6 @@ class SpeakerDeckViewTests(APITestCase):
             title="Deck View Conference",
             is_active=True,
             speaker_deck_upload_enabled=True,
-            organizer=self.organization,
         )
 
         # Event with uploads disabled
@@ -1095,14 +1079,12 @@ class SpeakerDeckViewTests(APITestCase):
             title="Disabled Conference",
             is_active=True,
             speaker_deck_upload_enabled=False,
-            organizer=self.organization,
         )
 
         # Accepted speaker request
         from speakerrequests.models import SpeakerRequest
 
         SpeakerRequest.objects.create(
-            organizer=self.organization,
             speaker=self.speaker_profile,
             event=self.event,
             status="accepted",
@@ -1111,7 +1093,6 @@ class SpeakerDeckViewTests(APITestCase):
 
         # Rejected speaker request
         SpeakerRequest.objects.create(
-            organizer=self.organization,
             speaker=self.rejected_profile,
             event=self.event,
             status="rejected",
@@ -1176,7 +1157,6 @@ class SpeakerDeckViewTests(APITestCase):
         from speakerrequests.models import SpeakerRequest
 
         SpeakerRequest.objects.create(
-            organizer=self.organization,
             speaker=self.speaker_profile,
             event=self.event_disabled,
             status="accepted",
@@ -1215,13 +1195,12 @@ class SpeakerDeckViewTests(APITestCase):
         file = self._make_file("my_talk.pptx", 2048)
         res = self.client.post(
             f"{self.list_url}?event={self.event.id}",
-            {"file": file, "description": "My keynote slides"},
+            {"file": file},
             format="multipart",
         )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.data["original_filename"], "my_talk.pptx")
         self.assertEqual(res.data["file_size"], 2048)
-        self.assertEqual(res.data["description"], "My keynote slides")
         self.assertEqual(res.data["event"], str(self.event.id))
 
     def test_post_multiple_uploads_allowed(self):
@@ -1285,13 +1264,17 @@ class SpeakerDeckViewTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["original_filename"], "crud.pdf")
 
-        # PATCH description
+        # PATCH file replacement
         res = self.client.patch(
-            detail_url, {"description": "Updated desc"}, format="json"
+            detail_url,
+            {"file": self._make_file("updated.pdf", 3000)},
+            format="multipart",
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         deck.refresh_from_db()
-        self.assertEqual(deck.description, "Updated desc")
+        self.assertTrue(deck.original_filename.startswith("updated_"))
+        self.assertTrue(deck.original_filename.endswith(".pdf"))
+        self.assertEqual(deck.file_size, 3000)
 
         # DELETE
         res = self.client.delete(detail_url)
@@ -1472,21 +1455,17 @@ class NotificationViewTests(APITestCase):
         from speakers.models import Notification
 
         self.notif1 = Notification.objects.create(
-            recipient=self.user,
-            title="Upload Your Deck",
+            user=self.user,
             message="Please upload your presentation.",
-            link="https://example.com/upload",
         )
         self.notif2 = Notification.objects.create(
-            recipient=self.user,
-            title="Reminder",
+            user=self.user,
             message="Don't forget to upload.",
             is_read=True,
         )
         # Another user's notification (should not appear)
         self.notif_other = Notification.objects.create(
-            recipient=self.other_user,
-            title="Other's Notification",
+            user=self.other_user,
             message="Not for you.",
         )
 
@@ -1507,10 +1486,10 @@ class NotificationViewTests(APITestCase):
         res = self.client.get(self.list_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 2)
-        titles = {n["title"] for n in res.data}
-        self.assertIn("Upload Your Deck", titles)
-        self.assertIn("Reminder", titles)
-        self.assertNotIn("Other's Notification", titles)
+        titles = {n["message"] for n in res.data}
+        self.assertIn("Please upload your presentation.", titles)
+        self.assertIn("Don't forget to upload.", titles)
+        self.assertNotIn("Not for you.", titles)
 
     def test_list_filter_unread(self):
         """GET ?is_read=false returns only unread notifications."""
@@ -1518,7 +1497,7 @@ class NotificationViewTests(APITestCase):
         res = self.client.get(f"{self.list_url}?is_read=false")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]["title"], "Upload Your Deck")
+        self.assertEqual(res.data[0]["message"], "Please upload your presentation.")
 
     def test_list_filter_read(self):
         """GET ?is_read=true returns only read notifications."""
@@ -1526,7 +1505,7 @@ class NotificationViewTests(APITestCase):
         res = self.client.get(f"{self.list_url}?is_read=true")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]["title"], "Reminder")
+        self.assertEqual(res.data[0]["message"], "Don't forget to upload.")
 
     # ── Mark as read ────────────────────────────────────────────────────────
 

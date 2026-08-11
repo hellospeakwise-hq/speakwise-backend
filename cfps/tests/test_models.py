@@ -5,7 +5,6 @@ from django.test import TestCase
 from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
 from cfps.models import CFPSubmission
 from events.models import Country, Event, Location
-from organizations.models import Organization, OrganizationMembership
 from users.models import User
 
 
@@ -19,12 +18,6 @@ class CFPSubmissionModelTest(TestCase):
             email="speaker1@test.com",
             password="testpass",
         )
-        self.org = Organization.objects.create(
-            name="TestOrg", email="testorg@test.com", created_by=self.user
-        )
-        OrganizationMembership.objects.create(
-            organization=self.org, user=self.user, role="ADMIN", added_by=self.user
-        )
         self.event = Event.objects.create(
             title="PyCon Test",
             description="Test event",
@@ -35,7 +28,6 @@ class CFPSubmissionModelTest(TestCase):
                 state="State",
                 country=Country.objects.create(name="Ghana"),
             ),
-            organizer=self.org,
         )
         self.submission = CFPSubmission.objects.create(
             event=self.event,

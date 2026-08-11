@@ -11,10 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="feedback",
-            name="attendee",
-        ),
         migrations.AddField(
             model_name="feedback",
             name="is_attendee",

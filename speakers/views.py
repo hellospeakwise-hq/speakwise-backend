@@ -736,7 +736,7 @@ class NotificationListView(APIView):
     @extend_schema(responses=NotificationSerializer(many=True))
     def get(self, request):
         """List notifications for the authenticated user."""
-        notifications = Notification.objects.filter(recipient=request.user)
+        notifications = Notification.objects.filter(user=request.user)
 
         is_read_param = request.query_params.get("is_read")
         if is_read_param is not None:
@@ -757,7 +757,7 @@ class NotificationMarkReadView(APIView):
     def patch(self, request, pk):
         """Mark a single notification as read."""
         try:
-            notification = Notification.objects.get(pk=pk, recipient=request.user)
+            notification = Notification.objects.get(pk=pk, user=request.user)
         except Notification.DoesNotExist:
             return Response(
                 {"detail": "Notification not found."},

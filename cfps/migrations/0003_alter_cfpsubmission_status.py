@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('cfps', '0002_add_cfp_fields_allow_multiple'),
+        ('cfps', '0003_alter_cfpsubmission_created_at'),
     ]
 
     operations = [

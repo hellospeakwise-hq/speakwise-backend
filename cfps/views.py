@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsOrganizationAdminOrOrganizer
+from base.permissions import IsSuperUser
 from cfps.choices import CFPStatusChoices
 from cfps.models import CFPReview, CFPSubmission
 from cfps.serializers import (
@@ -45,16 +45,14 @@ class CFPSubmissionListCreateView(ListCreateAPIView):
         return self._event
 
     def get_serializer_class(self):
-        """Organizers get score/review data; submitters get the plain serializer."""
+        """Superusers get score/review data; submitters get the plain serializer."""
         event = self.get_event()
-        if IsOrganizationAdminOrOrganizer().has_object_permission(
-            self.request, self, event
-        ):
+        if IsSuperUser().has_object_permission(self.request, self, event):
             return CFPSubmissionWithScoreSerializer
         return CFPSubmissionSerializer
 
     def get_serializer_context(self):
-        """Inject request into serializer context for score aggregation."""
+        """Inject a request into the serializer context for score aggregation."""
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
@@ -62,9 +60,7 @@ class CFPSubmissionListCreateView(ListCreateAPIView):
     def get_queryset(self):
         """Return submissions scoped to the event and user role."""
         event = self.get_event()
-        if IsOrganizationAdminOrOrganizer().has_object_permission(
-            self.request, self, event
-        ):
+        if IsSuperUser().has_object_permission(self.request, self, event):
             return CFPSubmission.objects.filter(event=event).prefetch_related(
                 "co_speakers", "reviews__reviewer"
             )
@@ -97,9 +93,7 @@ class CFPSubmissionDetailView(RetrieveUpdateDestroyAPIView):
         obj = super().get_object()
         user = self.request.user
         is_submitter = obj.submitter == user
-        is_organizer = IsOrganizationAdminOrOrganizer().has_object_permission(
-            self.request, self, obj
-        )
+        is_organizer = IsSuperUser().has_object_permission(self.request, self, obj)
         if not (is_submitter or is_organizer):
             raise PermissionDenied(
                 "You do not have permission to access this submission."
@@ -137,7 +131,7 @@ class CFPStatusUpdateView(UpdateAPIView):
     """PATCH — organizer updates submission status (accepted / rejected)."""
 
     serializer_class = CFPStatusUpdateSerializer
-    permission_classes = [IsAuthenticated, IsOrganizationAdminOrOrganizer]
+    permission_classes = [IsAuthenticated, IsSuperUser]
     http_method_names = ["patch", "head", "options"]
 
     def get_queryset(self):
@@ -161,12 +155,10 @@ class CFPReviewQueueView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, slug):
-        """Return one random unreviewed pending submission for the current organizer."""
+        """Return one random unreviewed pending submission for the current user."""
         event = get_object_or_404(Event, slug=slug)
-        if not IsOrganizationAdminOrOrganizer().has_object_permission(
-            request, self, event
-        ):
-            raise PermissionDenied("Only organizers can access the review queue.")
+        if not IsSuperUser().has_object_permission(request, self, event):
+            raise PermissionDenied("Only superusers can access the review queue.")
 
         pending_qs = CFPSubmission.objects.filter(
             event=event, status=CFPStatusChoices.PENDING
@@ -213,10 +205,8 @@ class CFPReviewView(APIView):
     def post(self, request, pk):
         """Submit or update a review score for a CFP submission."""
         submission = get_object_or_404(CFPSubmission, pk=pk)
-        if not IsOrganizationAdminOrOrganizer().has_object_permission(
-            request, self, submission
-        ):
-            raise PermissionDenied("Only organizers can review submissions.")
+        if not IsSuperUser().has_object_permission(request, self, submission):
+            raise PermissionDenied("Only superusers can review submissions.")
 
         serializer = CFPReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -238,10 +228,8 @@ class CFPReviewListView(APIView):
     def get(self, request, pk):
         """List all reviews for a submission."""
         submission = get_object_or_404(CFPSubmission, pk=pk)
-        if not IsOrganizationAdminOrOrganizer().has_object_permission(
-            request, self, submission
-        ):
-            raise PermissionDenied("Only organizers can view all reviews.")
+        if not IsSuperUser().has_object_permission(request, self, submission):
+            raise PermissionDenied("Only superusers can view all reviews.")
         reviews = CFPReview.objects.filter(submission=submission).select_related(
             "reviewer"
         )

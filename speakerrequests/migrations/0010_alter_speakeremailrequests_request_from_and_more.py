@@ -7,7 +7,7 @@ from django.db.migrations.operations import SeparateDatabaseAndState
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('speakerrequests', '0009_alter_speakerrequest_event_alter_speakerrequest_id_and_more'),
+        ('speakerrequests', '0013_remove_speakerrequest_organizer_and_more'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                 migrations.AlterField(
                     model_name='speakerrequest',
                     name='status',
-                    field=models.CharField(choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')], db_index=True, default='pending', max_length=10),
+                    field=models.CharField(choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('declined', 'Declined'), ('is_expired', 'Is Expired'), ('cancelled', 'Cancelled')], db_index=True, default='pending', max_length=20),
                 ),
             ],
             database_operations=[

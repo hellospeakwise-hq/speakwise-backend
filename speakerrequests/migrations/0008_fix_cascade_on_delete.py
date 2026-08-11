@@ -8,7 +8,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0008_add_cfp_fields_to_event"),
-        ("organizations", "0005_merge_20260509_1654"),
         ("speakerrequests", "0007_convert_ids_to_uuid"),
         ("speakers", "0012_convert_ids_to_uuid"),
     ]
@@ -19,14 +18,6 @@ class Migration(migrations.Migration):
             name="event",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE, to="events.event"
-            ),
-        ),
-        migrations.AlterField(
-            model_name="speakerrequest",
-            name="organizer",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                to="organizations.organization",
             ),
         ),
         migrations.AlterField(

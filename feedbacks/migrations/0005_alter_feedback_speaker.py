@@ -8,6 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('feedbacks', '0004_convert_ids_to_uuid'),
+        ('feedbacks', '0005_alter_feedback_created_at'),
         ('speakers', '0016_alter_notification_is_read'),
     ]
 

@@ -7,21 +7,20 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsOrganizationAdminOrOrganizer
+from base.permissions import IsSuperUser
 from events.models import Event, Tag
 from events.serializers import EventSerializer, TagSerializer
 from events.utils import create_event_payload
-from organizations.models import OrganizationMembership
 
 
 class TagListView(APIView):
     """List and create event tags."""
 
     def get_permissions(self):
-        """GET is public; POST requires organizer/admin."""
+        """GET is public; POST requires superuser."""
         if self.request.method == "GET":
             return [AllowAny()]
-        return [IsOrganizationAdminOrOrganizer()]
+        return [IsSuperUser()]
 
     @extend_schema(tags=["Tags"], responses={200: TagSerializer(many=True)})
     def get(self, request, *args, **kwargs):
@@ -47,23 +46,12 @@ class EventListView(APIView):
         """Get permissions."""
         if self.request.method in ["GET"]:
             return [AllowAny()]
-        return [IsOrganizationAdminOrOrganizer()]
+        return [IsSuperUser()]
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         """List events."""
-        events = Event.objects.prefetch_related("tags")
-        if request.user.is_authenticated:
-            user_orgs = OrganizationMembership.objects.filter(
-                user=request.user, is_active=True
-            ).values_list("organization", flat=True)
-            if user_orgs.exists():
-                events = events.filter(organizer__in=user_orgs)
-            else:
-                events = events.filter(is_active=True)
-        else:
-            events = events.filter(is_active=True)
-
+        events = Event.objects.prefetch_related("tags").filter(is_active=True)
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -87,7 +75,7 @@ class EventDetailView(APIView):
         """Get permissions."""
         if self.request.method in ["GET"]:
             return [AllowAny()]
-        return [IsOrganizationAdminOrOrganizer()]
+        return [IsSuperUser()]
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
@@ -125,7 +113,7 @@ class EventSpeakerDeckToggleView(APIView):
     When enabling, sends notifications to all accepted speakers.
     """
 
-    permission_classes = [IsOrganizationAdminOrOrganizer]
+    permission_classes = [IsSuperUser]
 
     @extend_schema(
         tags=["Events"],

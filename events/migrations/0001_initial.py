@@ -8,9 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     initial = True
 
-    dependencies = [
-        ("organizations", "0001_initial"),
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
@@ -152,17 +150,6 @@ class Migration(migrations.Migration):
                     models.DateTimeField(default=django.utils.timezone.now, null=True),
                 ),
                 ("is_active", models.BooleanField(default=False)),
-                (
-                    "organizer",
-                    models.ForeignKey(
-                        blank=True,
-                        help_text="The organizer who created this event",
-                        null=True,
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name="organized_events",
-                        to="organizations.organization",
-                    ),
-                ),
                 (
                     "location",
                     models.ForeignKey(

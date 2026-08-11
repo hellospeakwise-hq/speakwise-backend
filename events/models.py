@@ -15,7 +15,7 @@ class Tag(TimeStampedModel):
     """A model for event tags in the SpeakWise application."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     color = models.CharField(max_length=20, default="#007bff")
 
     def __str__(self):
@@ -27,7 +27,7 @@ class Event(TimeStampedModel):
     """A model for events in the SpeakWise application."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255, unique=True)
+    title = models.CharField(max_length=255)
     event_nickname = models.CharField(max_length=255, blank=True, default="")
     event_image = models.ImageField(
         "image", upload_to=EVENT_IMAGE_UPLOAD, null=True, blank=True
@@ -52,7 +52,7 @@ class Event(TimeStampedModel):
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
     is_active = models.BooleanField(default=False, db_index=True)
     tags = models.ManyToManyField(Tag, related_name="events", blank=True)
-    slug = models.SlugField(max_length=255, unique=True, null=True)
+    slug = models.SlugField(max_length=255, null=True)
 
     # CFP configuration
     accepts_cfp = models.BooleanField(
@@ -84,16 +84,6 @@ class Event(TimeStampedModel):
         help_text="When speakers will be notified of the outcome.",
     )
 
-    # Add organizer relationship
-    organizer = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="events",
-        help_text="The organizer who created this event",
-    )
-
     speaker_deck_upload_enabled = models.BooleanField(
         default=False,
         help_text="When enabled, accepted speakers can upload their presentation materials.",
@@ -112,6 +102,31 @@ class Event(TimeStampedModel):
     def __str__(self):
         """Return a string representation of the model."""
         return self.title
+
+
+class EventSpeakers(TimeStampedModel):
+    """Speakers who have spoken or are scheduled at an event."""
+
+    created_at = models.DateTimeField(default=timezone.now)
+    has_spoken = models.BooleanField(default=False)
+    event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.CASCADE,
+    )
+    speaker = models.ForeignKey(
+        "speakers.SpeakerProfile",
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        """Meta options for EventSpeakers."""
+
+        verbose_name = "Event Speaker"
+        verbose_name_plural = "Event Speakers"
+
+    def __str__(self):
+        """Return a string representation of the model."""
+        return f"{self.speaker} at {self.event}"
 
 
 class Location(TimeStampedModel):
@@ -142,8 +157,8 @@ class Country(TimeStampedModel):
     """A model for countries in the SpeakWise application."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, null=True, unique=True)
-    code = models.CharField(max_length=255, null=True, unique=True)
+    name = models.CharField(max_length=100, null=True, unique=True)
+    code = models.CharField(max_length=2, null=True, unique=True)
 
     class Meta:
         """Meta options for the Country model."""

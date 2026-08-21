@@ -11,6 +11,7 @@ from speakers.models import (
     SpeakerProfile,
     SpeakerSkillTag,
     SpeakerSocialLinks,
+    normalize_skill_names,
 )
 from speakers.serializers import SpeakerProfileSerializer
 
@@ -1540,3 +1541,88 @@ class NotificationViewTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.patch(mark_url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class NormalizeSkillNamesTests(TestCase):
+    """Tests for normalize_skill_names."""
+
+    def test_strips_lowercases_and_drops_empties(self):
+        """Whitespace is stripped, case is folded, and empty values are dropped."""
+        self.assertEqual(
+            normalize_skill_names([" Python ", "AI", "", "  ", None, "python"]),
+            ["python", "ai"],
+        )
+
+    def test_empty_input_returns_empty_list(self):
+        """An empty iterable produces no skill names."""
+        self.assertEqual(normalize_skill_names([]), [])
+
+
+class SpeakerSkillMatchingQuerySetTests(TestCase):
+    """Tests for SpeakerProfile.objects.matching_skill_names."""
+
+    def setUp(self):
+        """Create speakers with overlapping and non-overlapping skills."""
+        self.python_user = get_user_model().objects.create(
+            username="python_speaker",
+            email="python@example.com",
+            password="testpass123",
+        )
+        self.python_speaker = SpeakerProfile.objects.create(
+            user_account=self.python_user, organization="PyOrg"
+        )
+        SpeakerSkillTag.objects.create(speaker=self.python_speaker, name="Python")
+        SpeakerSkillTag.objects.create(speaker=self.python_speaker, name="AI")
+        SpeakerSkillTag.objects.create(speaker=self.python_speaker, name="Data Science")
+
+        self.ruby_user = get_user_model().objects.create(
+            username="ruby_speaker",
+            email="ruby@example.com",
+            password="testpass123",
+        )
+        self.ruby_speaker = SpeakerProfile.objects.create(
+            user_account=self.ruby_user, organization="RbOrg"
+        )
+        SpeakerSkillTag.objects.create(speaker=self.ruby_speaker, name="Ruby")
+
+        self.unskilled_user = get_user_model().objects.create(
+            username="unskilled",
+            email="none@example.com",
+            password="testpass123",
+        )
+        self.unskilled_speaker = SpeakerProfile.objects.create(
+            user_account=self.unskilled_user, organization="NoneOrg"
+        )
+
+    def test_returns_speakers_with_overlapping_skills(self):
+        """Speakers with at least one matching skill are included."""
+        matches = SpeakerProfile.objects.matching_skill_names(["Python", "AI"])
+        ids = set(matches.values_list("id", flat=True))
+        self.assertIn(self.python_speaker.id, ids)
+        self.assertNotIn(self.ruby_speaker.id, ids)
+        self.assertNotIn(self.unskilled_speaker.id, ids)
+
+    def test_matching_is_case_insensitive(self):
+        """Skill names match regardless of case."""
+        matches = SpeakerProfile.objects.matching_skill_names(["python", "ai"])
+        self.assertIn(self.python_speaker, matches)
+
+    def test_empty_skill_list_matches_nobody(self):
+        """No CFP tags means no matching speakers."""
+        matches = SpeakerProfile.objects.matching_skill_names([])
+        self.assertEqual(matches.count(), 0)
+
+    def test_unrelated_skills_match_nobody_from_the_python_speaker(self):
+        """A CFP tagged only with unrelated skills does not match Python speakers."""
+        matches = SpeakerProfile.objects.matching_skill_names(["Go", "Rust"])
+        ids = set(matches.values_list("id", flat=True))
+        self.assertNotIn(self.python_speaker.id, ids)
+        self.assertNotIn(self.ruby_speaker.id, ids)
+        self.assertNotIn(self.unskilled_speaker.id, ids)
+
+    def test_partial_overlap_is_enough(self):
+        """One overlapping skill is enough to match, even if other CFP tags differ."""
+        matches = SpeakerProfile.objects.matching_skill_names(["Python", "Go"])
+        ids = set(matches.values_list("id", flat=True))
+        self.assertIn(self.python_speaker.id, ids)
+        self.assertNotIn(self.ruby_speaker.id, ids)

@@ -4,6 +4,8 @@ import uuid
 from itertools import count
 
 from django.db import models
+from django.db.models import Exists, OuterRef
+from django.db.models.functions import Lower
 from django.utils.text import slugify
 
 from base.models import SocialLinks, TimeStampedModel
@@ -34,6 +36,52 @@ class SpeakerSkillTag(TimeStampedModel):
     def __str__(self):
         """String representation of the speaker skill."""
         return self.name
+
+
+def normalize_skill_names(skill_names):
+    """Return unique, stripped, lowercased skill names, dropping empties."""
+    normalized = []
+    seen = set()
+    for name in skill_names:
+        if not name:
+            continue
+        value = name.strip().lower()
+        if value and value not in seen:
+            seen.add(value)
+            normalized.append(value)
+    return normalized
+
+
+class SpeakerProfileQuerySet(models.QuerySet):
+    """QuerySet for speaker profiles with skill-matching helpers."""
+
+    def matching_skill_names(self, skill_names):
+        """Return speakers whose skill tags overlap the given names.
+
+        Matching is case-insensitive. Speakers with no overlapping skills are
+        excluded. An empty skill list matches nobody.
+        """
+        normalized = normalize_skill_names(skill_names)
+        if not normalized:
+            return self.none()
+        matching_tags = (
+            SpeakerSkillTag.objects.filter(speaker_id=OuterRef("pk"))
+            .annotate(name_lower=Lower("name"))
+            .filter(name_lower__in=normalized)
+        )
+        return self.filter(Exists(matching_tags)).select_related("user_account")
+
+
+class SpeakerProfileManager(models.Manager):
+    """Manager for SpeakerProfile."""
+
+    def get_queryset(self):
+        """Use the custom QuerySet."""
+        return SpeakerProfileQuerySet(self.model, using=self._db)
+
+    def matching_skill_names(self, skill_names):
+        """Proxy to QuerySet.matching_skill_names."""
+        return self.get_queryset().matching_skill_names(skill_names)
 
 
 class SpeakerExperiences(TimeStampedModel):
@@ -72,6 +120,7 @@ class SpeakerProfile(TimeStampedModel):
     """speakers model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    objects = SpeakerProfileManager()
     user_account = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="speakers_profile_user"
     )

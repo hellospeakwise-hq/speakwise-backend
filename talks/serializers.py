@@ -3,7 +3,7 @@
 from rest_framework import serializers
 
 from events.models import Event
-from talks.models import Session, TalkReviewComment, Talks
+from talks.models import TalkReviewComment, Talks, TalkSession
 
 
 class SessionSerializer(serializers.ModelSerializer):
@@ -12,7 +12,7 @@ class SessionSerializer(serializers.ModelSerializer):
     class Meta:
         """Meta options."""
 
-        model = Session
+        model = TalkSession
         exclude = ("created_at", "updated_at", "talk")
 
 

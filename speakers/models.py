@@ -209,14 +209,13 @@ class SpeakerDeck(TimeStampedModel):
         help_text="Original name of the uploaded file.",
     )
     file_size = models.PositiveIntegerField(
-        blank=True,
-        null=True,
         help_text="File size in bytes.",
     )
-    description = models.TextField(
+    file_type = models.CharField(
+        max_length=255,
         blank=True,
-        default="",
-        help_text="Optional description of the presentation.",
+        null=True,
+        help_text="MIME type of the uploaded file.",
     )
 
     class Meta:
@@ -233,20 +232,16 @@ class Notification(TimeStampedModel):
     """An in-app notification for a user."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    recipient = models.ForeignKey(
+    user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="notifications",
+        null=True,
+        blank=True,
         help_text="The user who receives this notification.",
     )
-    title = models.CharField(max_length=255)
     message = models.TextField()
     is_read = models.BooleanField(default=False, db_index=True)
-    link = models.URLField(
-        blank=True,
-        default="",
-        help_text="Optional action URL.",
-    )
 
     class Meta:
         """meta options."""
@@ -255,4 +250,5 @@ class Notification(TimeStampedModel):
 
     def __str__(self):
         """String representation showing title and recipient."""
-        return f"{self.title} -> {self.recipient.username}"
+        username = self.user.username if self.user else "deleted user"
+        return f"{self.message[:50]} -> {username}"

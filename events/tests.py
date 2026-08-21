@@ -6,8 +6,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from events.models import Event
-from organizations.choices import OrganizationRole
-from organizations.models import Organization, OrganizationMembership
 from users.models import User
 
 
@@ -22,22 +20,11 @@ class EventAPITestCase(TestCase):
             email="testuser@mail.com",
             password="testpassword",
         )
-        self.organization = Organization.objects.create(
-            name="Test Organization",
-            description="This is a test organization.",
-            created_by=self.user,
-        )
-        self.membership = OrganizationMembership.objects.create(
-            user=self.user,
-            organization=self.organization,
-            role=OrganizationRole.ADMIN.value,
-        )
         self.event_data = {
             "title": "Test Event",
             "short_description": "This is a test event.",
             "website": "https://testevent.com",
             "is_active": True,
-            "organizer": self.organization,
         }
 
         self.event = Event.objects.create(**self.event_data)
@@ -65,28 +52,19 @@ class EventAPITestCase(TestCase):
             "short_description": "This is another test event.",
             "website": "https://newevent.com",
         }
+        self.user.is_superuser = True
+        self.user.save()
         self.client.force_authenticate(user=self.user)
         response = self.client.post(url, new_event_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], new_event_data["title"])
-        self.assertEqual(str(response.data["organizer"]), str(self.organization.id))
 
     def test_update_event_unauthorized(self):
-        """Test that a user from another organization cannot update this event."""
+        """Test that a regular user cannot update this event."""
         other_user = User.objects.create(
             username="otheruser",
             email="otheruser@mail.com",
             password="testpassword",
-        )
-        other_org = Organization.objects.create(
-            name="Other Organization",
-            email="other@org.com",
-            created_by=other_user,
-        )
-        OrganizationMembership.objects.create(
-            user=other_user,
-            organization=other_org,
-            role=OrganizationRole.ADMIN.value,
         )
 
         url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
@@ -94,47 +72,26 @@ class EventAPITestCase(TestCase):
         response = self.client.patch(url, {"title": "Hacked Title"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_get_event_list_with_multiple_orgs(self):
-        """Test that a user with multiple org memberships can list events without error."""
-        second_org = Organization.objects.create(
-            name="Second Organization",
-            email="second@org.com",
-            created_by=self.user,
-        )
-        OrganizationMembership.objects.create(
-            user=self.user,
-            organization=second_org,
-            role=OrganizationRole.ADMIN.value,
-        )
+    def test_get_event_list_with_active_filter(self):
+        """Test that event list returns active events."""
         Event.objects.create(
-            title="Second Org Event",
-            short_description="Event for second org.",
-            organizer=second_org,
+            title="Active Event",
+            short_description="Event is active.",
             is_active=True,
         )
 
         url = reverse("events:event-list-create")
-        self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # 1 from setUp + 1 from here
         self.assertEqual(len(response.data), 2)
 
     def test_delete_event_unauthorized(self):
-        """Test that a user from another organization cannot delete this event."""
+        """Test that a regular user cannot delete this event."""
         other_user = User.objects.create(
             username="otheruser2",
             email="otheruser2@mail.com",
             password="testpassword",
-        )
-        other_org = Organization.objects.create(
-            name="Other Organization 2",
-            email="other2@org.com",
-            created_by=other_user,
-        )
-        OrganizationMembership.objects.create(
-            user=other_user,
-            organization=other_org,
-            role=OrganizationRole.ADMIN.value,
         )
 
         url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
@@ -148,25 +105,15 @@ class EventSpeakerDeckToggleTests(TestCase):
     """Tests for EventSpeakerDeckToggleView."""
 
     def setUp(self):
-        """Set up test case with org admin, event, and accepted speakers."""
+        """Set up test case with superuser, event, and accepted speakers."""
         self.client = APIClient()
 
-        # Admin user and organization
+        # Admin user
         self.admin_user = User.objects.create(
             username="toggle_admin",
             email="toggle_admin@mail.com",
             password="testpassword",
-        )
-        self.organization = Organization.objects.create(
-            name="Toggle Organization",
-            email="toggle@org.com",
-            description="Toggle test org.",
-            created_by=self.admin_user,
-        )
-        self.membership = OrganizationMembership.objects.create(
-            user=self.admin_user,
-            organization=self.organization,
-            role=OrganizationRole.ADMIN.value,
+            is_superuser=True,
         )
 
         # Event
@@ -174,7 +121,6 @@ class EventSpeakerDeckToggleTests(TestCase):
             title="Toggle Event",
             is_active=True,
             speaker_deck_upload_enabled=False,
-            organizer=self.organization,
         )
 
         # Speaker with accepted request
@@ -192,14 +138,13 @@ class EventSpeakerDeckToggleTests(TestCase):
         from speakerrequests.models import SpeakerRequest
 
         SpeakerRequest.objects.create(
-            organizer=self.organization,
             speaker=self.speaker_profile,
             event=self.event,
             status="accepted",
             message="Welcome!",
         )
 
-        # Non-org user (should be forbidden)
+        # Non-superuser (should be forbidden)
         self.non_org_user = User.objects.create(
             username="toggle_outsider",
             email="toggle_outsider@mail.com",
@@ -216,7 +161,7 @@ class EventSpeakerDeckToggleTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_toggle_forbidden_for_non_org_user(self):
-        """POST toggle by a non-org user returns 403."""
+        """POST toggle by a regular user returns 403."""
         self.client.force_authenticate(self.non_org_user)
         res = self.client.post(self.toggle_url)
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
@@ -255,10 +200,10 @@ class EventSpeakerDeckToggleTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         # One accepted speaker → one notification
-        notifications = Notification.objects.filter(recipient=self.speaker_user)
+        notifications = Notification.objects.filter(user=self.speaker_user)
         self.assertEqual(notifications.count(), 1)
         notif = notifications.first()
-        self.assertIn(self.event.title, notif.title)
+        self.assertIn(self.event.title, notif.message)
         self.assertFalse(notif.is_read)
 
     def test_toggle_disable_does_not_create_notifications(self):
@@ -272,7 +217,7 @@ class EventSpeakerDeckToggleTests(TestCase):
         res = self.client.post(self.toggle_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
-        notifications = Notification.objects.filter(recipient=self.speaker_user)
+        notifications = Notification.objects.filter(user=self.speaker_user)
         self.assertEqual(notifications.count(), 0)
 
     def test_toggle_nonexistent_event_returns_404(self):

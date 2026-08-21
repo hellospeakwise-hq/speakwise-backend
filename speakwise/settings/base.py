@@ -56,16 +56,12 @@ LOCAL_APPS = [
     # locally installed apps
     "events",
     "speakers",
-    "attendees",
     "talks",
     "teams",
     "users",
     "feedbacks",
-    "organizations",
     "speakerrequests",
     "cfps",
-    "eventsessions",
-    "eventschedules",
     "blogs",
 ]
 

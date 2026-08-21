@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('events', '0009_event_speaker_deck_upload_enabled'),
+        ("events", "0011_alter_event_slug_alter_event_title_alter_tag_name_and_more"),
     ]
 
     operations = [

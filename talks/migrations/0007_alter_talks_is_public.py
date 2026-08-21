@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('talks', '0006_convert_ids_to_uuid'),
+        ('talks', '0007_alter_talkreviewcomment_created_at_and_more'),
     ]
 
     operations = [

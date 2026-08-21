@@ -8,7 +8,6 @@ from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
 from cfps.models import CFPSubmission
 from cfps.serializers import CFPStatusUpdateSerializer, CFPSubmissionSerializer
 from events.models import Country, Event, Location
-from organizations.models import Organization, OrganizationMembership
 from users.models import User
 
 
@@ -23,12 +22,6 @@ class CFPSubmissionSerializerTest(TestCase):
             email="speaker@test.com",
             password="testpass",
         )
-        self.org = Organization.objects.create(
-            name="SerializerOrg", email="serializerorg@test.com", created_by=self.user
-        )
-        OrganizationMembership.objects.create(
-            organization=self.org, user=self.user, role="ADMIN", added_by=self.user
-        )
         self.event = Event.objects.create(
             title="Serializer Event",
             description="desc",
@@ -39,7 +32,6 @@ class CFPSubmissionSerializerTest(TestCase):
                 state="State",
                 country=Country.objects.create(name="Ghana"),
             ),
-            organizer=self.org,
         )
         self.submission = CFPSubmission.objects.create(
             event=self.event,

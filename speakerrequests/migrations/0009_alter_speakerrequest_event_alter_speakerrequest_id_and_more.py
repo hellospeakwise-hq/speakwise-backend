@@ -10,7 +10,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0009_event_speaker_deck_upload_enabled"),
-        ("organizations", "0005_merge_20260509_1654"),
         ("speakerrequests", "0008_fix_cascade_on_delete"),
         ("speakers", "0014_alter_notification_recipient_and_more"),
     ]
@@ -31,14 +30,6 @@ class Migration(migrations.Migration):
                 editable=False,
                 primary_key=True,
                 serialize=False,
-            ),
-        ),
-        migrations.AlterField(
-            model_name="speakerrequest",
-            name="organizer",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                to="organizations.organization",
             ),
         ),
         migrations.AlterField(

@@ -5,10 +5,11 @@ import uuid
 from django.db import models
 
 from base.models import TimeStampedModel
-from organizations.models import OrganizationMembership
-from speakerrequests.choices import RequestStatusChoices
+from speakerrequests.choices import (
+    RequestProposedSessionTypeChoices,
+    RequestStatusChoices,
+)
 from speakers.models import SpeakerProfile
-from users.models import User
 
 
 class SpeakerRequestQuerySet(models.QuerySet):
@@ -16,10 +17,7 @@ class SpeakerRequestQuerySet(models.QuerySet):
 
     def for_organizer(self, user):
         """Requests for organizations where user is a member."""
-        org_ids = OrganizationMembership.objects.filter(user=user).values_list(
-            "organization_id", flat=True
-        )
-        return self.filter(organizer_id__in=org_ids)
+        return self.none()
 
     def for_speaker(self, user):
         """Requests sent to this speaker."""
@@ -27,7 +25,7 @@ class SpeakerRequestQuerySet(models.QuerySet):
 
     def with_prefetches(self):
         """Common select_related for optimized fetching."""
-        return self.select_related("organizer", "speaker__user_account", "event")
+        return self.select_related("speaker__user_account", "event")
 
 
 class SpeakerRequestManager(models.Manager):
@@ -52,23 +50,69 @@ class SpeakerRequest(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     objects = SpeakerRequestManager()
 
-    organizer = models.ForeignKey(
-        "organizations.Organization", on_delete=models.CASCADE
+    speaker = models.ForeignKey(
+        SpeakerProfile,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="requests_received",
     )
-    speaker = models.ForeignKey(SpeakerProfile, on_delete=models.CASCADE)
     event = models.ForeignKey("events.Event", on_delete=models.CASCADE)
     status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=RequestStatusChoices.choices,
         default=RequestStatusChoices.PENDING,
         db_index=True,
     )
     message = models.TextField(null=False)
 
+    accommodation_covered = models.BooleanField(
+        default=False,
+        help_text="Whether accommodation is covered by the organizer",
+    )
+    notes = models.TextField(
+        help_text="Internal organizer notes, not visible to the speaker",
+        null=True,
+    )
+    proposed_duration = models.PositiveIntegerField(
+        help_text="Proposed duration in minutes",
+        null=True,
+    )
+    proposed_session_type = models.CharField(
+        choices=RequestProposedSessionTypeChoices.choices,
+        default=RequestProposedSessionTypeChoices.IN_PERSON,
+        max_length=50,
+    )
+    proposed_topic = models.CharField(max_length=255, null=True)
+    requested_by = models.ForeignKey(
+        SpeakerProfile,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="requests_made",
+    )
+    responded_at = models.DateTimeField(null=True)
+    response_deadline = models.DateTimeField(
+        help_text="Deadline for the speaker to respond to the request",
+        null=True,
+    )
+    response_message = models.TextField(
+        help_text="Speaker's response or reason for declining",
+        null=True,
+    )
+    speaker_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Honorarium or fee offered to the speaker, if any",
+        null=True,
+    )
+    travel_covered = models.BooleanField(
+        default=False,
+        help_text="Whether travel expenses are covered by the organizer",
+    )
+
     class Meta:
         """Meta options for SpeakerRequest."""
 
-        unique_together = ("organizer", "speaker", "event")
+        unique_together = ("speaker", "event")
         ordering = ["-created_at"]
 
     def __str__(self):
@@ -85,13 +129,13 @@ class SpeakerEmailRequests(TimeStampedModel):
     event = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
     request_from = models.ForeignKey(
-        User,
+        "users.User",
         on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_requests",
     )
     request_to = models.ForeignKey(
-        User,
+        "users.User",
         on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_requests_received",

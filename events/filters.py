@@ -9,15 +9,8 @@ class EventFilter(filters.FilterSet):
     """Event filter."""
 
     title = filters.CharFilter(field_name="title", lookup_expr="icontains")
-    organizer = filters.CharFilter(method="organizer_filter")
     country = filters.CharFilter(method="country_filter")
     venue = filters.CharFilter(method="venue_filter")
-
-    def organizer_filter(self, queryset, name, value):
-        """Filter events by organizer name."""
-        if value:
-            return queryset.filter(organizer__user_account__username__icontains=value)
-        return queryset
 
     def country_filter(self, queryset, name, value):
         """Filter events by country name."""
@@ -35,4 +28,4 @@ class EventFilter(filters.FilterSet):
         """Event filter meta options."""
 
         model = Event
-        fields = ["title", "organizer", "country", "venue"]
+        fields = ["title", "country", "venue"]

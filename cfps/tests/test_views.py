@@ -7,7 +7,6 @@ from rest_framework.test import APIClient
 from cfps.choices import AudienceLevelChoices, CFPStatusChoices, TalkTypeChoices
 from cfps.models import CFPSubmission
 from events.models import Country, Event, Location
-from organizations.models import Organization, OrganizationMembership
 from users.models import User
 
 CFP_PAYLOAD = {
@@ -34,15 +33,6 @@ class CFPSubmissionListCreateViewTest(TestCase):
         self.other_user = User.objects.create(
             username="other", email="other@test.com", password="testpass"
         )
-        self.org = Organization.objects.create(
-            name="TestOrg", email="testorg@test.com", created_by=self.organizer_user
-        )
-        OrganizationMembership.objects.create(
-            organization=self.org,
-            user=self.organizer_user,
-            role="ADMIN",
-            added_by=self.organizer_user,
-        )
         self.event = Event.objects.create(
             title="PyCon View Test",
             description="Event for view tests",
@@ -53,7 +43,6 @@ class CFPSubmissionListCreateViewTest(TestCase):
                 state="State",
                 country=Country.objects.create(name="Ghana"),
             ),
-            organizer=self.org,
         )
         self.url = reverse("cfp:cfp-list-create", kwargs={"slug": self.event.slug})
 
@@ -121,13 +110,15 @@ class CFPSubmissionListCreateViewTest(TestCase):
         self.assertEqual(len(response.data["results"]), 1)
 
     def test_organizer_sees_all_submissions(self):
-        """Test that an organizer sees all submissions for the event."""
+        """Test that a superuser sees all submissions for the event."""
         CFPSubmission.objects.create(
             event=self.event, submitter=self.speaker_user, **CFP_PAYLOAD
         )
         CFPSubmission.objects.create(
             event=self.event, submitter=self.other_user, **CFP_PAYLOAD
         )
+        self.organizer_user.is_superuser = True
+        self.organizer_user.save()
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -156,15 +147,6 @@ class CFPSubmissionDetailViewTest(TestCase):
         self.unrelated_user = User.objects.create(
             username="unrelated", email="unrelated@test.com", password="testpass"
         )
-        self.org = Organization.objects.create(
-            name="DetailOrg", email="detailorg@test.com", created_by=self.organizer_user
-        )
-        OrganizationMembership.objects.create(
-            organization=self.org,
-            user=self.organizer_user,
-            role="ADMIN",
-            added_by=self.organizer_user,
-        )
         self.event = Event.objects.create(
             title="Detail Event",
             description="Event for detail tests",
@@ -175,7 +157,6 @@ class CFPSubmissionDetailViewTest(TestCase):
                 state="State",
                 country=Country.objects.create(name="Nigeria"),
             ),
-            organizer=self.org,
         )
         self.submission = CFPSubmission.objects.create(
             event=self.event, submitter=self.speaker_user, **CFP_PAYLOAD
@@ -189,7 +170,9 @@ class CFPSubmissionDetailViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_organizer_can_retrieve(self):
-        """Test that an organizer can retrieve a submission."""
+        """Test that a superuser can retrieve a submission."""
+        self.organizer_user.is_superuser = True
+        self.organizer_user.save()
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -253,15 +236,6 @@ class CFPStatusUpdateViewTest(TestCase):
         self.speaker_user = User.objects.create(
             username="spk_status", email="spkstatus@test.com", password="testpass"
         )
-        self.org = Organization.objects.create(
-            name="StatusOrg", email="statusorg@test.com", created_by=self.organizer_user
-        )
-        OrganizationMembership.objects.create(
-            organization=self.org,
-            user=self.organizer_user,
-            role="ADMIN",
-            added_by=self.organizer_user,
-        )
         self.event = Event.objects.create(
             title="Status Event",
             description="Event for status tests",
@@ -272,7 +246,6 @@ class CFPStatusUpdateViewTest(TestCase):
                 state="State",
                 country=Country.objects.create(name="Kenya"),
             ),
-            organizer=self.org,
         )
         self.submission = CFPSubmission.objects.create(
             event=self.event, submitter=self.speaker_user, **CFP_PAYLOAD
@@ -280,7 +253,9 @@ class CFPStatusUpdateViewTest(TestCase):
         self.url = reverse("cfp:cfp-status-update", kwargs={"pk": self.submission.id})
 
     def test_organizer_can_accept(self):
-        """Test that an organizer can accept a submission."""
+        """Test that a superuser can accept a submission."""
+        self.organizer_user.is_superuser = True
+        self.organizer_user.save()
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.patch(self.url, {"status": "accepted"}, format="json")
         self.assertEqual(response.status_code, 200)
@@ -288,7 +263,9 @@ class CFPStatusUpdateViewTest(TestCase):
         self.assertEqual(self.submission.status, CFPStatusChoices.ACCEPTED)
 
     def test_organizer_can_reject(self):
-        """Test that an organizer can reject a submission."""
+        """Test that a superuser can reject a submission."""
+        self.organizer_user.is_superuser = True
+        self.organizer_user.save()
         self.client.force_authenticate(user=self.organizer_user)
         response = self.client.patch(self.url, {"status": "rejected"}, format="json")
         self.assertEqual(response.status_code, 200)
@@ -314,15 +291,6 @@ class MyCFPSubmissionsViewTest(TestCase):
         self.other = User.objects.create(
             username="mine_other", email="mine_other@test.com", password="testpass"
         )
-        self.org = Organization.objects.create(
-            name="MineOrg", email="mineorg@test.com", created_by=self.speaker
-        )
-        OrganizationMembership.objects.create(
-            organization=self.org,
-            user=self.speaker,
-            role="ADMIN",
-            added_by=self.speaker,
-        )
         self.event_a = Event.objects.create(
             title="Mine Event A",
             description="desc",
@@ -333,7 +301,6 @@ class MyCFPSubmissionsViewTest(TestCase):
                 state="S",
                 country=Country.objects.create(name="MineCountry"),
             ),
-            organizer=self.org,
         )
         self.event_b = Event.objects.create(
             title="Mine Event B",
@@ -345,7 +312,6 @@ class MyCFPSubmissionsViewTest(TestCase):
                 state="S2",
                 country=Country.objects.create(name="MineCountry2"),
             ),
-            organizer=self.org,
         )
         self.sub_a = CFPSubmission.objects.create(
             event=self.event_a, submitter=self.speaker, **CFP_PAYLOAD

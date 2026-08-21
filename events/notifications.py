@@ -30,13 +30,11 @@ def notify_accepted_speakers_deck_upload(event):
         # Create in-app notification
         notifications_to_create.append(
             Notification(
-                recipient=user,
-                title=f"Upload your presentation for {event.title}",
+                user=user,
                 message=(
                     f"The organizer has enabled presentation uploads for "
                     f"'{event.title}'. Please upload your speaker deck."
                 ),
-                link=upload_url,
             )
         )
 

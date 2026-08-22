@@ -3,13 +3,18 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from base.permissions import IsSuperUser
 from events.models import Event, Tag
-from events.serializers import CFPMarketSerializer, EventSerializer, TagSerializer
+from events.serializers import (
+    CFPMarketSerializer,
+    EventSerializer,
+    EventSubmitSerializer,
+    TagSerializer,
+)
 from events.utils import create_event_payload
 
 
@@ -40,32 +45,46 @@ class TagListView(APIView):
 
 
 class EventListView(APIView):
-    """event list view."""
+    """Public event listing and community event submission."""
 
     def get_permissions(self):
-        """Get permissions."""
-        if self.request.method in ["GET"]:
+        """GET is public; POST requires an authenticated user."""
+        if self.request.method == "GET":
             return [AllowAny()]
-        return [IsSuperUser()]
+        return [IsAuthenticated()]
+
+    def _create_serializer(self, request):
+        """Return the serializer used to create an event for this user."""
+        if request.user.is_superuser:
+            return EventSerializer(data=create_event_payload(request))
+        return EventSubmitSerializer(data=request.data)
+
+    def _create_save_kwargs(self, request):
+        """Return extra fields applied when saving a submitted event."""
+        extra = {"submitted_by": request.user}
+        if not request.user.is_superuser:
+            extra["is_active"] = False
+        return extra
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
-        """List events."""
-        events = Event.objects.prefetch_related("tags").filter(is_active=True)
+        """List published events for the general event listing."""
+        events = Event.objects.published().with_listing_relations()
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
-        tags=["Events"], request=EventSerializer, responses={201: EventSerializer}
+        tags=["Events"],
+        request=EventSubmitSerializer,
+        responses={201: EventSerializer},
     )
     def post(self, request, *args, **kwargs):
-        """Create event."""
-        payload = create_event_payload(request)
-        serializer = EventSerializer(data=payload)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        """Submit an event. Regular users create a pending listing."""
+        serializer = self._create_serializer(request)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        event = serializer.save(**self._create_save_kwargs(request))
+        return Response(EventSerializer(event).data, status=status.HTTP_201_CREATED)
 
 
 class CFPMarketListView(APIView):
@@ -85,15 +104,22 @@ class EventDetailView(APIView):
     """get event detail view."""
 
     def get_permissions(self):
-        """Get permissions."""
-        if self.request.method in ["GET"]:
+        """GET is public; mutations require superuser."""
+        if self.request.method == "GET":
             return [AllowAny()]
         return [IsSuperUser()]
 
+    def _get_visible_event(self, request, slug):
+        """Return the event if the requester is allowed to view it."""
+        return get_object_or_404(
+            Event.objects.visible_to(request.user).with_listing_relations(),
+            slug=slug,
+        )
+
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
-        """Retrieve event detail."""
-        event = get_object_or_404(Event, slug=slug)
+        """Retrieve a published event, or one the requester may see."""
+        event = self._get_visible_event(request, slug)
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

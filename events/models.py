@@ -2,6 +2,7 @@
 
 import uuid
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -25,7 +26,31 @@ class Tag(TimeStampedModel):
 
 
 class EventQuerySet(models.QuerySet):
-    """QuerySet helpers for Event CFP visibility."""
+    """QuerySet helpers for published listings and CFP visibility."""
+
+    def published(self):
+        """Return events approved for the public listing."""
+        return self.filter(is_active=True)
+
+    def with_listing_relations(self):
+        """Select relations used when serializing event listings."""
+        return self.select_related(
+            "location", "location__country", "submitted_by"
+        ).prefetch_related("tags")
+
+    def visible_to(self, user):
+        """Return events the given user is allowed to view.
+
+        Superusers see every event. Authenticated submitters see their own
+        unpublished submissions plus all published events. Everyone else sees
+        published events only.
+        """
+        if getattr(user, "is_superuser", False):
+            return self
+        published = self.filter(is_active=True)
+        if getattr(user, "is_authenticated", False):
+            return (published | self.filter(submitted_by=user)).distinct()
+        return published
 
     def with_open_cfp(self):
         """Return active events whose CFP is currently open.
@@ -44,16 +69,8 @@ class EventQuerySet(models.QuerySet):
         )
 
 
-class EventManager(models.Manager):
-    """Manager for Event with CFP queryset helpers."""
-
-    def get_queryset(self):
-        """Use EventQuerySet."""
-        return EventQuerySet(self.model, using=self._db)
-
-    def with_open_cfp(self):
-        """Proxy to EventQuerySet.with_open_cfp."""
-        return self.get_queryset().with_open_cfp()
+class EventManager(models.Manager.from_queryset(EventQuerySet)):
+    """Manager for Event with listing and CFP queryset helpers."""
 
 
 class Event(TimeStampedModel):
@@ -74,7 +91,20 @@ class Event(TimeStampedModel):
     description = models.TextField(
         blank=True, default="", help_text="Detailed description for event page"
     )
-    website = models.URLField(max_length=255, blank=True, null=True)
+    website = models.URLField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Official event website URL.",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="submitted_events",
+        help_text="The user who submitted this event for listing.",
+    )
     location = models.ForeignKey(
         "Location",
         on_delete=models.SET_NULL,

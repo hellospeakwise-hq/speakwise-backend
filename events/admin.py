@@ -8,10 +8,14 @@ from events.models import Country, Event, Location, Tag
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
 <<<<<<< HEAD
+<<<<<<< HEAD
     """Admin for reviewing listed events and CFP open/closed configuration."""
 =======
     """Admin configuration for reviewing and publishing events."""
 >>>>>>> f0bbdb6e (Enhance event management with admin configuration, improved model queries, and submission workflow. Added event approval process, duplicate detection, and serializers for community submissions. Updated views and tests for new functionality.)
+=======
+    """Admin for reviewing listed events and CFP open/closed configuration."""
+>>>>>>> d85917fd (Add submitted_by field and website help text to Event model; enhance admin and serializer functionality for event submissions)
 
     list_display = (
         "title",
@@ -19,6 +23,9 @@ class EventAdmin(admin.ModelAdmin):
         "is_active",
         "submitted_by",
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> d85917fd (Add submitted_by field and website help text to Event model; enhance admin and serializer functionality for event submissions)
         "accepts_cfp",
         "cfp_open",
         "cfp_deadline",

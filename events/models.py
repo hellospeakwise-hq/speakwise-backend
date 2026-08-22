@@ -28,8 +28,7 @@ class EventQuerySet(models.QuerySet):
     """QuerySet helpers for Event CFP visibility."""
 
     def with_open_cfp(self):
-        """
-        Return active events whose CFP is currently open.
+        """Return active events whose CFP is currently open.
 
         Open requires accepts_cfp and cfp_open, and must fall within the
         optional open_date / deadline window.
@@ -137,8 +136,7 @@ class Event(TimeStampedModel):
 
     @property
     def is_cfp_currently_open(self) -> bool:
-        """
-        Whether this event's CFP is open right now.
+        """Whether this event's CFP is open right now.
 
         Requires accepts_cfp and the manual cfp_open flag, and must fall
         within the optional open_date / deadline window.
@@ -157,11 +155,7 @@ class Event(TimeStampedModel):
         if not self.slug:
             self.slug = slugify(self.title)
         # Persist closed status when the deadline has passed.
-        if (
-            self.cfp_open
-            and self.cfp_deadline
-            and timezone.now() > self.cfp_deadline
-        ):
+        if self.cfp_open and self.cfp_deadline and timezone.now() > self.cfp_deadline:
             self.cfp_open = False
         return super().save(*args, **kwargs)
 

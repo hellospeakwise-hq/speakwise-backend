@@ -3,6 +3,7 @@
 import uuid
 
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -21,6 +22,38 @@ class Tag(TimeStampedModel):
     def __str__(self):
         """Return a string representation of the model."""
         return self.name
+
+
+class EventQuerySet(models.QuerySet):
+    """QuerySet helpers for Event CFP visibility."""
+
+    def with_open_cfp(self):
+        """Return active events whose CFP is currently open.
+
+        Open requires accepts_cfp and cfp_open, and must fall within the
+        optional open_date / deadline window.
+        """
+        now = timezone.now()
+        return self.filter(
+            is_active=True,
+            accepts_cfp=True,
+            cfp_open=True,
+        ).filter(
+            Q(cfp_open_date__isnull=True) | Q(cfp_open_date__lte=now),
+            Q(cfp_deadline__isnull=True) | Q(cfp_deadline__gte=now),
+        )
+
+
+class EventManager(models.Manager):
+    """Manager for Event with CFP queryset helpers."""
+
+    def get_queryset(self):
+        """Use EventQuerySet."""
+        return EventQuerySet(self.model, using=self._db)
+
+    def with_open_cfp(self):
+        """Proxy to EventQuerySet.with_open_cfp."""
+        return self.get_queryset().with_open_cfp()
 
 
 class Event(TimeStampedModel):
@@ -63,6 +96,12 @@ class Event(TimeStampedModel):
         default=False,
         help_text="Is the CFP currently open for submissions?",
     )
+    cfp_link = models.URLField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="External URL for the event's CFP page.",
+    )
     cfp_description = models.TextField(
         blank=True,
         default="",
@@ -89,14 +128,33 @@ class Event(TimeStampedModel):
         help_text="When enabled, accepted speakers can upload their presentation materials.",
     )
 
+    objects = EventManager()
+
     def get_absolute_url(self):
         """Return the URL to access a particular event instance."""
         return f"/events/{self.slug}/"
 
+    @property
+    def is_cfp_currently_open(self) -> bool:
+        """Whether this event's CFP is open right now.
+
+        Requires accepts_cfp and the manual cfp_open flag, and must fall
+        within the optional open_date / deadline window.
+        """
+        if not self.accepts_cfp or not self.cfp_open:
+            return False
+        now = timezone.now()
+        if self.cfp_open_date and now < self.cfp_open_date:
+            return False
+        return not (self.cfp_deadline and now > self.cfp_deadline)
+
     def save(self, *args, **kwargs):
-        """Create slug before saving the event."""
+        """Create slug and mark expired CFPs closed before saving."""
         if not self.slug:
             self.slug = slugify(self.title)
+        # Persist closed status when the deadline has passed.
+        if self.cfp_open and self.cfp_deadline and timezone.now() > self.cfp_deadline:
+            self.cfp_open = False
         return super().save(*args, **kwargs)
 
     def __str__(self):

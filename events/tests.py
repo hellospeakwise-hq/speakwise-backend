@@ -1,11 +1,13 @@
 """evetns tests."""
 
+from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -494,3 +496,106 @@ class NotifyIfCFPJustPublishedTaskTests(TestCase):
             was_open=True,
         )
         self.assertEqual(Notification.objects.count(), 0)
+
+
+class CFPMarketAndStatusTests(TestCase):
+    """Tests for CFP open/closed status and the CFP Market endpoint."""
+
+    def setUp(self):
+        """Set up client and market URL."""
+        self.client = APIClient()
+        self.market_url = reverse("events:cfp-market")
+        self.now = timezone.now()
+
+    def _create_open_cfp_event(self, **overrides):
+        """Create an active event with an open CFP."""
+        defaults = {
+            "title": "Open CFP Event",
+            "is_active": True,
+            "accepts_cfp": True,
+            "cfp_open": True,
+            "cfp_link": "https://example.com/cfp",
+            "cfp_description": "Talks about Python.",
+        }
+        defaults.update(overrides)
+        return Event.objects.create(**defaults)
+
+    def _market_ids(self):
+        """Return event IDs from an unauthenticated market GET."""
+        response = self.client.get(self.market_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return [item["id"] for item in response.data]
+
+    def test_unauthenticated_market_returns_200(self):
+        """CFP Market is publicly accessible."""
+        response = self.client.get(self.market_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_marked_open_without_dates_appears_in_market(self):
+        """Marked open CFP with no dates appears in Market and is currently open."""
+        event = self._create_open_cfp_event()
+        self.assertTrue(event.is_cfp_currently_open)
+
+        ids = self._market_ids()
+        self.assertIn(str(event.id), ids)
+
+        detail = self.client.get(
+            reverse("events:event-detail", kwargs={"slug": event.slug})
+        )
+        self.assertTrue(detail.data["is_cfp_currently_open"])
+        self.assertEqual(detail.data["cfp_link"], "https://example.com/cfp")
+
+    def test_cfp_open_false_excluded_from_market(self):
+        """Events with cfp_open=False do not appear in the Market."""
+        event = self._create_open_cfp_event(cfp_open=False)
+        self.assertFalse(event.is_cfp_currently_open)
+        self.assertNotIn(str(event.id), self._market_ids())
+
+    def test_past_deadline_excluded_and_save_clears_cfp_open(self):
+        """Past deadline excludes from Market and save marks cfp_open False."""
+        event = self._create_open_cfp_event()
+        # Bypass save so the stored flag stays True while deadline is past.
+        Event.objects.filter(pk=event.pk).update(
+            cfp_deadline=self.now - timedelta(days=1)
+        )
+        event.refresh_from_db()
+        self.assertTrue(event.cfp_open)
+        self.assertFalse(event.is_cfp_currently_open)
+        self.assertNotIn(str(event.id), self._market_ids())
+
+        event.save()
+        event.refresh_from_db()
+        self.assertFalse(event.cfp_open)
+
+    def test_future_open_date_excluded_from_market(self):
+        """CFP with a future open date is not yet open."""
+        event = self._create_open_cfp_event(
+            cfp_open_date=self.now + timedelta(days=7),
+            cfp_deadline=self.now + timedelta(days=30),
+        )
+        self.assertFalse(event.is_cfp_currently_open)
+        self.assertNotIn(str(event.id), self._market_ids())
+
+    def test_within_window_included_with_cfp_link(self):
+        """CFP within open/deadline window appears with link in Market payload."""
+        event = self._create_open_cfp_event(
+            title="Window CFP",
+            cfp_open_date=self.now - timedelta(days=1),
+            cfp_deadline=self.now + timedelta(days=14),
+            cfp_link="https://conf.example/cfp",
+        )
+        self.assertTrue(event.is_cfp_currently_open)
+
+        response = self.client.get(self.market_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        match = next(item for item in response.data if item["id"] == str(event.id))
+        self.assertEqual(match["cfp_link"], "https://conf.example/cfp")
+        self.assertTrue(match["is_cfp_currently_open"])
+        self.assertEqual(match["title"], "Window CFP")
+
+    def test_inactive_event_excluded_from_market(self):
+        """Inactive events are excluded even when CFP is flagged open."""
+        event = self._create_open_cfp_event(is_active=False)
+        self.assertTrue(event.is_cfp_currently_open)
+        self.assertNotIn(str(event.id), self._market_ids())

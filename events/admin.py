@@ -7,18 +7,68 @@ from events.models import Country, Event, Location, Tag
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    """Admin configuration for reviewing and publishing events."""
+    """Admin for reviewing events and configuring CFP open/closed status."""
 
     list_display = (
         "title",
         "website",
         "is_active",
         "submitted_by",
+        "accepts_cfp",
+        "cfp_open",
+        "cfp_deadline",
         "start_date_time",
     )
-    list_filter = ("is_active",)
-    search_fields = ("title", "website", "cfp_url")
-    readonly_fields = ("submitted_by", "slug")
+    list_filter = ("is_active", "accepts_cfp", "cfp_open")
+    search_fields = (
+        "title",
+        "website",
+        "cfp_url",
+        "cfp_link",
+        "slug",
+        "short_description",
+    )
+    readonly_fields = ("id", "submitted_by", "slug", "created_at", "updated_at")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "id",
+                    "title",
+                    "event_nickname",
+                    "slug",
+                    "event_image",
+                    "short_description",
+                    "description",
+                    "website",
+                    "location",
+                    "start_date_time",
+                    "end_date_time",
+                    "is_active",
+                    "submitted_by",
+                    "tags",
+                    "speaker_deck_upload_enabled",
+                )
+            },
+        ),
+        (
+            "CFP",
+            {
+                "fields": (
+                    "cfp_url",
+                    "accepts_cfp",
+                    "cfp_open",
+                    "cfp_link",
+                    "cfp_description",
+                    "cfp_open_date",
+                    "cfp_deadline",
+                    "cfp_speaker_notification_date",
+                )
+            },
+        ),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )
 
 
 admin.site.register(Country)

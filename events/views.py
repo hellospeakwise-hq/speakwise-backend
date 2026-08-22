@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 
 from base.permissions import IsSuperUser
 from events.models import Event, Tag
-from events.serializers import EventSerializer, TagSerializer
+from events.serializers import CFPMarketSerializer, EventSerializer, TagSerializer
 from events.utils import create_event_payload
 
 
@@ -66,6 +66,19 @@ class EventListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CFPMarketListView(APIView):
+    """Public list of events with a currently open CFP."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(tags=["CFP Market"], responses={200: CFPMarketSerializer(many=True)})
+    def get(self, request, *args, **kwargs):
+        """Return events whose CFP is currently open for the CFP Market."""
+        events = Event.objects.with_open_cfp().prefetch_related("tags")
+        serializer = CFPMarketSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class EventDetailView(APIView):

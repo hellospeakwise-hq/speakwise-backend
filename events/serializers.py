@@ -127,12 +127,14 @@ class EventSerializer(WritableNestedModelSerializer):
         many=True, queryset=Tag.objects.all(), required=False
     )
     website = serializers.URLField(required=False, allow_blank=True)
+    cfp_link = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
     # Frontend-specific computed fields
     name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
     date_range = serializers.SerializerMethodField()  # New field for start/end dates
+    is_cfp_currently_open = serializers.BooleanField(read_only=True)
     cfp_open_date = serializers.DateTimeField(required=False, allow_null=True)
     cfp_deadline = serializers.DateTimeField(required=False, allow_null=True)
     cfp_speaker_notification_date = serializers.DateField(
@@ -225,3 +227,30 @@ class EventWithGuestSpeakersSerializer(EventSerializer):
         """Get detailed speaker profiles for this event."""
         speakers = obj.speakers.all()
         return SpeakerProfileSerializer(speakers, many=True).data
+
+
+class CFPMarketSerializer(serializers.ModelSerializer):
+    """Slim serializer for CFP Market cards listing open CFPs."""
+
+    name = serializers.CharField(source="title", read_only=True)
+    is_cfp_currently_open = serializers.BooleanField(read_only=True)
+    tags = TagSerializer(many=True, read_only=True)
+
+    class Meta:
+        """Meta options for CFPMarketSerializer."""
+
+        model = Event
+        fields = [
+            "id",
+            "slug",
+            "title",
+            "name",
+            "short_description",
+            "event_image",
+            "tags",
+            "cfp_link",
+            "cfp_deadline",
+            "cfp_open_date",
+            "cfp_description",
+            "is_cfp_currently_open",
+        ]

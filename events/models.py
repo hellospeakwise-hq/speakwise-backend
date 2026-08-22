@@ -146,9 +146,7 @@ class Event(TimeStampedModel):
         now = timezone.now()
         if self.cfp_open_date and now < self.cfp_open_date:
             return False
-        if self.cfp_deadline and now > self.cfp_deadline:
-            return False
-        return True
+        return not (self.cfp_deadline and now > self.cfp_deadline)
 
     def save(self, *args, **kwargs):
         """Create slug and mark expired CFPs closed before saving."""

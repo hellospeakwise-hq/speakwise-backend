@@ -14,6 +14,49 @@ from events.utils import normalize_event_website
 EVENT_IMAGE_UPLOAD = "event_images/"
 
 
+class EventQuerySet(models.QuerySet):
+    """QuerySet for published, pending, and duplicate event lookups."""
+
+    def published(self):
+        """Return events that have been approved for public listing."""
+        return self.filter(is_active=True)
+
+    def pending_review(self):
+        """Return events that are waiting for approval before publication."""
+        return self.filter(is_active=False)
+
+    def with_listing_relations(self):
+        """Select relations used when serializing event listings."""
+        return self.select_related(
+            "location", "location__country", "submitted_by"
+        ).prefetch_related("tags")
+
+    def visible_to(self, user):
+        """Return events the given user is allowed to view.
+
+        Superusers see every event. Authenticated submitters see their own
+        unpublished submissions plus all published events. Everyone else sees
+        published events only.
+        """
+        if getattr(user, "is_superuser", False):
+            return self
+        published = self.filter(is_active=True)
+        if getattr(user, "is_authenticated", False):
+            return (published | self.filter(submitted_by=user)).distinct()
+        return published
+
+    def find_duplicate(self, title, website, exclude_id=None):
+        """Return an event with the same title and official website, if any."""
+        qs = self.filter(title__iexact=title.strip())
+        if exclude_id is not None:
+            qs = qs.exclude(pk=exclude_id)
+        normalized = normalize_event_website(website)
+        for event in qs.only("id", "website", "title"):
+            if normalize_event_website(event.website or "") == normalized:
+                return event
+        return None
+
+
 class Tag(TimeStampedModel):
     """A model for event tags in the SpeakWise application."""
 
@@ -110,10 +153,22 @@ class Event(TimeStampedModel):
     )
     website = models.URLField(
         max_length=255,
+<<<<<<< HEAD
         help_text=(
             "Official event website or a public page about the event "
             "(for example a LinkedIn post)."
         ),
+=======
+        blank=True,
+        null=True,
+        help_text="Official event website URL.",
+    )
+    cfp_url = models.URLField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="External Call for Papers URL, if the event has one.",
+>>>>>>> f0bbdb6e (Enhance event management with admin configuration, improved model queries, and submission workflow. Added event approval process, duplicate detection, and serializers for community submissions. Updated views and tests for new functionality.)
     )
     cfp_url = models.URLField(
         max_length=255,
@@ -127,11 +182,15 @@ class Event(TimeStampedModel):
         null=True,
         blank=True,
         related_name="submitted_events",
+<<<<<<< HEAD
         help_text=(
             "The user who submitted this event for listing. Null for listings "
             "created before attribution existed, and if the submitter account "
             "is later deleted."
         ),
+=======
+        help_text="The user who submitted this event for listing.",
+>>>>>>> f0bbdb6e (Enhance event management with admin configuration, improved model queries, and submission workflow. Added event approval process, duplicate detection, and serializers for community submissions. Updated views and tests for new functionality.)
     )
     location = models.ForeignKey(
         "Location",
@@ -186,7 +245,17 @@ class Event(TimeStampedModel):
         help_text="When enabled, accepted speakers can upload their presentation materials.",
     )
 
+<<<<<<< HEAD
     objects = EventManager()
+=======
+    objects = EventQuerySet.as_manager()
+
+    class Meta:
+        """Meta options for the Event model."""
+
+        verbose_name = "Event"
+        verbose_name_plural = "Events"
+>>>>>>> f0bbdb6e (Enhance event management with admin configuration, improved model queries, and submission workflow. Added event approval process, duplicate detection, and serializers for community submissions. Updated views and tests for new functionality.)
 
     class Meta:
         """Meta options for the Event model."""

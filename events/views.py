@@ -9,8 +9,8 @@ from rest_framework.views import APIView
 
 from base.permissions import IsSuperUser
 from events.models import Event, Tag
-from events.notifications import notify_if_cfp_just_published
 from events.serializers import EventSerializer, TagSerializer
+from events.tasks import notify_if_cfp_just_published_task
 from events.utils import create_event_payload
 
 
@@ -65,7 +65,10 @@ class EventListView(APIView):
         serializer = EventSerializer(data=payload)
         if serializer.is_valid():
             event = serializer.save()
-            notify_if_cfp_just_published(event, was_open=False)
+            notify_if_cfp_just_published_task.enqueue(
+                event_id=str(event.id),
+                was_open=False,
+            )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -97,7 +100,10 @@ class EventDetailView(APIView):
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
             event = serializer.save()
-            notify_if_cfp_just_published(event, was_open=was_cfp_open)
+            notify_if_cfp_just_published_task.enqueue(
+                event_id=str(event.id),
+                was_open=was_cfp_open,
+            )
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

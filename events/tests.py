@@ -1,5 +1,8 @@
 """evetns tests."""
 
+from unittest.mock import patch
+from uuid import uuid4
+
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
@@ -8,6 +11,7 @@ from rest_framework.test import APIClient
 
 from events.models import Event, Tag
 from events.notifications import notify_speakers_matching_published_cfp
+from events.tasks import notify_if_cfp_just_published_task
 from speakers.models import Notification, SpeakerProfile, SpeakerSkillTag
 from users.models import User
 
@@ -408,4 +412,85 @@ class CFPSkillMatchNotificationTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Notification.objects.count(), 0)
+
+    @patch("events.views.notify_if_cfp_just_published_task")
+    def test_opening_cfp_enqueues_notification_task(self, mock_task):
+        """PATCH that opens a CFP enqueues the notification as a background task."""
+        self.client.force_authenticate(self.admin_user)
+        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
+        res = self.client.patch(url, {"cfp_open": True}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        mock_task.enqueue.assert_called_once_with(
+            event_id=str(self.event.id),
+            was_open=False,
+        )
+
+    @patch("events.views.notify_if_cfp_just_published_task")
+    def test_create_event_enqueues_notification_task(self, mock_task):
+        """Creating an event enqueues the CFP notification as a background task."""
+        self.client.force_authenticate(self.admin_user)
+        url = reverse("events:event-list-create")
+        res = self.client.post(
+            url,
+            {
+                "title": "Queued CFP Conf",
+                "is_active": True,
+                "cfp_open": True,
+                "tags": [str(self.ai_tag.id)],
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        mock_task.enqueue.assert_called_once_with(
+            event_id=res.data["id"],
+            was_open=False,
+        )
+
+
+class NotifyIfCFPJustPublishedTaskTests(TestCase):
+    """Tests for notify_if_cfp_just_published_task."""
+
+    def setUp(self):
+        """Set up an open event and a matching speaker."""
+        python_tag = Tag.objects.create(name="Python")
+        self.event = Event.objects.create(
+            title="Queued Summit",
+            is_active=True,
+            cfp_open=True,
+        )
+        self.event.tags.add(python_tag)
+
+        self.speaker_user = User.objects.create(
+            username="queued_speaker",
+            email="queued_speaker@mail.com",
+            password="testpassword",
+        )
+        profile = SpeakerProfile.objects.create(
+            user_account=self.speaker_user, organization="Org"
+        )
+        SpeakerSkillTag.objects.create(speaker=profile, name="Python")
+
+    def test_missing_event_does_not_raise(self):
+        """Enqueueing for an unknown event id logs and returns without error."""
+        notify_if_cfp_just_published_task.enqueue(
+            event_id=str(uuid4()),
+            was_open=False,
+        )
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_task_notifies_when_cfp_just_opened(self):
+        """The task notifies matching speakers when the CFP just opened."""
+        notify_if_cfp_just_published_task.enqueue(
+            event_id=str(self.event.id),
+            was_open=False,
+        )
+        self.assertTrue(Notification.objects.filter(user=self.speaker_user).exists())
+
+    def test_task_does_not_notify_when_cfp_was_already_open(self):
+        """The task does not notify if the CFP was already open."""
+        notify_if_cfp_just_published_task.enqueue(
+            event_id=str(self.event.id),
+            was_open=True,
+        )
         self.assertEqual(Notification.objects.count(), 0)

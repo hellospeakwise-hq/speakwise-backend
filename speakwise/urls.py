@@ -27,7 +27,6 @@ urlpatterns = [
     path("api/", include("events.urls", namespace="events")),
     path("api/", include("feedbacks.urls", namespace="feedbacks")),
     path("api/", include("speakerrequests.urls", namespace="speakerrequests")),
-    path("api/", include("cfps.urls", namespace="cfp")),
     path("api/", include("blogs.urls", namespace="blogs")),
     path("ckeditor5/", include("django_ckeditor_5.urls")),
 ]

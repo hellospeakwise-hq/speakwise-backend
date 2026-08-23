@@ -5,7 +5,7 @@ from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField, UUIDField
 
-from speakers.models import (
+from profiles.models.speaker_models import (
     Notification,
     SpeakerDeck,
     SpeakerExperiences,
@@ -275,7 +275,7 @@ class SpeakerDeckSerializer(ModelSerializer):
         """Validate uploaded file extension and size."""
         import os
 
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         ext = os.path.splitext(value.name)[1].lower()
         if ext not in ALLOWED_DECK_EXTENSIONS:

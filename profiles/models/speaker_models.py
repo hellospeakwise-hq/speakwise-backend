@@ -27,7 +27,7 @@ class SpeakerSkillTag(TimeStampedModel):
     )
     duration = models.PositiveIntegerField(null=True, help_text="years of experience")
     speaker = models.ForeignKey(
-        "speakers.SpeakerProfile",
+        "profiles.SpeakerProfile",
         on_delete=models.CASCADE,
         related_name="skill_tags",
         null=True,
@@ -105,7 +105,7 @@ class SpeakerExperiences(TimeStampedModel):
         blank=True, null=True, help_text="Link to the video recording of the talk"
     )
     speaker = models.ForeignKey(
-        "speakers.SpeakerProfile",
+        "profiles.SpeakerProfile",
         null=True,
         on_delete=models.CASCADE,
         related_name="experiences",

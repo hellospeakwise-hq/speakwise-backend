@@ -5,11 +5,11 @@ import uuid
 from django.db import models
 
 from base.models import TimeStampedModel
+from profiles.models.speaker_models import SpeakerProfile
 from speakerrequests.choices import (
     RequestProposedSessionTypeChoices,
     RequestStatusChoices,
 )
-from speakers.models import SpeakerProfile
 
 
 class SpeakerRequestQuerySet(models.QuerySet):

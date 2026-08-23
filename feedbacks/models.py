@@ -7,7 +7,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from base.models import TimeStampedModel
-from speakers.models import SpeakerProfile
+from profiles.models.speaker_models import SpeakerProfile
 
 RATING_VALIDATORS = [MinValueValidator(1), MaxValueValidator(10)]
 

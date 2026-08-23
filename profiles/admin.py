@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from speakers.models import (
+from profiles.models.speaker_models import (
     Notification,
     SpeakerDeck,
     SpeakerExperiences,

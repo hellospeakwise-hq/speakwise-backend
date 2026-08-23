@@ -13,7 +13,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from speakers.models import (
+from profiles.models.speaker_models import (
     Notification,
     SpeakerDeck,
     SpeakerExperiences,
@@ -21,7 +21,7 @@ from speakers.models import (
     SpeakerProfile,
     SpeakerSkillTag,
 )
-from speakers.serializers import (
+from profiles.serializers.speaker_serializers import (
     FollowerDetailSerializer,
     NotificationSerializer,
     SpeakerDeckSerializer,

@@ -9,8 +9,8 @@ from rest_framework.test import APITestCase
 
 from events.models import Event
 from feedbacks.models import EventFeedbackPreference, Feedback
+from profiles.models import SpeakerProfile
 from speakerrequests.models import SpeakerRequest
-from speakers.models import SpeakerProfile
 
 User = get_user_model()
 

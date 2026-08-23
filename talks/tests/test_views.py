@@ -5,7 +5,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from events.models import Country, Event, Location
-from speakers.models import SpeakerProfile
+from profiles.models import SpeakerProfile
 from talks.models import Talks
 from talks.views import TalkReviewSubmitView
 from users.models import User

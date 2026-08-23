@@ -15,7 +15,7 @@ from rest_framework.test import APIClient
 from events.models import Event, Tag
 from events.notifications import notify_speakers_matching_published_cfp
 from events.tasks import notify_if_cfp_just_published_task
-from speakers.models import Notification, SpeakerProfile, SpeakerSkillTag
+from profiles.models import Notification, SpeakerProfile, SpeakerSkillTag
 from users.models import User
 
 
@@ -139,7 +139,7 @@ class EventSpeakerDeckToggleTests(TestCase):
             email="toggle_speaker@mail.com",
             password="testpassword",
         )
-        from speakers.models import SpeakerProfile
+        from profiles.models import SpeakerProfile
 
         self.speaker_profile = SpeakerProfile.objects.create(
             user_account=self.speaker_user,
@@ -203,7 +203,7 @@ class EventSpeakerDeckToggleTests(TestCase):
 
     def test_toggle_enable_creates_notifications(self):
         """Enabling uploads creates in-app notifications for accepted speakers."""
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         self.client.force_authenticate(self.admin_user)
         res = self.client.post(self.toggle_url)
@@ -218,7 +218,7 @@ class EventSpeakerDeckToggleTests(TestCase):
 
     def test_toggle_disable_does_not_create_notifications(self):
         """Disabling uploads does NOT create notifications."""
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         self.event.speaker_deck_upload_enabled = True
         self.event.save()

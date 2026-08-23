@@ -9,7 +9,7 @@ from django.utils.text import slugify
 
 from base.models import TimeStampedModel
 from events.models import Event
-from speakers.models import SpeakerProfile
+from profiles.models.speaker_models import SpeakerProfile
 from talks.choices import TalkCategoryChoices
 
 PRESENTATION_FILES_UPLOAD_DIR = "presentation_files"

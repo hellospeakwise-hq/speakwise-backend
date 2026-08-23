@@ -6,14 +6,14 @@ from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient, APITestCase
 
-from speakers.models import (
+from profiles.models.speaker_models import (
     SpeakerExperiences,
     SpeakerProfile,
     SpeakerSkillTag,
     SpeakerSocialLinks,
     normalize_skill_names,
 )
-from speakers.serializers import SpeakerProfileSerializer
+from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
 
 
 class TestSpeakerProfile(TestCase):
@@ -143,7 +143,7 @@ class TestSpeakerExperiences(TestCase):
 
     def test_speaker_experiences_serializer(self):
         """Test speaker experiences serializer."""
-        from speakers.serializers import SpeakerExperiencesSerializer
+        from profiles.serializers import SpeakerExperiencesSerializer
 
         serializer = SpeakerExperiencesSerializer(instance=self.speaker_experiences)
         data = serializer.data
@@ -336,7 +336,7 @@ class SpeakerFollowModelTests(TestCase):
 
     def test_follow_creation(self):
         """A SpeakerFollow record is created correctly."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         follow = SpeakerFollow.objects.create(
             follower=self.follower_user,
@@ -348,7 +348,7 @@ class SpeakerFollowModelTests(TestCase):
 
     def test_followers_count_property(self):
         """followers_count reflects the number of SpeakerFollow records."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         self.assertEqual(self.profile.followers_count, 0)
 
@@ -359,7 +359,7 @@ class SpeakerFollowModelTests(TestCase):
         """A user cannot follow the same speaker twice."""
         from django.db import IntegrityError
 
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         with self.assertRaises(IntegrityError):
@@ -369,7 +369,7 @@ class SpeakerFollowModelTests(TestCase):
 
     def test_follow_deleted_on_user_delete(self):
         """Deleting a user cascades to their SpeakerFollow records."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         self.assertEqual(SpeakerFollow.objects.count(), 1)
@@ -379,7 +379,7 @@ class SpeakerFollowModelTests(TestCase):
 
     def test_follow_deleted_on_speaker_profile_delete(self):
         """Deleting a speaker profile cascades to its SpeakerFollow records."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         self.assertEqual(SpeakerFollow.objects.count(), 1)
@@ -423,7 +423,7 @@ class SpeakerProfileSerializerFollowFieldsTests(TestCase):
 
     def test_followers_count_increments_after_follow(self):
         """followers_count reflects actual follow records."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         serializer = SpeakerProfileSerializer(
@@ -442,7 +442,7 @@ class SpeakerProfileSerializerFollowFieldsTests(TestCase):
         """is_following is True for an authenticated user who follows the speaker."""
         from django.test import RequestFactory
 
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
 
@@ -532,7 +532,7 @@ class SpeakerFollowViewTests(APITestCase):
 
     def test_get_follow_status_is_following(self):
         """GET returns is_following=True after the user followed."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         self.client.force_authenticate(self.follower_user)
@@ -552,7 +552,7 @@ class SpeakerFollowViewTests(APITestCase):
 
     def test_post_follow_creates_record(self):
         """POST creates a SpeakerFollow record and returns 201."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         self.client.force_authenticate(self.follower_user)
         res = self.client.post(self.follow_url)
@@ -566,7 +566,7 @@ class SpeakerFollowViewTests(APITestCase):
 
     def test_post_follow_twice_returns_400(self):
         """POST a second time returns 400 'already following'."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         self.client.force_authenticate(self.follower_user)
@@ -596,7 +596,7 @@ class SpeakerFollowViewTests(APITestCase):
 
     def test_delete_unfollow_removes_record(self):
         """DELETE removes the SpeakerFollow record and returns 200."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         self.client.force_authenticate(self.follower_user)
@@ -618,7 +618,7 @@ class SpeakerFollowViewTests(APITestCase):
 
     def test_delete_unfollow_decrements_followers_count(self):
         """followers_count drops by 1 after unfollowing."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_user, speaker=self.profile)
         SpeakerFollow.objects.create(follower=self.other_user, speaker=self.profile)
@@ -678,7 +678,7 @@ class SpeakerFollowersListViewTests(APITestCase):
 
     def test_followers_list_shows_all_followers(self):
         """All follower records appear in the response."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.follower_a, speaker=self.profile)
         SpeakerFollow.objects.create(follower=self.follower_b, speaker=self.profile)
@@ -748,7 +748,7 @@ class FollowingCountFixTests(APITestCase):
 
     def test_get_following_count_reflects_viewed_speaker_not_logged_in_user(self):
         """GET following_count = views speaker's following count, not caller's."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         # user_a follows profile_b and profile_c (profile_a follows 2)
         SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_b)
@@ -767,7 +767,7 @@ class FollowingCountFixTests(APITestCase):
 
     def test_post_following_count_reflects_viewed_speaker_not_logged_in_user(self):
         """POST following_count = viewed speaker's following count, not caller's."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         # user_a follows profile_c (profile_a's following count = 1)
         SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_c)
@@ -786,7 +786,7 @@ class FollowingCountFixTests(APITestCase):
 
     def test_delete_following_count_reflects_viewed_speaker_not_logged_in_user(self):
         """DELETE following_count = viewed speaker's following count, not caller's."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         # user_a follows profile_b and profile_c (profile_a's following count = 2)
         SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_b)
@@ -807,7 +807,7 @@ class FollowingCountFixTests(APITestCase):
 
     def test_serializer_exposes_following_count(self):
         """SpeakerProfileSerializer now includes following_count field."""
-        from speakers.models import SpeakerFollow
+        from profiles.models import SpeakerFollow
 
         SpeakerFollow.objects.create(follower=self.user_a, speaker=self.profile_b)
 
@@ -855,7 +855,7 @@ class SpeakerDeckModelTests(TestCase):
 
     def test_speaker_deck_creation(self):
         """A SpeakerDeck record is created correctly."""
-        from speakers.models import SpeakerDeck
+        from profiles.models import SpeakerDeck
 
         deck = SpeakerDeck.objects.create(
             speaker=self.profile,
@@ -872,7 +872,7 @@ class SpeakerDeckModelTests(TestCase):
 
     def test_speaker_deck_cascade_on_speaker_delete(self):
         """Deleting a speaker profile cascades to its SpeakerDeck records."""
-        from speakers.models import SpeakerDeck
+        from profiles.models import SpeakerDeck
 
         SpeakerDeck.objects.create(
             speaker=self.profile,
@@ -887,7 +887,7 @@ class SpeakerDeckModelTests(TestCase):
 
     def test_speaker_deck_cascade_on_event_delete(self):
         """Deleting an event cascades to its SpeakerDeck records."""
-        from speakers.models import SpeakerDeck
+        from profiles.models import SpeakerDeck
 
         SpeakerDeck.objects.create(
             speaker=self.profile,
@@ -924,7 +924,7 @@ class NotificationModelTests(TestCase):
 
     def test_notification_creation(self):
         """A Notification record is created correctly."""
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         notif = Notification.objects.create(
             user=self.user,
@@ -938,7 +938,7 @@ class NotificationModelTests(TestCase):
 
     def test_notification_default_is_unread(self):
         """Notifications default to is_read=False."""
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         notif = Notification.objects.create(
             user=self.user,
@@ -948,7 +948,7 @@ class NotificationModelTests(TestCase):
 
     def test_notification_cascade_on_user_delete(self):
         """Deleting a user cascades through the speaker profile to notifications."""
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         Notification.objects.create(
             user=self.user,
@@ -971,7 +971,7 @@ class SpeakerDeckSerializerTests(TestCase):
         """Supported file types pass validation."""
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from speakers.serializers import SpeakerDeckSerializer
+        from profiles.serializers import SpeakerDeckSerializer
 
         for ext in [".pdf", ".pptx", ".ppt", ".key", ".odp", ".zip"]:
             filename = f"test{ext}"
@@ -988,7 +988,7 @@ class SpeakerDeckSerializerTests(TestCase):
         """Unsupported file types are rejected."""
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from speakers.serializers import SpeakerDeckSerializer
+        from profiles.serializers import SpeakerDeckSerializer
 
         file = SimpleUploadedFile(
             "test.exe", b"fake content", content_type="application/octet-stream"
@@ -1003,7 +1003,7 @@ class SpeakerDeckSerializerTests(TestCase):
         """Files exceeding 50 MB are rejected."""
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from speakers.serializers import SpeakerDeckSerializer
+        from profiles.serializers import SpeakerDeckSerializer
 
         # Create a file just over the limit
         large_content = b"x" * (50 * 1024 * 1024 + 1)
@@ -1227,7 +1227,7 @@ class SpeakerDeckViewTests(APITestCase):
 
     def test_get_lists_only_own_decks(self):
         """GET returns only the authenticated speaker's decks for the event."""
-        from speakers.models import SpeakerDeck
+        from profiles.models import SpeakerDeck
 
         SpeakerDeck.objects.create(
             speaker=self.speaker_profile,
@@ -1247,7 +1247,7 @@ class SpeakerDeckViewTests(APITestCase):
 
     def test_detail_get_patch_delete(self):
         """Detail view supports GET, PATCH, DELETE for own decks."""
-        from speakers.models import SpeakerDeck
+        from profiles.models import SpeakerDeck
 
         deck = SpeakerDeck.objects.create(
             speaker=self.speaker_profile,
@@ -1280,13 +1280,13 @@ class SpeakerDeckViewTests(APITestCase):
         # DELETE
         res = self.client.delete(detail_url)
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
-        from speakers.models import SpeakerDeck as SD
+        from profiles.models import SpeakerDeck as SD
 
         self.assertFalse(SD.objects.filter(id=deck.id).exists())
 
     def test_detail_other_user_gets_404(self):
         """Other users cannot access another speaker's deck."""
-        from speakers.models import SpeakerDeck
+        from profiles.models import SpeakerDeck
 
         deck = SpeakerDeck.objects.create(
             speaker=self.speaker_profile,
@@ -1303,7 +1303,7 @@ class SpeakerDeckViewTests(APITestCase):
 
     def test_patch_file_replacement_updates_metadata(self):
         """PATCH with a new file updates original_filename and file_size."""
-        from speakers.models import SpeakerDeck
+        from profiles.models import SpeakerDeck
 
         deck = SpeakerDeck.objects.create(
             speaker=self.speaker_profile,
@@ -1342,7 +1342,7 @@ class SanitizeUploadTests(TestCase):
 
     def test_strips_path_traversal(self):
         """Path components are stripped, leaving only the bare filename."""
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         file = self._make_file("../../etc/passwd.pdf")
         sanitize_upload(file)
@@ -1352,7 +1352,7 @@ class SanitizeUploadTests(TestCase):
 
     def test_replaces_special_chars_with_underscores(self):
         """Spaces and special characters in the stem become underscores."""
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         file = self._make_file("my talk (v2)!.pdf")
         sanitize_upload(file)
@@ -1362,7 +1362,7 @@ class SanitizeUploadTests(TestCase):
 
     def test_collapses_consecutive_underscores(self):
         """Multiple consecutive underscores are collapsed to one."""
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         file = self._make_file("hello   world.pptx")
         sanitize_upload(file)
@@ -1370,7 +1370,7 @@ class SanitizeUploadTests(TestCase):
 
     def test_extension_preserved_in_lowercase(self):
         """File extension is retained and normalised to lowercase."""
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         file = self._make_file("Talk.PDF")
         sanitize_upload(file)
@@ -1378,7 +1378,7 @@ class SanitizeUploadTests(TestCase):
 
     def test_uuid_hex_suffix_appended(self):
         """A 32-char hex UUID suffix is appended to the stem."""
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         file = self._make_file("talk.pdf")
         sanitize_upload(file)
@@ -1391,7 +1391,7 @@ class SanitizeUploadTests(TestCase):
 
     def test_two_uploads_same_name_get_different_results(self):
         """The same filename sanitized twice produces different output names."""
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         file1 = self._make_file("deck.pdf")
         file2 = self._make_file("deck.pdf")
@@ -1401,7 +1401,7 @@ class SanitizeUploadTests(TestCase):
 
     def test_file_content_unchanged(self):
         """Sanitisation does not alter the file content."""
-        from speakers.utils import sanitize_upload
+        from profiles.utils import sanitize_upload
 
         content = b"slide data"
         file = self._make_file("deck.pdf", content)
@@ -1412,7 +1412,7 @@ class SanitizeUploadTests(TestCase):
         """validate_file in SpeakerDeckSerializer calls sanitize_upload."""
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from speakers.serializers import SpeakerDeckSerializer
+        from profiles.serializers import SpeakerDeckSerializer
 
         file = SimpleUploadedFile(
             "my talk (v1).pdf", b"content", content_type="application/pdf"
@@ -1453,7 +1453,7 @@ class NotificationViewTests(APITestCase):
             user_account=self.other_user, organization="Other Notif Org"
         )
 
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         self.notif1 = Notification.objects.create(
             user=self.user,

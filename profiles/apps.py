@@ -8,5 +8,5 @@ class SpeakersConfig(AppConfig):
     """speakers app configuration."""
 
     default_auto_field = "django.db.models.BigAutoField"
-    name = "speakers"
-    verbose_name = _("Speakers")
+    name = "profiles"
+    verbose_name = _("Profiles")

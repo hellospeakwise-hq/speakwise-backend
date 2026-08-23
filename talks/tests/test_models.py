@@ -3,7 +3,7 @@
 from django.test import TestCase
 
 from events.models import Country, Event, Location
-from speakers.models import SpeakerProfile
+from profiles.models import SpeakerProfile
 from talks.models import TalkReviewComment, Talks
 from talks.serializers import TalkSerializer
 from users.models import User

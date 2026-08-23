@@ -3,10 +3,10 @@
 from django.conf import settings
 
 from events.models import Event
+from profiles.models.speaker_models import Notification, SpeakerProfile
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.tasks import send_speaker_deck_upload_email
-from speakers.models import Notification, SpeakerProfile
 
 
 def notify_accepted_speakers_deck_upload(event: Event):

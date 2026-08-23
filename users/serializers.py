@@ -4,7 +4,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
-from speakers.serializers import SpeakerProfileSerializer
+from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
 from users.models import User
 
 

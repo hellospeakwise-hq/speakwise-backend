@@ -48,7 +48,7 @@ class TalkSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Auto-assign the speaker from the authenticated user."""
-        from speakers.models import SpeakerProfile
+        from profiles.models import SpeakerProfile
 
         request = self.context.get("request")
         if request and request.user.is_authenticated:

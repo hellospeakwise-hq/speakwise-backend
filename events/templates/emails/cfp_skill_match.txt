@@ -1,0 +1,7 @@
+Hi {{ speaker_name }},
+
+A new Call for Papers for {{ event_name }} matches your skills ({{ matched_skills }}).
+
+Submit a talk while the CFP is open: {{ cfp_url }}
+
+— The {{ site_name }} Team

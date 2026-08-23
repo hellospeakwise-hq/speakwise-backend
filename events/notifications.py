@@ -2,13 +2,14 @@
 
 from django.conf import settings
 
+from events.models import Event
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 from speakerrequests.tasks import send_speaker_deck_upload_email
 from speakers.models import Notification, SpeakerProfile
 
 
-def notify_accepted_speakers_deck_upload(event):
+def notify_accepted_speakers_deck_upload(event: Event):
     """Send email + in-app notifications to all accepted speakers for an event.
 
     Called when an organizer enables speaker deck uploads for the event.
@@ -39,7 +40,7 @@ def notify_accepted_speakers_deck_upload(event):
         )
 
         # Enqueue email notification
-        send_speaker_deck_upload_email.enqueue(
+        _ = send_speaker_deck_upload_email.enqueue(
             speaker_email=user.email,
             event_name=event.title,
             upload_url=upload_url,
@@ -56,13 +57,13 @@ def notify_if_cfp_just_published(event, *, was_open):
         notify_speakers_matching_published_cfp(event)
 
 
-def notify_speakers_matching_published_cfp(event):
+def notify_speakers_matching_published_cfp(event: "Event"):
     """Notify speakers whose skills overlap this event's CFP tags.
 
     Event tags are treated as CFP skill/topic tags. Speakers with no overlapping
     skills are not notified.
     """
-    from cfps.tasks import send_cfp_skill_match_email
+    from events.tasks import send_cfp_skill_match_email
 
     skill_names = list(event.tags.values_list("name", flat=True))
     speakers = SpeakerProfile.objects.matching_skill_names(
@@ -96,7 +97,7 @@ def notify_speakers_matching_published_cfp(event):
         )
         notifications_to_create.append(Notification(user=user, message=message))
         if user.email:
-            send_cfp_skill_match_email.enqueue(
+            _ = send_cfp_skill_match_email.enqueue(
                 speaker_email=user.email,
                 speaker_name=user.first_name or user.username,
                 event_name=event.title,
@@ -105,4 +106,4 @@ def notify_speakers_matching_published_cfp(event):
             )
 
     if notifications_to_create:
-        Notification.objects.bulk_create(notifications_to_create)
+        _ = Notification.objects.bulk_create(notifications_to_create)

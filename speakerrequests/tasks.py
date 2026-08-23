@@ -187,7 +187,7 @@ def send_speaker_deck_upload_email(
         f"The {settings.SITE_NAME} Team"
     )
     try:
-        send_mail(
+        _ = send_mail(
             subject=subject,
             message=body,
             recipient_list=[speaker_email],

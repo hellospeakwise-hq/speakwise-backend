@@ -4,6 +4,7 @@ import logging
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django_tasks import task
 
 logger = logging.getLogger(__name__)
@@ -78,3 +79,35 @@ def send_cfp_status_notification(submission_id) -> None:
             submission.submitter.email,
             e,
         )
+
+
+@task()
+def send_cfp_skill_match_email(
+    speaker_email: str,
+    speaker_name: str,
+    event_name: str,
+    cfp_url: str,
+    matched_skills: str,
+) -> None:
+    """Notify a speaker that a newly published CFP matches their skills."""
+    context = {
+        "speaker_name": speaker_name,
+        "event_name": event_name,
+        "cfp_url": cfp_url,
+        "matched_skills": matched_skills,
+        "site_name": SITE_NAME,
+    }
+    html = render_to_string("emails/cfp_skill_match.html", context)
+    plain_text = render_to_string("emails/cfp_skill_match.txt", context)
+    try:
+        send_mail(
+            subject=f"{SITE_NAME} — New CFP matching your skills: {event_name}",
+            message=plain_text,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[speaker_email],
+            html_message=html,
+            fail_silently=False,
+        )
+        logger.info("CFP skill-match email sent to %s", speaker_email)
+    except Exception:
+        logger.exception("Failed to send CFP skill-match email to %s", speaker_email)

@@ -4,6 +4,7 @@ from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.contrib.auth.models import AnonymousUser
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
@@ -408,6 +409,25 @@ class EventSubmitTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("website", response.data)
 
+    def test_submit_blank_website_is_rejected(self):
+        """Empty or whitespace website values are not accepted."""
+        self.client.force_authenticate(user=self.user)
+        payload = {**self.submission_payload, "website": ""}
+        response = self.client.post(self.submit_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("website", response.data)
+
+    def test_staff_create_without_website_is_rejected(self):
+        """Staff-created events also require a website or public event link."""
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.post(
+            self.submit_url,
+            {"title": "Staff Conf Without Link", "is_active": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("website", response.data)
+
     def test_regular_user_cannot_publish_on_submit(self):
         """Community submissions stay unpublished even if is_active is sent."""
         self.client.force_authenticate(user=self.user)
@@ -459,6 +479,20 @@ class EventSubmitTests(TestCase):
         self.client.force_authenticate(user=self.other_user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_anonymous_visible_to_returns_published_only(self):
+        """Unauthenticated requests have no user identity for submitted_by."""
+        pending = Event.objects.create(
+            title="Pending Anonymous Check",
+            website="https://pending-anon.example.com",
+            is_active=False,
+            submitted_by=self.user,
+        )
+        titles = set(
+            Event.objects.visible_to(AnonymousUser()).values_list("title", flat=True)
+        )
+        self.assertIn(self.published.title, titles)
+        self.assertNotIn(pending.title, titles)
 
     def test_event_submit_does_not_create_cfp_submission(self):
         """Submitting an event listing is not an internal CFP submission."""
@@ -626,6 +660,7 @@ class CFPSkillMatchNotificationTests(TestCase):
             url,
             {
                 "title": "AI Conf",
+                "website": "https://aiconf.example.com",
                 "is_active": True,
                 "cfp_open": True,
                 "tags": [str(self.ai_tag.id)],
@@ -647,6 +682,7 @@ class CFPSkillMatchNotificationTests(TestCase):
             url,
             {
                 "title": "Closed CFP Conf",
+                "website": "https://closedcfp.example.com",
                 "is_active": True,
                 "cfp_open": False,
                 "tags": [str(self.python_tag.id)],
@@ -677,6 +713,7 @@ class CFPSkillMatchNotificationTests(TestCase):
             url,
             {
                 "title": "Queued CFP Conf",
+                "website": "https://queuedcfp.example.com",
                 "is_active": True,
                 "cfp_open": True,
                 "tags": [str(self.ai_tag.id)],

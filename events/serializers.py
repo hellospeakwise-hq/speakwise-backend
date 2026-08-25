@@ -139,7 +139,7 @@ class EventSerializer(WritableNestedModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all(), required=False
     )
-    website = serializers.URLField(required=False, allow_blank=True)
+    website = serializers.URLField()
     cfp_link = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
@@ -234,7 +234,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all(), required=False
     )
-    website = serializers.URLField()
+    website = serializers.URLField(required=True)
     cfp_link = serializers.URLField(required=False, allow_blank=True)
     event_image = serializers.ImageField(required=False, allow_null=True)
     short_description = serializers.CharField(required=False, allow_blank=True)

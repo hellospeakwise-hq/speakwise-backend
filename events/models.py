@@ -41,16 +41,17 @@ class EventQuerySet(models.QuerySet):
     def visible_to(self, user):
         """Return events the given user is allowed to view.
 
-        Superusers see every event. Authenticated submitters see their own
-        unpublished submissions plus all published events. Everyone else sees
-        published events only.
+        Superusers see every event. Authenticated users see published events
+        plus their own unpublished submissions. Anonymous requests have no
+        user identity to match against submitted_by, so they see published
+        events only.
         """
         if getattr(user, "is_superuser", False):
             return self
         published = self.filter(is_active=True)
-        if getattr(user, "is_authenticated", False):
-            return (published | self.filter(submitted_by=user)).distinct()
-        return published
+        if not getattr(user, "is_authenticated", False):
+            return published
+        return (published | self.filter(submitted_by=user)).distinct()
 
     def with_open_cfp(self):
         """Return active events whose CFP is currently open.
@@ -93,9 +94,10 @@ class Event(TimeStampedModel):
     )
     website = models.URLField(
         max_length=255,
-        blank=True,
-        null=True,
-        help_text="Official event website URL.",
+        help_text=(
+            "Official event website or a public page about the event "
+            "(for example a LinkedIn post)."
+        ),
     )
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -103,7 +105,11 @@ class Event(TimeStampedModel):
         null=True,
         blank=True,
         related_name="submitted_events",
-        help_text="The user who submitted this event for listing.",
+        help_text=(
+            "The user who submitted this event for listing. Null for listings "
+            "created before attribution existed, and if the submitter account "
+            "is later deleted."
+        ),
     )
     location = models.ForeignKey(
         "Location",

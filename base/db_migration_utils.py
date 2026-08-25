@@ -53,7 +53,7 @@ def convert_fk_columns_to_uuid(cursor, fk_constraints, already_handled):
             )
         cursor.execute(
             f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" '
-            f'TYPE uuid USING (NULL);'
+            f"TYPE uuid USING (NULL);"
         )
         converted.append((table_name, column_name, is_nullable))
     return converted
@@ -61,9 +61,13 @@ def convert_fk_columns_to_uuid(cursor, fk_constraints, already_handled):
 
 def restore_fk_constraints(cursor, fk_constraints):
     """Recreate dropped FK constraints and their original NOT NULL state."""
-    for table_name, column_name, constraint_name, constraint_def, is_nullable in (
-        fk_constraints
-    ):
+    for (
+        table_name,
+        column_name,
+        constraint_name,
+        constraint_def,
+        is_nullable,
+    ) in fk_constraints:
         if is_nullable == "NO":
             cursor.execute(
                 f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" '
@@ -106,6 +110,4 @@ class FkConstraintSnapshot:
         """Re-add every FK constraint removed during drop()."""
         if schema_editor.connection.vendor != "postgresql":
             return
-        restore_fk_constraints(
-            schema_editor.connection.cursor(), self.captured
-        )
+        restore_fk_constraints(schema_editor.connection.cursor(), self.captured)

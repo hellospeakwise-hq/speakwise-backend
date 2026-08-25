@@ -148,14 +148,11 @@ def update_event_with_relations(instance, validated_data) -> Event:
     return instance
 
 
-def validate_event_is_not_duplicate(*, title, website, exclude_id=None):
+def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
     """Raise ValidationError if an event with the same name and website exists."""
-    if not title:
-        return
-    duplicate = Event.objects.find_duplicate(
+    if Event.objects.find_duplicate(
         title=title, website=website or "", exclude_id=exclude_id
-    )
-    if duplicate:
+    ):
         raise serializers.ValidationError(
             "An event with this name and official website already exists."
         )

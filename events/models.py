@@ -14,6 +14,18 @@ from events.utils import normalize_event_website
 EVENT_IMAGE_UPLOAD = "event_images/"
 
 
+class Tag(TimeStampedModel):
+    """A model for event tags in the SpeakWise application."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    color = models.CharField(max_length=20, default="#007bff")
+
+    def __str__(self):
+        """Return a string representation of the model."""
+        return self.name
+
+
 class EventQuerySet(models.QuerySet):
     """QuerySet for published, pending, and duplicate event lookups."""
 

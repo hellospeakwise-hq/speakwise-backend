@@ -67,7 +67,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("speakerrequests", "0006_alter_speakerrequest_options_and_more"),
-        ("speakers", "0012_convert_ids_to_uuid"),
+        ("profiles", "0012_convert_ids_to_uuid"),
     ]
 
     operations = [

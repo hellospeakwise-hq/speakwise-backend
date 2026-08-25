@@ -73,7 +73,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("talks", "0005_make_event_optional_for_standalone_talks"),
-        ("speakers", "0012_convert_ids_to_uuid"),
+        ("profiles", "0012_convert_ids_to_uuid"),
     ]
 
     operations = [

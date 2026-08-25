@@ -6,9 +6,9 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("speakers", "0015_alter_notification_created_at_and_more"),
+        ("profiles", "0015_alter_notification_created_at_and_more"),
         (
-            "speakers",
+            "profiles",
             "0015_alter_notification_recipient_alter_speakerdeck_event_and_more",
         ),
     ]

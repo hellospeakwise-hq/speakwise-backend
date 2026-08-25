@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0001_initial"),
-        ("speakers", "0001_initial"),
+        ("profiles", "0001_initial"),
     ]
 
     operations = [
@@ -76,7 +76,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="speaker_talks",
-                        to="speakers.speakerprofile",
+                        to="profiles.speakerprofile",
                     ),
                 ),
             ],

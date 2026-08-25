@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("events", "0009_event_speaker_deck_upload_enabled"),
         ("speakerrequests", "0008_fix_cascade_on_delete"),
-        ("speakers", "0014_alter_notification_recipient_and_more"),
+        ("profiles", "0014_alter_notification_recipient_and_more"),
     ]
 
     operations = [
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
             name="speaker",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
     ]

@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0009_event_speaker_deck_upload_enabled"),
-        ("speakers", "0014_alter_notification_recipient_and_more"),
+        ("profiles", "0014_alter_notification_recipient_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="speaker_decks",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
     ]

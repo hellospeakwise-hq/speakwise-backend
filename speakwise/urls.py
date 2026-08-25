@@ -20,7 +20,16 @@ urlpatterns = [
     ),
     path("api/docs/redoc/", SpectacularRedocView.as_view(), name="redoc"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    path("api/", include("profiles.urls", namespace="profiles")),
+    path(
+        "api/",
+        include(
+            "profiles.serializers.urls.organization_urls", namespace="organization"
+        ),
+    ),
+    path(
+        "api/",
+        include("profiles.serializers.urls.speaker_urls", namespace="speakers"),
+    ),
     path("api/", include("talks.urls", namespace="talks")),
     path("api/", include("users.urls", namespace="users")),
     path("api/", include("teams.urls", namespace="teams")),

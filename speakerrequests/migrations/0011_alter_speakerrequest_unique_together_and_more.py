@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             "speakerrequests",
             "0010_rename_organizer_speakerrequest_organization_and_more",
         ),
-        ("speakers", "0016_alter_notification_is_read"),
+        ("profiles", "0016_alter_notification_is_read"),
     ]
 
     operations = [

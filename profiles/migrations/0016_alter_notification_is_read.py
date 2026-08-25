@@ -4,10 +4,9 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         (
-            "speakers",
+            "profiles",
             "0017_alter_notification_options_alter_speakerdeck_options_and_more",
         ),
     ]

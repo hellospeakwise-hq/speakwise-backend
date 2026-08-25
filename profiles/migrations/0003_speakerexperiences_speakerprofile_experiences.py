@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("speakers", "0002_initial"),
+        ("profiles", "0002_initial"),
     ]
 
     operations = [
@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
             field=models.ManyToManyField(
                 blank=True,
                 related_name="speakers_profile_experiences",
-                to="speakers.speakerexperiences",
+                to="profiles.speakerexperiences",
             ),
         ),
     ]

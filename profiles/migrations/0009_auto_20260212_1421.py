@@ -6,7 +6,7 @@ import uuid
 
 
 def generate_unique_slugs(apps, schema_editor):
-    SpeakerProfile = apps.get_model("speakers", "SpeakerProfile")
+    SpeakerProfile = apps.get_model("profiles", "SpeakerProfile")
 
     for profile in SpeakerProfile.objects.all():
         base_value = f"{profile.user_account.first_name}_{profile.user_account.last_name}".strip()
@@ -19,7 +19,7 @@ def generate_unique_slugs(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("speakers", "0008_speakerprofile_slug"),
+        ("profiles", "0008_speakerprofile_slug"),
     ]
 
     operations = [

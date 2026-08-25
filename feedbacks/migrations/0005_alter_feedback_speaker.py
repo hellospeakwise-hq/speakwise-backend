@@ -9,13 +9,13 @@ class Migration(migrations.Migration):
     dependencies = [
         ('feedbacks', '0004_convert_ids_to_uuid'),
         ('feedbacks', '0005_alter_feedback_created_at'),
-        ('speakers', '0016_alter_notification_is_read'),
+        ('profiles', '0016_alter_notification_is_read'),
     ]
 
     operations = [
         migrations.AlterField(
             model_name='feedback',
             name='speaker',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='speaker_feedback', to='speakers.speakerprofile'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='speaker_feedback', to='profiles.speakerprofile'),
         ),
     ]

@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0009_event_speaker_deck_upload_enabled"),
-        ("speakers", "0012_convert_ids_to_uuid"),
+        ("profiles", "0012_convert_ids_to_uuid"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -101,7 +101,7 @@ class Migration(migrations.Migration):
                         help_text="The speaker who uploaded this deck.",
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="speaker_decks",
-                        to="speakers.speakerprofile",
+                        to="profiles.speakerprofile",
                     ),
                 ),
             ],

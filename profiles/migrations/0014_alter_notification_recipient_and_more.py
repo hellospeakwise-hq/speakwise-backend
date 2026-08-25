@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("speakers", "0013_notification_speakerdeck"),
+        ("profiles", "0013_notification_speakerdeck"),
     ]
 
     operations = [
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 help_text="The user who receives this notification.",
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="notifications",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
         migrations.AlterField(

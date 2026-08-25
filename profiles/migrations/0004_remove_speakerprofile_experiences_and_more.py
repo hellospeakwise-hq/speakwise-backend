@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("events", "0001_initial"),
-        ("speakers", "0003_speakerexperiences_speakerprofile_experiences"),
+        ("profiles", "0003_speakerexperiences_speakerprofile_experiences"),
     ]
 
     operations = [
@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="experiences",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
         migrations.AddField(

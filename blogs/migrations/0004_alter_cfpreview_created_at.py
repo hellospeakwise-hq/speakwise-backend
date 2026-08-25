@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("users", "0003_alter_user_first_name"),
+        ("cfps", "0003_add_cfp_review"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name="user",
-            name="first_name",
-            field=models.CharField(help_text="Fist name", max_length=255, null=True),
+            model_name="cfpreview",
+            name="created_at",
+            field=models.DateTimeField(auto_now_add=True),
         ),
     ]

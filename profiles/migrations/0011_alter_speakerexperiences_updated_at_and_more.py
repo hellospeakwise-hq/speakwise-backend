@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("events", "0002_alter_country_updated_at_alter_event_updated_at_and_more"),
-        ("speakers", "0010_add_speaker_follow_model"),
+        ("profiles", "0010_add_speaker_follow_model"),
     ]
 
     operations = [
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="skill_tags",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
         migrations.AlterField(

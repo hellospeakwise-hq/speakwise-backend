@@ -17,7 +17,7 @@ class Feedback(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     speaker = models.ForeignKey(
-        SpeakerProfile,
+        "profiles.SpeakerProfile",
         on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_feedback",

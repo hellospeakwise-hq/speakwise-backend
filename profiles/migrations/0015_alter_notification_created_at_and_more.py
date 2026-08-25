@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("speakers", "0014_alter_notification_recipient_and_more"),
+        ("profiles", "0014_alter_notification_recipient_and_more"),
     ]
 
     operations = [

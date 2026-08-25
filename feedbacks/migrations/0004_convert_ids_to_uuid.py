@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("feedbacks", "0003_alter_feedback_clarity_alter_feedback_content_depth_and_more"),
-        ("speakers", "0012_convert_ids_to_uuid"),
+        ("profiles", "0012_convert_ids_to_uuid"),
     ]
 
     operations = [

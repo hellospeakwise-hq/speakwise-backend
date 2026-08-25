@@ -4,7 +4,7 @@ from django.urls import path
 
 from profiles.views import speaker_views
 
-app_name = "profiles"
+app_name = "speakers"
 
 urlpatterns = [
     # Speaker profile collection

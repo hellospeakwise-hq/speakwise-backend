@@ -8,7 +8,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("speakers", "0009_auto_20260212_1421"),
+        ("profiles", "0009_auto_20260212_1421"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                         help_text="The speaker profile being followed.",
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="followers",
-                        to="speakers.speakerprofile",
+                        to="profiles.speakerprofile",
                     ),
                 ),
             ],

@@ -7,19 +7,27 @@ from events.models import Country, Event, Location, Tag
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    """Admin for events including CFP open/closed configuration."""
+    """Admin for reviewing listed events and CFP open/closed configuration."""
 
     list_display = (
         "title",
+        "website",
         "is_active",
+        "submitted_by",
         "accepts_cfp",
         "cfp_open",
         "cfp_deadline",
         "slug",
     )
     list_filter = ("is_active", "accepts_cfp", "cfp_open")
-    search_fields = ("title", "slug", "short_description")
-    readonly_fields = ("id", "created_at", "updated_at")
+    search_fields = (
+        "title",
+        "website",
+        "cfp_link",
+        "slug",
+        "short_description",
+    )
+    readonly_fields = ("id", "submitted_by", "created_at", "updated_at")
     fieldsets = (
         (
             None,
@@ -37,6 +45,7 @@ class EventAdmin(admin.ModelAdmin):
                     "start_date_time",
                     "end_date_time",
                     "is_active",
+                    "submitted_by",
                     "tags",
                     "speaker_deck_upload_enabled",
                 )

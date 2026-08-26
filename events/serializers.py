@@ -119,6 +119,19 @@ def _resolve_location(location_data: dict | None) -> Location | None:
     )
 
 
+def create_event_with_relations(validated_data) -> Event:
+    """Create an event, resolving nested location/country and tags."""
+    tags = validated_data.pop("tags", [])
+    location_data = validated_data.pop("location", None)
+    location = _resolve_location(location_data)
+    if location:
+        validated_data["location"] = location
+    event = Event.objects.create(**validated_data)
+    if tags:
+        event.tags.set(tags)
+    return event
+
+
 class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
@@ -126,10 +139,11 @@ class EventSerializer(WritableNestedModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all(), required=False
     )
-    website = serializers.URLField(required=False, allow_blank=True)
+    website = serializers.URLField()
     cfp_link = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
+    submitted_by = serializers.PrimaryKeyRelatedField(read_only=True)
     # Frontend-specific computed fields
     name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
@@ -161,15 +175,7 @@ class EventSerializer(WritableNestedModelSerializer):
 
     def create(self, validated_data):
         """Create an event, resolving the nested location/country and tags."""
-        tags = validated_data.pop("tags", [])
-        location_data = validated_data.pop("location", None)
-        location = _resolve_location(location_data)
-        if location:
-            validated_data["location"] = location
-        event = super(WritableNestedModelSerializer, self).create(validated_data)
-        if tags:
-            event.tags.set(tags)
-        return event
+        return create_event_with_relations(validated_data)
 
     def update(self, instance, validated_data):
         """Update an event, resolving the nested location/country and tags."""
@@ -215,6 +221,47 @@ class EventSerializer(WritableNestedModelSerializer):
             "start": start.isoformat() if start else None,
             "end": end.isoformat() if end else None,
         }
+
+
+class EventSubmitSerializer(serializers.ModelSerializer):
+    """Serializer for community event submissions to the public listing.
+
+    Captures showcase fields only. Internal CFP submission settings are not
+    accepted here — those belong to the separate CFP process.
+    """
+
+    location = LocationSerializer(required=False)
+    tags = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Tag.objects.all(), required=False
+    )
+    website = serializers.URLField(required=True)
+    cfp_link = serializers.URLField(required=False, allow_blank=True)
+    event_image = serializers.ImageField(required=False, allow_null=True)
+    short_description = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        """Meta class for the EventSubmitSerializer."""
+
+        model = Event
+        fields = [
+            "id",
+            "title",
+            "event_nickname",
+            "event_image",
+            "short_description",
+            "description",
+            "website",
+            "cfp_link",
+            "location",
+            "start_date_time",
+            "end_date_time",
+            "tags",
+        ]
+        read_only_fields = ["id"]
+
+    def create(self, validated_data):
+        """Create a pending event listing from a user submission."""
+        return create_event_with_relations(validated_data)
 
 
 class EventWithGuestSpeakersSerializer(EventSerializer):

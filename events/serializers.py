@@ -165,7 +165,7 @@ class EventSerializer(WritableNestedModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all(), required=False
     )
-    website = serializers.URLField(required=False, allow_blank=True)
+    website = serializers.URLField()
     cfp_url = serializers.URLField(required=False, allow_blank=True)
     cfp_link = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
@@ -246,14 +246,19 @@ class EventSerializer(WritableNestedModelSerializer):
 
 
 class EventSubmitSerializer(serializers.ModelSerializer):
-    """Serializer for community event submissions pending approval."""
+    """Serializer for community event submissions to the public listing.
+
+    Captures showcase fields only. Internal CFP submission settings are not
+    accepted here — those belong to the separate CFP process.
+    """
 
     location = LocationSerializer(required=False)
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all(), required=False
     )
-    website = serializers.URLField()
+    website = serializers.URLField(required=True)
     cfp_url = serializers.URLField(required=False, allow_blank=True)
+    cfp_link = serializers.URLField(required=False, allow_blank=True)
     event_image = serializers.ImageField(required=False, allow_null=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
 
@@ -270,6 +275,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             "description",
             "website",
             "cfp_url",
+            "cfp_link",
             "location",
             "start_date_time",
             "end_date_time",

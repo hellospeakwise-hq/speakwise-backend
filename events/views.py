@@ -46,7 +46,7 @@ class TagListView(APIView):
 
 
 class EventListView(APIView):
-    """List published events and accept new event submissions."""
+    """Public event listing and community event submission."""
 
     def get_permissions(self):
         """GET is public; POST requires an authenticated user."""
@@ -69,13 +69,15 @@ class EventListView(APIView):
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
-        """List published events."""
+        """List published events for the general event listing."""
         events = Event.objects.published().with_listing_relations()
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
-        tags=["Events"], request=EventSubmitSerializer, responses={201: EventSerializer}
+        tags=["Events"],
+        request=EventSubmitSerializer,
+        responses={201: EventSerializer},
     )
     def post(self, request, *args, **kwargs):
         """Submit an event. Regular users create a listing pending approval."""
@@ -107,8 +109,8 @@ class EventDetailView(APIView):
     """get event detail view."""
 
     def get_permissions(self):
-        """Get permissions."""
-        if self.request.method in ["GET"]:
+        """GET is public; mutations require superuser."""
+        if self.request.method == "GET":
             return [AllowAny()]
         return [IsSuperUser()]
 
@@ -121,7 +123,7 @@ class EventDetailView(APIView):
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
-        """Retrieve a published event, or an unpublished one the user may see."""
+        """Retrieve a published event, or one the requester may see."""
         event = self._get_visible_event(request, slug)
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)

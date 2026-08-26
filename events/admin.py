@@ -7,7 +7,7 @@ from events.models import Country, Event, Location, Tag
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    """Admin for reviewing events and configuring CFP open/closed status."""
+    """Admin for reviewing listed events and CFP open/closed configuration."""
 
     list_display = (
         "title",

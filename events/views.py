@@ -80,7 +80,7 @@ class EventListView(APIView):
         responses={201: EventSerializer},
     )
     def post(self, request, *args, **kwargs):
-        """Submit an event. Regular users create a pending listing."""
+        """Submit an event. Regular users create a listing pending approval."""
         serializer = self._create_serializer(request)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -133,7 +133,7 @@ class EventDetailView(APIView):
     )
     def patch(self, request, slug, *args, **kwargs):
         """Update event detail."""
-        event = get_object_or_404(Event, slug=slug)
+        event = self._get_visible_event(request, slug)
         self.check_object_permissions(request, event)
         was_cfp_open = event.cfp_open
         serializer = EventSerializer(event, data=request.data, partial=True)
@@ -149,10 +149,39 @@ class EventDetailView(APIView):
     @extend_schema(tags=["Events"], responses={204: None})
     def delete(self, request, slug, *args, **kwargs):
         """Delete event."""
-        event = get_object_or_404(Event, slug=slug)
+        event = self._get_visible_event(request, slug)
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EventReviewListView(APIView):
+    """List events that are waiting for approval before publication."""
+
+    permission_classes = [IsSuperUser]
+
+    @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
+    def get(self, request, *args, **kwargs):
+        """Return unpublished event submissions for review."""
+        events = Event.objects.pending_review().with_listing_relations()
+        serializer = EventSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class EventApproveView(APIView):
+    """Approve a submitted event so it becomes publicly visible."""
+
+    permission_classes = [IsSuperUser]
+
+    @extend_schema(tags=["Events"], request=None, responses={200: EventSerializer})
+    def post(self, request, slug, *args, **kwargs):
+        """Mark the event as published."""
+        event = get_object_or_404(Event, slug=slug)
+        self.check_object_permissions(request, event)
+        if not event.is_active:
+            event.is_active = True
+            event.save(update_fields=["is_active", "updated_at"])
+        return Response(EventSerializer(event).data, status=status.HTTP_200_OK)
 
 
 class EventSpeakerDeckToggleView(APIView):

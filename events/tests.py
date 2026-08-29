@@ -249,6 +249,63 @@ class EventSpeakerDeckToggleTests(TestCase):
         self.assertFalse(res.data["speaker_deck_upload_enabled"])
 
 
+class EventWebsiteNormalizationTests(TestCase):
+    """Tests for official website URL normalization used in duplicate detection."""
+
+    def test_strips_scheme_www_and_trailing_slash(self):
+        """Equivalent websites normalize to the same value."""
+        from events.utils import normalize_event_website
+
+        self.assertEqual(
+            normalize_event_website("https://www.PyCon.org/2026/"),
+            normalize_event_website("http://pycon.org/2026"),
+        )
+
+    def test_empty_website_normalizes_to_empty_string(self):
+        """Missing websites compare as empty."""
+        from events.utils import normalize_event_website
+
+        self.assertEqual(normalize_event_website(""), "")
+        self.assertEqual(normalize_event_website(None), "")
+
+
+class EventDuplicateDetectionTests(TestCase):
+    """Tests for EventQuerySet.find_duplicate."""
+
+    def setUp(self):
+        """Create an existing listed event."""
+        self.event = Event.objects.create(
+            title="PyCon Ghana 2026",
+            website="https://pycon.gh/",
+            is_active=True,
+        )
+
+    def test_finds_duplicate_by_title_and_website(self):
+        """Same title and website is a duplicate, ignoring case and URL noise."""
+        duplicate = Event.objects.find_duplicate(
+            title="pycon ghana 2026",
+            website="http://www.pycon.gh",
+        )
+        self.assertEqual(duplicate, self.event)
+
+    def test_different_title_same_website_is_not_duplicate(self):
+        """A later edition with a different name is not treated as a duplicate."""
+        duplicate = Event.objects.find_duplicate(
+            title="PyCon Ghana 2027",
+            website="https://pycon.gh/",
+        )
+        self.assertIsNone(duplicate)
+
+    def test_exclude_id_skips_the_event_being_updated(self):
+        """Updating an event does not treat it as a duplicate of itself."""
+        duplicate = Event.objects.find_duplicate(
+            title="PyCon Ghana 2026",
+            website="https://pycon.gh/",
+            exclude_id=self.event.pk,
+        )
+        self.assertIsNone(duplicate)
+
+
 class EventListingTests(TestCase):
     """Tests for the public general event listing."""
 
@@ -339,7 +396,7 @@ class EventListingTests(TestCase):
 
 
 class EventSubmitTests(TestCase):
-    """Tests for authenticated users submitting events to the listing."""
+    """Tests for submitting, reviewing, and approving event listings."""
 
     def setUp(self):
         """Set up a submitter, another user, and a published event."""
@@ -366,11 +423,13 @@ class EventSubmitTests(TestCase):
             is_active=True,
         )
         self.submit_url = reverse("events:event-list-create")
+        self.review_url = reverse("events:event-review-list")
         self.submission_payload = {
             "title": "Community Conf 2026",
             "short_description": "A community conference.",
             "description": "Talks, workshops, and hallway track.",
             "website": "https://communityconf.example.com",
+            "cfp_url": "https://communityconf.example.com/cfp",
             "cfp_link": "https://communityconf.example.com/cfp",
         }
 
@@ -390,6 +449,7 @@ class EventSubmitTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], self.submission_payload["title"])
         self.assertEqual(response.data["website"], self.submission_payload["website"])
+        self.assertEqual(response.data["cfp_url"], self.submission_payload["cfp_url"])
         self.assertEqual(response.data["cfp_link"], self.submission_payload["cfp_link"])
         self.assertFalse(response.data["is_active"])
         self.assertEqual(str(response.data["submitted_by"]), str(self.user.id))
@@ -398,6 +458,7 @@ class EventSubmitTests(TestCase):
         self.assertFalse(event.is_active)
         self.assertEqual(event.submitted_by, self.user)
         self.assertEqual(event.website, self.submission_payload["website"])
+        self.assertEqual(event.cfp_url, self.submission_payload["cfp_url"])
         self.assertEqual(event.cfp_link, self.submission_payload["cfp_link"])
 
     def test_submit_without_website_is_rejected(self):
@@ -452,6 +513,18 @@ class EventSubmitTests(TestCase):
         self.assertIn(self.published.title, titles)
         self.assertNotIn("Pending Conf", titles)
 
+    def test_submitted_event_is_not_publicly_visible_by_slug(self):
+        """Anonymous users cannot retrieve an unpublished event by slug."""
+        pending = Event.objects.create(
+            title="Hidden Conf",
+            website="https://hidden.example.com",
+            is_active=False,
+            submitted_by=self.user,
+        )
+        url = reverse("events:event-detail", kwargs={"slug": pending.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_submitter_can_view_own_pending_event(self):
         """The submitter can retrieve their event before publication."""
         pending = Event.objects.create(
@@ -479,6 +552,20 @@ class EventSubmitTests(TestCase):
         self.client.force_authenticate(user=self.other_user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_duplicate_submission_is_rejected(self):
+        """Submitting the same name and official website is rejected."""
+        Event.objects.create(
+            title="Community Conf 2026",
+            website="https://communityconf.example.com/",
+            is_active=False,
+        )
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            self.submit_url, self.submission_payload, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Event.objects.filter(title="Community Conf 2026").count(), 1)
 
     def test_anonymous_visible_to_returns_published_only(self):
         """Unauthenticated requests have no user identity for submitted_by."""
@@ -520,6 +607,72 @@ class EventSubmitTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data["is_active"])
         self.assertEqual(str(response.data["submitted_by"]), str(self.admin_user.id))
+
+    def test_review_list_requires_superuser(self):
+        """Regular users cannot list events pending review."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self.review_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_review_list_returns_pending_events(self):
+        """Superusers can review unpublished submissions."""
+        pending = Event.objects.create(
+            title="Review Me Conf",
+            website="https://reviewme.example.com",
+            is_active=False,
+            submitted_by=self.user,
+        )
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get(self.review_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [event["id"] for event in response.data]
+        self.assertIn(str(pending.id), ids)
+        self.assertNotIn(str(self.published.id), ids)
+
+    def test_approve_requires_superuser(self):
+        """Regular users cannot approve an event listing."""
+        pending = Event.objects.create(
+            title="Approve Me Conf",
+            website="https://approveme.example.com",
+            is_active=False,
+            submitted_by=self.user,
+        )
+        url = reverse("events:event-approve", kwargs={"slug": pending.slug})
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        pending.refresh_from_db()
+        self.assertFalse(pending.is_active)
+
+    def test_approved_event_becomes_publicly_visible(self):
+        """Approving a submission publishes it and links the official website."""
+        pending = Event.objects.create(
+            title="Soon Public Conf",
+            website="https://soonpublic.example.com",
+            cfp_url="https://soonpublic.example.com/cfp",
+            is_active=False,
+            submitted_by=self.user,
+        )
+        approve_url = reverse("events:event-approve", kwargs={"slug": pending.slug})
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.post(approve_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_active"])
+        self.assertEqual(response.data["website"], pending.website)
+
+        pending.refresh_from_db()
+        self.assertTrue(pending.is_active)
+
+        self.client.force_authenticate(user=None)
+        list_response = self.client.get(self.submit_url)
+        titles = [event["title"] for event in list_response.data]
+        self.assertIn(pending.title, titles)
+
+        detail_url = reverse("events:event-detail", kwargs={"slug": pending.slug})
+        detail_response = self.client.get(detail_url)
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.data["website"], pending.website)
+        self.assertEqual(detail_response.data["cfp_url"], pending.cfp_url)
 
 
 class CFPSkillMatchNotificationTests(TestCase):

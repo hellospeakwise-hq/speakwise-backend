@@ -17,17 +17,18 @@ class EventAdmin(admin.ModelAdmin):
         "accepts_cfp",
         "cfp_open",
         "cfp_deadline",
-        "slug",
+        "start_date_time",
     )
     list_filter = ("is_active", "accepts_cfp", "cfp_open")
     search_fields = (
         "title",
         "website",
+        "cfp_url",
         "cfp_link",
         "slug",
         "short_description",
     )
-    readonly_fields = ("id", "submitted_by", "created_at", "updated_at")
+    readonly_fields = ("id", "submitted_by", "slug", "created_at", "updated_at")
     fieldsets = (
         (
             None,
@@ -55,6 +56,7 @@ class EventAdmin(admin.ModelAdmin):
             "CFP",
             {
                 "fields": (
+                    "cfp_url",
                     "accepts_cfp",
                     "cfp_open",
                     "cfp_link",

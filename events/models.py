@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from base.models import TimeStampedModel
+from events.utils import normalize_event_website
 
 EVENT_IMAGE_UPLOAD = "event_images/"
 
@@ -26,11 +27,15 @@ class Tag(TimeStampedModel):
 
 
 class EventQuerySet(models.QuerySet):
-    """QuerySet helpers for published listings and CFP visibility."""
+    """QuerySet for published, pending, duplicate, and CFP event lookups."""
 
     def published(self):
-        """Return events approved for the public listing."""
+        """Return events that have been approved for public listing."""
         return self.filter(is_active=True)
+
+    def pending_review(self):
+        """Return events that are waiting for approval before publication."""
+        return self.filter(is_active=False)
 
     def with_listing_relations(self):
         """Select relations used when serializing event listings."""
@@ -52,6 +57,17 @@ class EventQuerySet(models.QuerySet):
         if not getattr(user, "is_authenticated", False):
             return published
         return (published | self.filter(submitted_by=user)).distinct()
+
+    def find_duplicate(self, title, website, exclude_id=None):
+        """Return an event with the same title and official website, if any."""
+        qs = self.filter(title__iexact=title.strip())
+        if exclude_id is not None:
+            qs = qs.exclude(pk=exclude_id)
+        normalized = normalize_event_website(website)
+        for event in qs.only("id", "website", "title"):
+            if normalize_event_website(event.website or "") == normalized:
+                return event
+        return None
 
     def with_open_cfp(self):
         """Return active events whose CFP is currently open.
@@ -98,6 +114,12 @@ class Event(TimeStampedModel):
             "Official event website or a public page about the event "
             "(for example a LinkedIn post)."
         ),
+    )
+    cfp_url = models.URLField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="External Call for Papers URL, if the event has one.",
     )
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -165,6 +187,12 @@ class Event(TimeStampedModel):
     )
 
     objects = EventManager()
+
+    class Meta:
+        """Meta options for the Event model."""
+
+        verbose_name = "Event"
+        verbose_name_plural = "Events"
 
     def get_absolute_url(self):
         """Return the URL to access a particular event instance."""

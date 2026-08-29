@@ -10,9 +10,17 @@ urlpatterns = [
     path("events/tags/", views.TagListView.as_view(), name="tag-list"),
     path("events/", views.EventListView.as_view(), name="event-list-create"),
     path(
+        "events/review/", views.EventReviewListView.as_view(), name="event-review-list"
+    ),
+    path(
         "events/cfp-market/",
         views.CFPMarketListView.as_view(),
         name="cfp-market",
+    ),
+    path(
+        "events/<str:slug>/approve/",
+        views.EventApproveView.as_view(),
+        name="event-approve",
     ),
     path(
         "events/<str:slug>/toggle-speaker-deck-upload/",

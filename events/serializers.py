@@ -132,6 +132,32 @@ def create_event_with_relations(validated_data) -> Event:
     return event
 
 
+def update_event_with_relations(instance, validated_data) -> Event:
+    """Update an event, resolving nested location/country and tags."""
+    tags = validated_data.pop("tags", None)
+    location_data = validated_data.pop("location", None)
+    if location_data is not None:
+        location = _resolve_location(location_data)
+        if location:
+            validated_data["location"] = location
+    for attr, value in validated_data.items():
+        setattr(instance, attr, value)
+    instance.save()
+    if tags is not None:
+        instance.tags.set(tags)
+    return instance
+
+
+def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
+    """Raise ValidationError if an event with the same name and website exists."""
+    if Event.objects.find_duplicate(
+        title=title, website=website or "", exclude_id=exclude_id
+    ):
+        raise serializers.ValidationError(
+            "An event with this name and official website already exists."
+        )
+
+
 class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
@@ -140,6 +166,7 @@ class EventSerializer(WritableNestedModelSerializer):
         many=True, queryset=Tag.objects.all(), required=False
     )
     website = serializers.URLField()
+    cfp_url = serializers.URLField(required=False, allow_blank=True)
     cfp_link = serializers.URLField(required=False, allow_blank=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
     location = LocationSerializer(required=False)
@@ -161,17 +188,23 @@ class EventSerializer(WritableNestedModelSerializer):
         model = Event
         exclude = ["created_at", "updated_at"]
 
-    # ------------------------------------------------------------------
-    # Override create/update to resolve location → country via get_or_create
-    # instead of letting drf_writable_nested blindly try to INSERT a country
-    # that already exists.
-    # ------------------------------------------------------------------
-
     def to_representation(self, instance):
         """Return full tag objects instead of plain UUIDs."""
         data = super().to_representation(instance)
         data["tags"] = TagSerializer(instance.tags.all(), many=True).data
         return data
+
+    def validate(self, attrs):
+        """Reject listings that duplicate an existing name and official website."""
+        title = attrs.get("title") or (self.instance.title if self.instance else "")
+        website = attrs.get("website")
+        if website is None:
+            website = self.instance.website if self.instance else ""
+        exclude_id = self.instance.pk if self.instance else None
+        validate_event_is_not_duplicate(
+            title=title, website=website or "", exclude_id=exclude_id
+        )
+        return attrs
 
     def create(self, validated_data):
         """Create an event, resolving the nested location/country and tags."""
@@ -179,18 +212,7 @@ class EventSerializer(WritableNestedModelSerializer):
 
     def update(self, instance, validated_data):
         """Update an event, resolving the nested location/country and tags."""
-        tags = validated_data.pop("tags", None)
-        location_data = validated_data.pop("location", None)
-        if location_data is not None:
-            location = _resolve_location(location_data)
-            if location:
-                validated_data["location"] = location
-        instance = super(WritableNestedModelSerializer, self).update(
-            instance, validated_data
-        )
-        if tags is not None:
-            instance.tags.set(tags)
-        return instance
+        return update_event_with_relations(instance, validated_data)
 
     def get_date(self, obj) -> str | None:
         """Return a compact date representation for the event.
@@ -235,6 +257,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
         many=True, queryset=Tag.objects.all(), required=False
     )
     website = serializers.URLField(required=True)
+    cfp_url = serializers.URLField(required=False, allow_blank=True)
     cfp_link = serializers.URLField(required=False, allow_blank=True)
     event_image = serializers.ImageField(required=False, allow_null=True)
     short_description = serializers.CharField(required=False, allow_blank=True)
@@ -251,6 +274,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             "short_description",
             "description",
             "website",
+            "cfp_url",
             "cfp_link",
             "location",
             "start_date_time",
@@ -258,6 +282,14 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             "tags",
         ]
         read_only_fields = ["id"]
+
+    def validate(self, attrs):
+        """Reject submissions that duplicate an existing listing."""
+        validate_event_is_not_duplicate(
+            title=attrs.get("title", ""),
+            website=attrs.get("website", ""),
+        )
+        return attrs
 
     def create(self, validated_data):
         """Create a pending event listing from a user submission."""

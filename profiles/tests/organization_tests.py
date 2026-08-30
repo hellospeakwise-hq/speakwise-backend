@@ -78,9 +78,7 @@ class OrganizationProfileModelTests(TestCase):
         self.assertEqual(self.organization.name, "Acme Corp")
         self.assertEqual(self.organization.description, "A test organization")
         self.assertEqual(self.organization.website, "https://acme.example.com")
-        self.assertEqual(
-            self.organization.contact_email, "hello@acme.example.com"
-        )
+        self.assertEqual(self.organization.contact_email, "hello@acme.example.com")
 
     def test_organization_str_returns_name(self):
         """__str__ returns the organization name."""
@@ -286,9 +284,7 @@ class OrganizationProfileListCreateViewTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.data["name"], "Gamma Org")
         self.assertEqual(res.data["website"], "https://gamma.example.com")
-        self.assertTrue(
-            OrganizationProfile.objects.filter(name="Gamma Org").exists()
-        )
+        self.assertTrue(OrganizationProfile.objects.filter(name="Gamma Org").exists())
 
     def test_create_duplicate_name_returns_400(self):
         """Creating an organization with a duplicate name is rejected."""
@@ -386,9 +382,7 @@ class OrganizationProfileDetailViewTests(APITestCase):
         """PUT with a name already used by another organization is rejected."""
         OrganizationProfile.objects.create(name="Other Org")
         self.client.force_authenticate(self.user)
-        res = self.client.put(
-            self.detail_url, {"name": "Other Org"}, format="json"
-        )
+        res = self.client.put(self.detail_url, {"name": "Other Org"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("name", res.data)
 
@@ -396,7 +390,9 @@ class OrganizationProfileDetailViewTests(APITestCase):
         """PUT with a malformed website is rejected."""
         self.client.force_authenticate(self.user)
         res = self.client.put(
-            self.detail_url, {"name": "Alpha Org", "website": "not-a-url"}, format="json"
+            self.detail_url,
+            {"name": "Alpha Org", "website": "not-a-url"},
+            format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("website", res.data)

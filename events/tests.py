@@ -1,11 +1,21 @@
-"""evetns tests."""
+"""Events tests."""
 
+from datetime import timedelta
+from unittest.mock import patch
+from uuid import uuid4
+
+from django.contrib.auth.models import AnonymousUser
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from events.models import Event
+from events.models import Event, Tag
+from events.notifications import notify_speakers_matching_published_cfp
+from events.tasks import notify_if_cfp_just_published_task
+from profiles.models import Notification, SpeakerProfile, SpeakerSkillTag
 from users.models import User
 
 
@@ -77,6 +87,7 @@ class EventAPITestCase(TestCase):
         Event.objects.create(
             title="Active Event",
             short_description="Event is active.",
+            website="https://activeevent.example.com",
             is_active=True,
         )
 
@@ -119,6 +130,7 @@ class EventSpeakerDeckToggleTests(TestCase):
         # Event
         self.event = Event.objects.create(
             title="Toggle Event",
+            website="https://toggleevent.example.com",
             is_active=True,
             speaker_deck_upload_enabled=False,
         )
@@ -129,7 +141,7 @@ class EventSpeakerDeckToggleTests(TestCase):
             email="toggle_speaker@mail.com",
             password="testpassword",
         )
-        from speakers.models import SpeakerProfile
+        from profiles.models import SpeakerProfile
 
         self.speaker_profile = SpeakerProfile.objects.create(
             user_account=self.speaker_user,
@@ -193,7 +205,7 @@ class EventSpeakerDeckToggleTests(TestCase):
 
     def test_toggle_enable_creates_notifications(self):
         """Enabling uploads creates in-app notifications for accepted speakers."""
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         self.client.force_authenticate(self.admin_user)
         res = self.client.post(self.toggle_url)
@@ -208,7 +220,7 @@ class EventSpeakerDeckToggleTests(TestCase):
 
     def test_toggle_disable_does_not_create_notifications(self):
         """Disabling uploads does NOT create notifications."""
-        from speakers.models import Notification
+        from profiles.models import Notification
 
         self.event.speaker_deck_upload_enabled = True
         self.event.save()
@@ -663,6 +675,7 @@ class CFPSkillMatchNotificationTests(TestCase):
         self.ai_tag = Tag.objects.create(name="AI")
         self.event = Event.objects.create(
             title="PyData Summit",
+            website="https://pydatasummit.example.com",
             is_active=True,
             cfp_open=False,
         )
@@ -794,7 +807,6 @@ class CFPSkillMatchNotificationTests(TestCase):
                 "title": "AI Conf",
                 "website": "https://aiconf.example.com",
                 "is_active": True,
-                "website": "https://aiconf.example.com",
                 "cfp_open": True,
                 "tags": [str(self.ai_tag.id)],
             },
@@ -818,7 +830,6 @@ class CFPSkillMatchNotificationTests(TestCase):
                 "title": "Closed CFP Conf",
                 "website": "https://closedcfp.example.com",
                 "is_active": True,
-                "website": "https://closedcfp.example.com",
                 "cfp_open": False,
                 "tags": [str(self.python_tag.id)],
             },
@@ -850,7 +861,6 @@ class CFPSkillMatchNotificationTests(TestCase):
                 "title": "Queued CFP Conf",
                 "website": "https://queuedcfp.example.com",
                 "is_active": True,
-                "website": "https://queuedcfp.example.com",
                 "cfp_open": True,
                 "tags": [str(self.ai_tag.id)],
             },
@@ -871,6 +881,7 @@ class NotifyIfCFPJustPublishedTaskTests(TestCase):
         python_tag = Tag.objects.create(name="Python")
         self.event = Event.objects.create(
             title="Queued Summit",
+            website="https://queuedsummit.example.com",
             is_active=True,
             cfp_open=True,
         )
@@ -924,6 +935,7 @@ class CFPMarketAndStatusTests(TestCase):
         """Create an active event with an open CFP."""
         defaults = {
             "title": "Open CFP Event",
+            "website": "https://opencfp.example.com",
             "is_active": True,
             "accepts_cfp": True,
             "cfp_open": True,

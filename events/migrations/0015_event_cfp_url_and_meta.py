@@ -6,6 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
+        ("events", "0013_alter_eventspeakers_options_alter_country_name"),
         ("events", "0014_require_event_website"),
     ]
 

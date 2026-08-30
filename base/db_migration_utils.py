@@ -1,5 +1,12 @@
 """Shared PostgreSQL helpers for UUID primary-key conversion migrations."""
 
+
+def enable_pgcrypto(apps, schema_editor):
+    """Enable the pgcrypto extension on PostgreSQL (needed for gen_random_uuid)."""
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+
+
 FK_DISCOVERY_SQL = """
     SELECT
         tc.table_name,

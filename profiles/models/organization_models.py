@@ -41,13 +41,17 @@ class OrganizationProfile(TimeStampedModel):
 
     def get_open_cfps(self):
         """Return all open CFPs for the organization."""
-        return self.cfp.filter(
-            open_at__lte=timezone.now(), close_at__gte=timezone.now()
+        return OrganizationCFP.objects.filter(
+            organization_cfp=self,
+            open_at__lte=timezone.now(),
+            close_at__gte=timezone.now(),
         )
 
     def get_closed_cfps(self):
         """Return all closed CFPs for the organization."""
-        return self.cfp.filter(close_at__lt=timezone.now())
+        return OrganizationCFP.objects.filter(
+            organization_cfp=self, close_at__lt=timezone.now()
+        )
 
 
 class OrganizationCFP(TimeStampedModel):

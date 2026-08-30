@@ -1,29 +1,20 @@
+"""Convert profiles primary keys to UUID, preserving inbound foreign keys."""
+
 import uuid
 
 from django.db import migrations, models
 
+from base.db_migration_utils import FkConstraintSnapshot, enable_pgcrypto
 
-def pgcrypto_if_postgres(apps, schema_editor):
-    """Enable pgcrypto extension on PostgreSQL (needed for gen_random_uuid)."""
-    if schema_editor.connection.vendor == "postgresql":
-        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+snapshot = FkConstraintSnapshot()
 
-
-def drop_fk_constraints(apps, schema_editor):
-    """Dynamically find and drop ALL FK constraints referencing speakers tables,
-    including constraints from other apps (feedbacks, talks, speakerrequests, etc.).
-    """
-    if schema_editor.connection.vendor != "postgresql":
-        return
-
-    cursor = schema_editor.connection.cursor()
-    target_pk_tables = [
-        "profiles_speakerprofile",
-        "profiles_speakerexperiences",
-        "profiles_speakerskilltag",
-        "profiles_speakersociallinks",
-        "profiles_speakerfollow",
-    ]
+TARGET_PK_TABLES = [
+    "profiles_speakerprofile",
+    "profiles_speakerexperiences",
+    "profiles_speakerskilltag",
+    "profiles_speakersociallinks",
+    "profiles_speakerfollow",
+]
 
     cursor.execute(
         """
@@ -293,6 +284,8 @@ def restore_fk_constraints(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    """Convert profiles PKs to UUID while preserving inbound foreign keys."""
+
     dependencies = [
         ("profiles", "0011_alter_speakerexperiences_updated_at_and_more"),
     ]
@@ -394,5 +387,5 @@ class Migration(migrations.Migration):
                 ),
             ]
         ),
-        migrations.RunPython(restore_fk_constraints, migrations.RunPython.noop),
+        migrations.RunPython(restore_inbound_fks, migrations.RunPython.noop),
     ]

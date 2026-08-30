@@ -1,80 +1,59 @@
+"""Convert teams primary keys to UUID, preserving inbound foreign keys."""
+
 import uuid
+
 from django.db import migrations, models
 
+from base.db_migration_utils import FkConstraintSnapshot, enable_pgcrypto
 
-def pgcrypto_if_postgres(apps, schema_editor):
-    if schema_editor.connection.vendor == "postgresql":
-        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+snapshot = FkConstraintSnapshot()
 
+TARGET_PK_TABLES = [
+    "team_member",
+    "team_social",
+]
 
-def drop_fk_constraints(apps, schema_editor):
-    """Dynamically find and drop ALL FK constraints referencing team tables."""
+# Columns converted inside convert_own_columns_to_uuid below.
+already_handled = {
+    ("team_social", "team_member_id"),
+}
 
-    if schema_editor.connection.vendor != "postgresql":
-        return
-
-    cursor = schema_editor.connection.cursor()
-    target_pk_tables = ["team_member", "team_social"]
-
-    cursor.execute(
-        """
-        SELECT
-            tc.table_name,
-            kcu.column_name,
-            tc.constraint_name
-        FROM information_schema.table_constraints tc
-        JOIN information_schema.key_column_usage kcu
-          ON tc.constraint_name = kcu.constraint_name
-          AND tc.table_schema = kcu.table_schema
-        JOIN information_schema.constraint_column_usage ccu
-          ON tc.constraint_name = ccu.constraint_name
-          AND tc.table_schema = ccu.table_schema
-        WHERE tc.constraint_type = 'FOREIGN KEY'
-          AND ccu.table_name = ANY(%s);
-        """,
-        [target_pk_tables],
-    )
-    fk_constraints = cursor.fetchall()
-
-    for table_name, column_name, constraint_name in fk_constraints:
-        cursor.execute(
-            f'ALTER TABLE "{table_name}" DROP CONSTRAINT "{constraint_name}";'
-        )
-
-    # These FK columns are handled in the RunSQL block below
-    already_handled = {
-        ("team_social", "team_member_id"),
-    }
-    for table_name, column_name, constraint_name in fk_constraints:
-        if (table_name, column_name) not in already_handled:
-            cursor.execute(
-                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
-            )
-            cursor.execute(
-                f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE uuid USING (NULL);'
-            )
+OWN_CONVERSION_STATEMENTS = [
+    'ALTER TABLE "team_member" ALTER COLUMN id DROP IDENTITY IF EXISTS;',
+    'ALTER TABLE "team_social" ALTER COLUMN id DROP IDENTITY IF EXISTS;',
+    'ALTER TABLE "team_member" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());',
+    'ALTER TABLE "team_social" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());',
+    'ALTER TABLE "team_social" ALTER COLUMN team_member_id DROP NOT NULL;',
+    'ALTER TABLE "team_social" ALTER COLUMN team_member_id TYPE uuid USING (NULL);',
+]
 
 
-def convert_columns_to_uuid(apps, schema_editor):
-    if schema_editor.connection.vendor == "postgresql":
-        schema_editor.execute('ALTER TABLE "team_member" ALTER COLUMN id DROP IDENTITY IF EXISTS;')
-        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN id DROP IDENTITY IF EXISTS;')
-        schema_editor.execute('ALTER TABLE "team_member" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());')
-        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN id TYPE uuid USING (gen_random_uuid());')
-        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN team_member_id DROP NOT NULL;')
-        schema_editor.execute('ALTER TABLE "team_social" ALTER COLUMN team_member_id TYPE uuid USING (NULL);')
+def drop_inbound_fks(apps, schema_editor):
+    """Drop FK constraints referencing the converted tables, capturing definitions."""
+    snapshot.drop(schema_editor, TARGET_PK_TABLES, already_handled)
+
+
+def convert_own_columns_to_uuid(apps, schema_editor):
+    """Convert the app's own PK and FK columns to uuid."""
+    snapshot.convert_targets(schema_editor, OWN_CONVERSION_STATEMENTS)
+
+
+def restore_inbound_fks(apps, schema_editor):
+    """Re-add every FK constraint dropped for the conversion."""
+    snapshot.restore(schema_editor)
 
 
 class Migration(migrations.Migration):
+    """Convert team PKs to UUID while preserving inbound foreign keys."""
 
     dependencies = [
         ("teams", "0003_alter_teammember_updated_at_alter_teamsocial_link_and_more"),
     ]
 
     operations = [
-        migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
-        migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
-        migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
+        migrations.RunPython(enable_pgcrypto, migrations.RunPython.noop),
+        migrations.RunPython(drop_inbound_fks, migrations.RunPython.noop),
+        migrations.RunPython(convert_own_columns_to_uuid, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="teammember",
             name="id",
@@ -95,4 +74,5 @@ class Migration(migrations.Migration):
                 serialize=False,
             ),
         ),
+        migrations.RunPython(restore_inbound_fks, migrations.RunPython.noop),
     ]

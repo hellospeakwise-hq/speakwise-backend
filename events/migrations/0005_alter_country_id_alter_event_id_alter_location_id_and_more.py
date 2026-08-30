@@ -5,7 +5,7 @@ import uuid
 
 from django.db import migrations, models
 
-from base.db_migration_utils import FkConstraintSnapshot
+from base.db_migration_utils import FkConstraintSnapshot, enable_pgcrypto
 
 snapshot = FkConstraintSnapshot()
 
@@ -43,12 +43,6 @@ OWN_CONVERSION_STATEMENTS = [
     "ALTER TABLE events_event_tags ALTER COLUMN tag_id DROP NOT NULL;",
     "ALTER TABLE events_event_tags ALTER COLUMN tag_id TYPE uuid USING (NULL);",
 ]
-
-
-def enable_pgcrypto(apps, schema_editor):
-    """Enable pgcrypto extension on PostgreSQL (needed for gen_random_uuid)."""
-    if schema_editor.connection.vendor == "postgresql":
-        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
 
 
 def drop_inbound_fks(apps, schema_editor):

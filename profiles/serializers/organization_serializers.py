@@ -18,7 +18,7 @@ class OrganizationCFPSerializer(serializers.ModelSerializer):
 class OrganizationProfileSerializer(serializers.ModelSerializer):
     """Serializer for OrganizationProfile model."""
 
-    cfps = OrganizationCFPSerializer(many=True, required=False)
+    cfps = OrganizationCFPSerializer(read_only=True, required=False)
 
     class Meta:
         """Meta-options for OrganizationProfileSerializer."""

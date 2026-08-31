@@ -823,6 +823,7 @@ class CFPSkillMatchNotificationTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
         notified = set(Notification.objects.values_list("user_id", flat=True))
+
         self.assertIn(self.case_user.id, notified)
         self.assertNotIn(self.matching_user.id, notified)
         self.assertNotIn(self.unrelated_user.id, notified)

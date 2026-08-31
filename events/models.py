@@ -241,7 +241,7 @@ class EventSpeakers(TimeStampedModel):
     )
 
     class Meta:
-        """Meta options for EventSpeakers."""
+        """Meta-options for EventSpeakers."""
 
         verbose_name = "Event Speaker"
         verbose_name_plural = "Event Speakers"
@@ -283,7 +283,7 @@ class Country(TimeStampedModel):
     code = models.CharField(max_length=2, null=True, unique=True)
 
     class Meta:
-        """Meta options for the Country model."""
+        """Meta-options for the Country model."""
 
         verbose_name_plural = "Countries"
 

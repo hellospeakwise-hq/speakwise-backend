@@ -545,6 +545,8 @@ class SpeakerFollowingListView(APIView):
 
 
 # ---------- Speaker Deck Views ----------
+
+
 @extend_schema(tags=["speaker decks"])
 class SpeakerDeckListCreateView(APIView):
     """List and upload speaker decks for an event.
@@ -599,7 +601,17 @@ class SpeakerDeckListCreateView(APIView):
 
         return event, speaker_profile, None
 
-    @extend_schema(responses=SpeakerDeckSerializer(many=True))
+    @extend_schema(
+        responses=SpeakerDeckSerializer(many=True),
+        parameters=[
+            {
+                "name": "event",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+    )
     def get(self, request):
         """List speaker decks for the authenticated speaker and event."""
         event, speaker_profile, error = self._get_event_and_speaker(request)
@@ -607,9 +619,7 @@ class SpeakerDeckListCreateView(APIView):
             return error
 
         decks = SpeakerDeck.objects.filter(speaker=speaker_profile, event=event)
-        serializer = SpeakerDeckSerializer(
-            decks, many=True, context={"request": request}
-        )
+        serializer = SpeakerDeckSerializer(decks, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(request=SpeakerDeckSerializer, responses=SpeakerDeckSerializer)
@@ -629,45 +639,35 @@ class SpeakerDeckListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Check speaker is accepted for this event via either path:
-        # 1. Organizer-invited (SpeakerRequest), 2. CFP submission accepted
-        from cfps.choices import CFPStatusChoices
-        from cfps.models import CFPSubmission
-
-        is_accepted = (
-            SpeakerRequest.objects.filter(
-                event=event,
-                speaker=speaker_profile,
-                status=RequestStatusChoices.ACCEPTED,
-            ).exists()
-            or CFPSubmission.objects.filter(
-                event=event,
-                submitter=request.user,
-                status=CFPStatusChoices.ACCEPTED,
-            ).exists()
-        )
+        # Check speaker is accepted for this event
+        is_accepted = SpeakerRequest.objects.filter(
+            event=event,
+            speaker=speaker_profile,
+            status=RequestStatusChoices.ACCEPTED,
+        ).exists()
 
         if not is_accepted:
             return Response(
                 {
-                    "detail": "You must be an accepted speaker for this event to upload a deck."
+                    "detail": "You must be an accepted speaker for this "
+                    "event to upload a deck."
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        original_file = request.FILES.get("file")
-        original_name = original_file.name if original_file else None
+        # Capture the caller's filename before validation sanitizes it for
+        # storage — uploads must keep the name the speaker gave the file.
+        upload = request.FILES.get("file")
+        original_filename = upload.name if upload else ""
 
-        serializer = SpeakerDeckSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = SpeakerDeckSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         serializer.save(
             speaker=speaker_profile,
             event=event,
-            original_filename=original_name,
-            file_size=original_file.size if original_file else 0,
+            original_filename=original_filename,
+            file_size=upload.size if upload else 0,
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -705,10 +705,9 @@ class SpeakerDeckRetrieveUpdateDestroyView(APIView):
         # If a new file is uploaded, update the metadata fields
         save_kwargs = {}
         if "file" in serializer.validated_data:
-            uploaded_file = request.FILES.get("file")
-            if uploaded_file:
-                save_kwargs["original_filename"] = uploaded_file.name
-                save_kwargs["file_size"] = uploaded_file.size
+            uploaded_file = serializer.validated_data["file"]
+            save_kwargs["original_filename"] = uploaded_file.name
+            save_kwargs["file_size"] = uploaded_file.size
 
         serializer.save(**save_kwargs)
         return Response(serializer.data, status=status.HTTP_200_OK)

@@ -61,7 +61,6 @@ LOCAL_APPS = [
     "users",
     "feedbacks",
     "speakerrequests",
-    "cfps",
     "blogs",
 ]
 

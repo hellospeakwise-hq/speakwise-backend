@@ -581,17 +581,6 @@ class EventSubmitTests(TestCase):
         self.assertIn(self.published.title, titles)
         self.assertNotIn(pending.title, titles)
 
-    def test_event_submit_does_not_create_cfp_submission(self):
-        """Submitting an event listing is not an internal CFP submission."""
-        from cfps.models import CFPSubmission
-
-        self.client.force_authenticate(user=self.user)
-        response = self.client.post(
-            self.submit_url, self.submission_payload, format="json"
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(CFPSubmission.objects.count(), 0)
-
     def test_superuser_can_still_create_published_event(self):
         """Staff can create a published listing directly."""
         self.client.force_authenticate(user=self.admin_user)

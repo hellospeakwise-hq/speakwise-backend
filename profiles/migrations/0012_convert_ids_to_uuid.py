@@ -16,6 +16,20 @@ TARGET_PK_TABLES = [
     "profiles_speakerfollow",
 ]
 
+def pgcrypto_if_postgres(apps, schema_editor):
+    """Enable pgcrypto extension on PostgreSQL."""
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+
+
+def drop_fk_constraints(apps, schema_editor):
+    """Drop foreign keys referencing tables whose IDs are converted."""
+    if schema_editor.connection.vendor != "postgresql":
+        return
+
+    cursor = schema_editor.connection.cursor()
+    target_pk_tables = TARGET_PK_TABLES
+
     cursor.execute(
         """
         SELECT
@@ -137,7 +151,7 @@ def convert_columns_to_uuid(apps, schema_editor):
         )
 
 
-def restore_fk_constraints(apps, schema_editor):
+def restore_inbound_fks(apps, schema_editor):
     """Re-add FK constraints and NOT NULLs removed for the UUID conversion.
 
     Nullability mirrors the model definitions: skill-tag and experience
@@ -294,17 +308,11 @@ class Migration(migrations.Migration):
         migrations.RunPython(pgcrypto_if_postgres, migrations.RunPython.noop),
         migrations.RunPython(drop_fk_constraints, migrations.RunPython.noop),
         migrations.RunPython(convert_columns_to_uuid, migrations.RunPython.noop),
-<<<<<<< HEAD
         # State-only syncs: the database columns were converted by the raw SQL
         # above. Running these as regular AlterField operations would make the
         # schema editor try to reconcile every related table itself (including
         # cross-app FKs and long-removed m2m through tables), producing invalid
         # DDL such as casting uuid columns back to bigint.
-=======
-        # State-only: the physical conversion happened in convert_columns_to_uuid.
-        # Letting the schema editor emit these as DDL makes Django reconcile
-        # related tables itself and produce invalid casts on cross-app FKs.
->>>>>>> fc62ad0 (refactor speakers api into profiles.)
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AlterField(
@@ -317,13 +325,10 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-<<<<<<< HEAD
             ]
         ),
         migrations.SeparateDatabaseAndState(
             state_operations=[
-=======
->>>>>>> fc62ad0 (refactor speakers api into profiles.)
                 migrations.AlterField(
                     model_name="speakerexperiences",
                     name="id",
@@ -334,13 +339,10 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-<<<<<<< HEAD
             ]
         ),
         migrations.SeparateDatabaseAndState(
             state_operations=[
-=======
->>>>>>> fc62ad0 (refactor speakers api into profiles.)
                 migrations.AlterField(
                     model_name="speakerskilltag",
                     name="id",
@@ -351,13 +353,10 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-<<<<<<< HEAD
             ]
         ),
         migrations.SeparateDatabaseAndState(
             state_operations=[
-=======
->>>>>>> fc62ad0 (refactor speakers api into profiles.)
                 migrations.AlterField(
                     model_name="speakersociallinks",
                     name="id",
@@ -368,13 +367,10 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-<<<<<<< HEAD
             ]
         ),
         migrations.SeparateDatabaseAndState(
             state_operations=[
-=======
->>>>>>> fc62ad0 (refactor speakers api into profiles.)
                 migrations.AlterField(
                     model_name="speakerfollow",
                     name="id",

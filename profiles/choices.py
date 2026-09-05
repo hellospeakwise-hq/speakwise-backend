@@ -13,3 +13,12 @@ class EventTypeChoices(models.TextChoices):
     MEETUP = "meetup", _("Meetup")
     COOPERATE_EVENT = "cooperate event", _("Cooperate event")
     OTHER = "other", _("Other")
+
+
+class OrganizationStatusChoices(models.TextChoices):
+    """organization status choices."""
+
+    ACTIVE = "active", _("Active")
+    INACTIVE = "inactive", _("Inactive")
+    REJECTED = "rejected", _("Rejected")
+    PENDING = "pending", _("Pending")

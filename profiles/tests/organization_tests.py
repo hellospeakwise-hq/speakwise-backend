@@ -4,6 +4,7 @@ import uuid
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.db import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
@@ -11,6 +12,7 @@ from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient, APITestCase
 
+from profiles.choices import OrganizationStatusChoices
 from profiles.models import OrganizationProfile
 from profiles.models.organization_models import OrganizationCFP
 from profiles.serializers.organization_serializers import (
@@ -425,3 +427,43 @@ class OrganizationProfileDetailViewTests(APITestCase):
         )
         res = self.client.delete(url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class OrganizationSignalTests(TestCase):
+    """Tests for the organization signals."""
+
+    def setUp(self):
+        """Set up the test client."""
+        self.organization = OrganizationProfile.objects.create(
+            name="Test Org",
+            status=OrganizationStatusChoices.PENDING,
+            contact_email="test@example.com",
+        )
+
+    def test_status_update_from_pending_to_active_sends_email(self):
+        """Updating status from pending to active should send an email."""
+        self.organization.status = OrganizationStatusChoices.ACTIVE
+        self.organization.save()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["test@example.com"])
+        self.assertIn("Test Org", mail.outbox[0].subject)
+
+    def test_status_update_from_pending_to_rejected_sends_email(self):
+        """Updating status from pending to rejected should send an email."""
+        self.organization.status = OrganizationStatusChoices.REJECTED
+        self.organization.save()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["test@example.com"])
+        self.assertIn("Test Org", mail.outbox[0].subject)
+
+    def test_status_update_from_active_to_rejected_does_not_send_email(self):
+        """Updating status from active to rejected should NOT send an email."""
+        self.organization.status = OrganizationStatusChoices.ACTIVE
+        self.organization.save()
+
+        # Reset outbox
+        mail.outbox = []
+
+        self.organization.status = OrganizationStatusChoices.REJECTED
+        self.organization.save()
+        self.assertEqual(len(mail.outbox), 0)

@@ -3,7 +3,6 @@
 from .organization_models import OrganizationProfile
 from .speaker_models import (
     Notification,
-    SpeakerDeck,
     SpeakerExperiences,
     SpeakerFollow,
     SpeakerProfile,
@@ -14,7 +13,6 @@ from .speaker_models import (
 __all__ = [
     "Notification",
     "OrganizationProfile",
-    "SpeakerDeck",
     "SpeakerExperiences",
     "SpeakerFollow",
     "SpeakerProfile",

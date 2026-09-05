@@ -35,17 +35,6 @@ urlpatterns = [
         speaker_views.SpeakerSkillTagsDetailView.as_view(),
         name="skills_detail",
     ),
-    # Speaker deck management
-    path(
-        "speakers/decks/",
-        speaker_views.SpeakerDeckListCreateView.as_view(),
-        name="speaker_decks_list_create",
-    ),
-    path(
-        "speakers/decks/<uuid:pk>/",
-        speaker_views.SpeakerDeckRetrieveUpdateDestroyView.as_view(),
-        name="speaker_deck_detail",
-    ),
     # Notifications
     path(
         "notifications/",

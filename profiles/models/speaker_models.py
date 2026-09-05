@@ -230,53 +230,6 @@ class SpeakerFollow(TimeStampedModel):
         return f"{self.follower.username} follows {self.speaker}"
 
 
-class SpeakerDeck(TimeStampedModel):
-    """A presentation file uploaded by an accepted speaker for an event."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    speaker = models.ForeignKey(
-        SpeakerProfile,
-        on_delete=models.CASCADE,
-        related_name="speaker_decks",
-        blank=True,
-        null=True,
-        help_text="The speaker who uploaded this deck.",
-    )
-    event = models.ForeignKey(
-        "events.Event",
-        on_delete=models.CASCADE,
-        related_name="speaker_decks",
-        blank=True,
-        null=True,
-        help_text="The event this deck is associated with.",
-    )
-    file = models.FileField(upload_to="speaker_decks/")
-    original_filename = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text="Original name of the uploaded file.",
-    )
-    file_size = models.PositiveIntegerField(
-        help_text="File size in bytes.",
-    )
-    file_type = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text="MIME type of the uploaded file.",
-    )
-
-    class Meta:
-        """meta options."""
-
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        """String representation showing filename and speaker."""
-        return f"{self.original_filename} by {self.speaker}"
-
-
 class Notification(TimeStampedModel):
     """An in-app notification for a user."""
 

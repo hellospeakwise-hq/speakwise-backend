@@ -4,7 +4,6 @@ from .organization_serializers import OrganizationProfileSerializer
 from .speaker_serializers import (
     FollowerDetailSerializer,
     NotificationSerializer,
-    SpeakerDeckSerializer,
     SpeakerExperiencesSerializer,
     SpeakerFollowSerializer,
     SpeakerProfileSerializer,
@@ -16,7 +15,6 @@ __all__ = [
     "FollowerDetailSerializer",
     "NotificationSerializer",
     "OrganizationProfileSerializer",
-    "SpeakerDeckSerializer",
     "SpeakerExperiencesSerializer",
     "SpeakerFollowSerializer",
     "SpeakerProfileSerializer",

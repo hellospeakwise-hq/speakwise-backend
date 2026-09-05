@@ -6,12 +6,19 @@ from django.db import models
 from django.utils import timezone
 
 from base.models import TimeStampedModel
+from profiles.choices import OrganizationStatusChoices
 
 
 class OrganizationProfile(TimeStampedModel):
     """Organization profile model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="organization_owner",
+    )
     name = models.CharField(max_length=255, unique=True, help_text="Organization name")
     description = models.TextField(
         blank=True, null=True, help_text="A brief description of the organization"
@@ -34,6 +41,20 @@ class OrganizationProfile(TimeStampedModel):
         null=True,
         related_name="organization_cfp",
     )
+    # admin actions
+    status = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        default=OrganizationStatusChoices.PENDING.value,
+    )
+    old_status = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        default=OrganizationStatusChoices.PENDING.value,
+    )
+    admin_notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
         """String representation of the organization profile."""
@@ -52,6 +73,10 @@ class OrganizationProfile(TimeStampedModel):
         return OrganizationCFP.objects.filter(
             organization_cfp=self, close_at__lt=timezone.now()
         )
+
+    def get_status_display(self):
+        """Return organization status."""
+        return self.status
 
 
 class OrganizationCFP(TimeStampedModel):

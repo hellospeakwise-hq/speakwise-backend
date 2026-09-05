@@ -26,10 +26,13 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         model = OrganizationProfile
         fields = [
             "id",
+            "owner",
             "name",
             "description",
             "website",
             "branding",
             "contact_email",
+            "status",
             "cfps",
         ]
+        read_only_fields = ["owner", "status", "id"]

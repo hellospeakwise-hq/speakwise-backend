@@ -10,3 +10,7 @@ class SpeakersConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "profiles"
     verbose_name = _("Profiles")
+
+    def ready(self):
+        """Set up the app ready function."""
+        import profiles.signals  # noqa

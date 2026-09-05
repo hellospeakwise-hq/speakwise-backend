@@ -19,7 +19,7 @@ class OrganizationProfileAdmin(admin.ModelAdmin):
 
     list_display = ("name", "description")
     search_fields = ("name",)
-    list_filter = ("name", "owner__username")
+    list_filter = ("name", "owner__username", "status")
     ordering = ("name",)
 
 

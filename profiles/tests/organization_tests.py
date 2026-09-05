@@ -170,11 +170,13 @@ class OrganizationProfileSerializerTests(TestCase):
             set(serializer.data.keys()),
             {
                 "id",
+                "owner",
                 "name",
                 "description",
                 "website",
                 "branding",
                 "contact_email",
+                "status",
                 "cfps",
             },
         )
@@ -287,6 +289,33 @@ class OrganizationProfileListCreateViewTests(APITestCase):
         self.assertEqual(res.data["name"], "Gamma Org")
         self.assertEqual(res.data["website"], "https://gamma.example.com")
         self.assertTrue(OrganizationProfile.objects.filter(name="Gamma Org").exists())
+
+    def test_create_sets_owner_to_request_user(self):
+        """The authenticated user who creates the organization becomes its owner."""
+        self.client.force_authenticate(self.user)
+        res = self.client.post(self.list_url, {"name": "Owner Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        organization = OrganizationProfile.objects.get(name="Owner Org")
+        self.assertEqual(organization.owner, self.user)
+        self.assertEqual(res.data["owner"], self.user.id)
+
+    def test_create_ignores_client_supplied_owner(self):
+        """The owner field cannot be set by the client; it is always the current user."""
+        other_user = get_user_model().objects.create(
+            username="orgotheruser",
+            email="orgother@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(self.user)
+        res = self.client.post(
+            self.list_url,
+            {"name": "Sneaky Org", "owner": str(other_user.id)},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        organization = OrganizationProfile.objects.get(name="Sneaky Org")
+        self.assertEqual(organization.owner, self.user)
+        self.assertNotEqual(organization.owner, other_user)
 
     def test_create_duplicate_name_returns_400(self):
         """Creating an organization with a duplicate name is rejected."""

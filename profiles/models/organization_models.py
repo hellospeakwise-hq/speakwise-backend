@@ -39,6 +39,7 @@ class OrganizationProfile(TimeStampedModel):
         "profiles.OrganizationCFP",
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name="organization_cfp",
     )
     # admin actions
@@ -46,12 +47,14 @@ class OrganizationProfile(TimeStampedModel):
         max_length=50,
         blank=True,
         null=True,
+        choices=OrganizationStatusChoices.choices,
         default=OrganizationStatusChoices.PENDING.value,
     )
     old_status = models.CharField(
         max_length=50,
         blank=True,
         null=True,
+        choices=OrganizationStatusChoices.choices,
         default=OrganizationStatusChoices.PENDING.value,
     )
     admin_notes = models.TextField(blank=True, null=True)

@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("events", "0010_alter_country_created_at_alter_event_created_at_and_more"),
         ("speakerrequests", "0009_alter_speakeremailrequests_created_at_and_more"),
-        ("speakers", "0015_alter_notification_created_at_and_more"),
+        ("profiles", "0015_alter_notification_created_at_and_more"),
     ]
 
     operations = [
@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="requests_made",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
         migrations.AddField(
@@ -119,7 +119,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="requests_received",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
         migrations.AlterField(

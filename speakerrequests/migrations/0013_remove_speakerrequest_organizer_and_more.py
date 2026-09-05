@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="requests_received",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
     ]

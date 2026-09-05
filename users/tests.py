@@ -8,7 +8,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from speakers.models import SpeakerProfile
+from profiles.models import SpeakerProfile
 from users.models import User
 
 

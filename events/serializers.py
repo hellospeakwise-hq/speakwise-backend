@@ -4,7 +4,7 @@ from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
 from events.models import Country, Event, Location, Tag
-from speakers.serializers import SpeakerProfileSerializer
+from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
 
 
 class CountrySerializer(serializers.ModelSerializer):

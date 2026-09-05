@@ -236,7 +236,7 @@ class EventSpeakers(TimeStampedModel):
         on_delete=models.CASCADE,
     )
     speaker = models.ForeignKey(
-        "speakers.SpeakerProfile",
+        "profiles.SpeakerProfile",
         on_delete=models.CASCADE,
     )
 

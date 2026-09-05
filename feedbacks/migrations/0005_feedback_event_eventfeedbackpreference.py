@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         ("events", "0009_event_speaker_deck_upload_enabled"),
         ("feedbacks", "0005_alter_feedback_speaker"),
         (
-            "speakers",
+            "profiles",
             "0015_alter_notification_recipient_alter_speakerdeck_event_and_more",
         ),
     ]
@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="event_feedback_preferences",
-                        to="speakers.speakerprofile",
+                        to="profiles.speakerprofile",
                     ),
                 ),
             ],

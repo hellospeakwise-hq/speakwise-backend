@@ -7,7 +7,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from base.models import TimeStampedModel
-from speakers.models import SpeakerProfile
+from profiles.models.speaker_models import SpeakerProfile
 
 RATING_VALIDATORS = [MinValueValidator(1), MaxValueValidator(10)]
 
@@ -17,7 +17,7 @@ class Feedback(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     speaker = models.ForeignKey(
-        SpeakerProfile,
+        "profiles.SpeakerProfile",
         on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_feedback",

@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("speakerrequests", "0001_initial"),
-        ("speakers", "0001_initial"),
+        ("profiles", "0001_initial"),
     ]
 
     operations = [
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             name="speaker",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.DO_NOTHING,
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
     ]

@@ -32,4 +32,4 @@ def send_email_if_status_changed(sender, instance, created, **kwargs):
             in [OrganizationStatusChoices.ACTIVE, OrganizationStatusChoices.REJECTED]
         )
     ):
-        send_organization_status_email_task(instance.id)
+        send_organization_status_email_task.enqueue(instance.id)

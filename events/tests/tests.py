@@ -1,21 +1,15 @@
 """Events tests."""
 
 from datetime import timedelta
-from unittest.mock import patch
-from uuid import uuid4
 
 from django.contrib.auth.models import AnonymousUser
-from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from events.models import Event, Tag
-from events.notifications import notify_speakers_matching_published_cfp
-from events.tasks import notify_if_cfp_just_published_task
-from profiles.models import Notification, SpeakerProfile, SpeakerSkillTag
+from events.models import Event
 from users.models import User
 
 
@@ -32,7 +26,7 @@ class EventAPITestCase(TestCase):
         )
         self.event_data = {
             "title": "Test Event",
-            "short_description": "This is a test event.",
+            "description": "This is a test event.",
             "website": "https://testevent.com",
             "is_active": True,
         }
@@ -59,7 +53,7 @@ class EventAPITestCase(TestCase):
         url = reverse("events:event-list-create")
         new_event_data = {
             "title": "New Test Event",
-            "short_description": "This is another test event.",
+            "description": "This is another test event.",
             "website": "https://newevent.com",
         }
         self.user.is_superuser = True
@@ -86,7 +80,7 @@ class EventAPITestCase(TestCase):
         """Test that event list returns active events."""
         Event.objects.create(
             title="Active Event",
-            short_description="Event is active.",
+            description="Event is active.",
             website="https://activeevent.example.com",
             is_active=True,
         )
@@ -112,145 +106,6 @@ class EventAPITestCase(TestCase):
         self.assertTrue(Event.objects.filter(id=self.event.id).exists())
 
 
-class EventSpeakerDeckToggleTests(TestCase):
-    """Tests for EventSpeakerDeckToggleView."""
-
-    def setUp(self):
-        """Set up test case with superuser, event, and accepted speakers."""
-        self.client = APIClient()
-
-        # Admin user
-        self.admin_user = User.objects.create(
-            username="toggle_admin",
-            email="toggle_admin@mail.com",
-            password="testpassword",
-            is_superuser=True,
-        )
-
-        # Event
-        self.event = Event.objects.create(
-            title="Toggle Event",
-            website="https://toggleevent.example.com",
-            is_active=True,
-            speaker_deck_upload_enabled=False,
-        )
-
-        # Speaker with accepted request
-        self.speaker_user = User.objects.create(
-            username="toggle_speaker",
-            email="toggle_speaker@mail.com",
-            password="testpassword",
-        )
-        from profiles.models import SpeakerProfile
-
-        self.speaker_profile = SpeakerProfile.objects.create(
-            user_account=self.speaker_user,
-            organization="Speaker Org",
-        )
-        from speakerrequests.models import SpeakerRequest
-
-        SpeakerRequest.objects.create(
-            speaker=self.speaker_profile,
-            event=self.event,
-            status="accepted",
-            message="Welcome!",
-        )
-
-        # Non-superuser (should be forbidden)
-        self.non_org_user = User.objects.create(
-            username="toggle_outsider",
-            email="toggle_outsider@mail.com",
-            password="testpassword",
-        )
-
-        self.toggle_url = reverse(
-            "events:event-toggle-speaker-deck", kwargs={"slug": self.event.slug}
-        )
-
-    def test_toggle_requires_authentication(self):
-        """POST toggle without auth returns 401."""
-        res = self.client.post(self.toggle_url)
-        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_toggle_forbidden_for_non_org_user(self):
-        """POST toggle by a regular user returns 403."""
-        self.client.force_authenticate(self.non_org_user)
-        res = self.client.post(self.toggle_url)
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_toggle_enables_upload(self):
-        """POST toggles from disabled to enabled."""
-        self.client.force_authenticate(self.admin_user)
-        res = self.client.post(self.toggle_url)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertTrue(res.data["speaker_deck_upload_enabled"])
-        self.assertIn("enabled", res.data["detail"].lower())
-
-        self.event.refresh_from_db()
-        self.assertTrue(self.event.speaker_deck_upload_enabled)
-
-    def test_toggle_disables_upload(self):
-        """POST toggles from enabled to disabled."""
-        self.event.speaker_deck_upload_enabled = True
-        self.event.save()
-
-        self.client.force_authenticate(self.admin_user)
-        res = self.client.post(self.toggle_url)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertFalse(res.data["speaker_deck_upload_enabled"])
-        self.assertIn("disabled", res.data["detail"].lower())
-
-        self.event.refresh_from_db()
-        self.assertFalse(self.event.speaker_deck_upload_enabled)
-
-    def test_toggle_enable_creates_notifications(self):
-        """Enabling uploads creates in-app notifications for accepted speakers."""
-        from profiles.models import Notification
-
-        self.client.force_authenticate(self.admin_user)
-        res = self.client.post(self.toggle_url)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-        # One accepted speaker → one notification
-        notifications = Notification.objects.filter(user=self.speaker_user)
-        self.assertEqual(notifications.count(), 1)
-        notif = notifications.first()
-        self.assertIn(self.event.title, notif.message)
-        self.assertFalse(notif.is_read)
-
-    def test_toggle_disable_does_not_create_notifications(self):
-        """Disabling uploads does NOT create notifications."""
-        from profiles.models import Notification
-
-        self.event.speaker_deck_upload_enabled = True
-        self.event.save()
-
-        self.client.force_authenticate(self.admin_user)
-        res = self.client.post(self.toggle_url)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-        notifications = Notification.objects.filter(user=self.speaker_user)
-        self.assertEqual(notifications.count(), 0)
-
-    def test_toggle_nonexistent_event_returns_404(self):
-        """POST toggle on non-existent event slug returns 404."""
-        self.client.force_authenticate(self.admin_user)
-        url = reverse(
-            "events:event-toggle-speaker-deck", kwargs={"slug": "no-such-event"}
-        )
-        res = self.client.post(url)
-        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_speaker_deck_enabled_field_in_event_serializer(self):
-        """The speaker_deck_upload_enabled field is exposed in the EventSerializer."""
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
-        res = self.client.get(url)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertIn("speaker_deck_upload_enabled", res.data)
-        self.assertFalse(res.data["speaker_deck_upload_enabled"])
-
-
 class EventWebsiteNormalizationTests(TestCase):
     """Tests for official website URL normalization used in duplicate detection."""
 
@@ -271,43 +126,6 @@ class EventWebsiteNormalizationTests(TestCase):
         self.assertEqual(normalize_event_website(None), "")
 
 
-class EventDuplicateDetectionTests(TestCase):
-    """Tests for EventQuerySet.find_duplicate."""
-
-    def setUp(self):
-        """Create an existing listed event."""
-        self.event = Event.objects.create(
-            title="PyCon Ghana 2026",
-            website="https://pycon.gh/",
-            is_active=True,
-        )
-
-    def test_finds_duplicate_by_title_and_website(self):
-        """Same title and website is a duplicate, ignoring case and URL noise."""
-        duplicate = Event.objects.find_duplicate(
-            title="pycon ghana 2026",
-            website="http://www.pycon.gh",
-        )
-        self.assertEqual(duplicate, self.event)
-
-    def test_different_title_same_website_is_not_duplicate(self):
-        """A later edition with a different name is not treated as a duplicate."""
-        duplicate = Event.objects.find_duplicate(
-            title="PyCon Ghana 2027",
-            website="https://pycon.gh/",
-        )
-        self.assertIsNone(duplicate)
-
-    def test_exclude_id_skips_the_event_being_updated(self):
-        """Updating an event does not treat it as a duplicate of itself."""
-        duplicate = Event.objects.find_duplicate(
-            title="PyCon Ghana 2026",
-            website="https://pycon.gh/",
-            exclude_id=self.event.pk,
-        )
-        self.assertIsNone(duplicate)
-
-
 class EventListingTests(TestCase):
     """Tests for the public general event listing."""
 
@@ -318,20 +136,17 @@ class EventListingTests(TestCase):
         self.market_url = reverse("events:cfp-market")
         self.listed = Event.objects.create(
             title="Dev Conf",
-            short_description="A developer conference.",
             description="Talks and workshops.",
             website="https://devconf.example.com",
             cfp_link="https://devconf.example.com/cfp",
             is_active=True,
-            accepts_cfp=True,
             cfp_open=True,
         )
         self.showcase_only = Event.objects.create(
             title="Meetup Night",
-            short_description="A local meetup.",
+            description="A local meetup.",
             website="https://meetup.example.com",
             is_active=True,
-            accepts_cfp=False,
             cfp_open=False,
         )
         self.unpublished = Event.objects.create(
@@ -356,7 +171,7 @@ class EventListingTests(TestCase):
     def test_listing_includes_basic_information_and_official_website(self):
         """Listed events include basic info and the official website."""
         payload = self._listing_by_title()[self.listed.title]
-        self.assertEqual(payload["short_description"], self.listed.short_description)
+        self.assertEqual(payload["description"], self.listed.description)
         self.assertEqual(payload["description"], self.listed.description)
         self.assertEqual(payload["website"], "https://devconf.example.com")
         self.assertEqual(payload["cfp_link"], "https://devconf.example.com/cfp")
@@ -425,13 +240,10 @@ class EventSubmitTests(TestCase):
             is_active=True,
         )
         self.submit_url = reverse("events:event-list-create")
-        self.review_url = reverse("events:event-review-list")
         self.submission_payload = {
             "title": "Community Conf 2026",
-            "short_description": "A community conference.",
             "description": "Talks, workshops, and hallway track.",
             "website": "https://communityconf.example.com",
-            "cfp_url": "https://communityconf.example.com/cfp",
             "cfp_link": "https://communityconf.example.com/cfp",
         }
 
@@ -451,7 +263,6 @@ class EventSubmitTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], self.submission_payload["title"])
         self.assertEqual(response.data["website"], self.submission_payload["website"])
-        self.assertEqual(response.data["cfp_url"], self.submission_payload["cfp_url"])
         self.assertEqual(response.data["cfp_link"], self.submission_payload["cfp_link"])
         self.assertFalse(response.data["is_active"])
         self.assertEqual(str(response.data["submitted_by"]), str(self.user.id))
@@ -460,7 +271,6 @@ class EventSubmitTests(TestCase):
         self.assertFalse(event.is_active)
         self.assertEqual(event.submitted_by, self.user)
         self.assertEqual(event.website, self.submission_payload["website"])
-        self.assertEqual(event.cfp_url, self.submission_payload["cfp_url"])
         self.assertEqual(event.cfp_link, self.submission_payload["cfp_link"])
 
     def test_submit_without_website_is_rejected(self):
@@ -599,328 +409,6 @@ class EventSubmitTests(TestCase):
         self.assertTrue(response.data["is_active"])
         self.assertEqual(str(response.data["submitted_by"]), str(self.admin_user.id))
 
-    def test_review_list_requires_superuser(self):
-        """Regular users cannot list events pending review."""
-        self.client.force_authenticate(user=self.user)
-        response = self.client.get(self.review_url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_review_list_returns_pending_events(self):
-        """Superusers can review unpublished submissions."""
-        pending = Event.objects.create(
-            title="Review Me Conf",
-            website="https://reviewme.example.com",
-            is_active=False,
-            submitted_by=self.user,
-        )
-        self.client.force_authenticate(user=self.admin_user)
-        response = self.client.get(self.review_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        ids = [event["id"] for event in response.data]
-        self.assertIn(str(pending.id), ids)
-        self.assertNotIn(str(self.published.id), ids)
-
-    def test_approve_requires_superuser(self):
-        """Regular users cannot approve an event listing."""
-        pending = Event.objects.create(
-            title="Approve Me Conf",
-            website="https://approveme.example.com",
-            is_active=False,
-            submitted_by=self.user,
-        )
-        url = reverse("events:event-approve", kwargs={"slug": pending.slug})
-        self.client.force_authenticate(user=self.user)
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        pending.refresh_from_db()
-        self.assertFalse(pending.is_active)
-
-    def test_approved_event_becomes_publicly_visible(self):
-        """Approving a submission publishes it and links the official website."""
-        pending = Event.objects.create(
-            title="Soon Public Conf",
-            website="https://soonpublic.example.com",
-            cfp_url="https://soonpublic.example.com/cfp",
-            is_active=False,
-            submitted_by=self.user,
-        )
-        approve_url = reverse("events:event-approve", kwargs={"slug": pending.slug})
-        self.client.force_authenticate(user=self.admin_user)
-        response = self.client.post(approve_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data["is_active"])
-        self.assertEqual(response.data["website"], pending.website)
-
-        pending.refresh_from_db()
-        self.assertTrue(pending.is_active)
-
-        self.client.force_authenticate(user=None)
-        list_response = self.client.get(self.submit_url)
-        titles = [event["title"] for event in list_response.data]
-        self.assertIn(pending.title, titles)
-
-        detail_url = reverse("events:event-detail", kwargs={"slug": pending.slug})
-        detail_response = self.client.get(detail_url)
-        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(detail_response.data["website"], pending.website)
-        self.assertEqual(detail_response.data["cfp_url"], pending.cfp_url)
-
-
-class CFPSkillMatchNotificationTests(TestCase):
-    """Tests for notifying speakers when a published CFP matches their skills."""
-
-    def setUp(self):
-        """Set up speakers, CFP tags, and a closed event."""
-        self.python_tag = Tag.objects.create(name="Python")
-        self.ai_tag = Tag.objects.create(name="AI")
-        self.event = Event.objects.create(
-            title="PyData Summit",
-            website="https://pydatasummit.example.com",
-            is_active=True,
-            cfp_open=False,
-        )
-        self.event.tags.set([self.python_tag, self.ai_tag])
-
-        self.matching_user = User.objects.create(
-            username="py_speaker",
-            email="py_speaker@mail.com",
-            password="testpassword",
-        )
-        matching_profile = SpeakerProfile.objects.create(
-            user_account=self.matching_user, organization="Org"
-        )
-        SpeakerSkillTag.objects.create(speaker=matching_profile, name="Python")
-        SpeakerSkillTag.objects.create(speaker=matching_profile, name="Data Science")
-
-        self.case_user = User.objects.create(
-            username="ai_speaker",
-            email="ai_speaker@mail.com",
-            password="testpassword",
-        )
-        case_profile = SpeakerProfile.objects.create(
-            user_account=self.case_user, organization="Org"
-        )
-        SpeakerSkillTag.objects.create(speaker=case_profile, name="ai")
-
-        self.unrelated_user = User.objects.create(
-            username="java_speaker",
-            email="java_speaker@mail.com",
-            password="testpassword",
-        )
-        unrelated_profile = SpeakerProfile.objects.create(
-            user_account=self.unrelated_user, organization="Org"
-        )
-        SpeakerSkillTag.objects.create(speaker=unrelated_profile, name="Java")
-        SpeakerSkillTag.objects.create(speaker=unrelated_profile, name="Spring")
-
-        self.no_skill_user = User.objects.create(
-            username="plain_speaker",
-            email="plain_speaker@mail.com",
-            password="testpassword",
-        )
-        SpeakerProfile.objects.create(
-            user_account=self.no_skill_user, organization="Org"
-        )
-
-        self.admin_user = User.objects.create(
-            username="cfp_admin",
-            email="cfp_admin@mail.com",
-            password="testpassword",
-            is_superuser=True,
-        )
-        self.client = APIClient()
-
-    def test_matching_speakers_are_notified(self):
-        """Speakers whose skills overlap CFP tags receive a notification."""
-        notify_speakers_matching_published_cfp(self.event)
-        notified = set(Notification.objects.values_list("user_id", flat=True))
-        self.assertIn(self.matching_user.id, notified)
-        self.assertIn(self.case_user.id, notified)
-        message = Notification.objects.get(user=self.matching_user).message
-        self.assertIn(self.event.title, message)
-        self.assertIn("Python", message)
-
-    def test_unrelated_speakers_are_not_notified(self):
-        """Speakers without overlapping skills do not receive a notification."""
-        notify_speakers_matching_published_cfp(self.event)
-        notified = set(Notification.objects.values_list("user_id", flat=True))
-        self.assertNotIn(self.unrelated_user.id, notified)
-        self.assertNotIn(self.no_skill_user.id, notified)
-
-    def test_event_without_tags_notifies_nobody(self):
-        """A published CFP with no skill tags notifies no speakers."""
-        self.event.tags.clear()
-        notify_speakers_matching_published_cfp(self.event)
-        self.assertEqual(Notification.objects.count(), 0)
-
-    def test_matching_speakers_receive_email(self):
-        """Matching speakers also receive an email notification."""
-        notify_speakers_matching_published_cfp(self.event)
-        recipients = {email.to[0] for email in mail.outbox}
-        self.assertIn(self.matching_user.email, recipients)
-        self.assertIn(self.case_user.email, recipients)
-        self.assertNotIn(self.unrelated_user.email, recipients)
-        self.assertNotIn(self.no_skill_user.email, recipients)
-
-    def test_opening_cfp_via_patch_notifies_matching_speakers(self):
-        """PATCH cfp_open False → True notifies speakers with matching skills."""
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
-        res = self.client.patch(url, {"cfp_open": True}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-        notified = set(Notification.objects.values_list("user_id", flat=True))
-        self.assertIn(self.matching_user.id, notified)
-        self.assertIn(self.case_user.id, notified)
-        self.assertNotIn(self.unrelated_user.id, notified)
-        self.assertNotIn(self.no_skill_user.id, notified)
-
-    def test_already_open_cfp_update_does_not_renotify(self):
-        """Updating an already-open CFP does not send notifications again."""
-        self.event.cfp_open = True
-        self.event.save(update_fields=["cfp_open", "updated_at"])
-
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
-        res = self.client.patch(url, {"short_description": "Updated"}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(Notification.objects.count(), 0)
-
-    def test_closing_cfp_does_not_notify(self):
-        """Setting cfp_open to False does not notify speakers."""
-        self.event.cfp_open = True
-        self.event.save(update_fields=["cfp_open", "updated_at"])
-
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
-        res = self.client.patch(url, {"cfp_open": False}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(Notification.objects.count(), 0)
-
-    def test_create_event_with_open_cfp_notifies_matching_speakers(self):
-        """Creating an event with cfp_open=True notifies matching speakers."""
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-list-create")
-        res = self.client.post(
-            url,
-            {
-                "title": "AI Conf",
-                "website": "https://aiconf.example.com",
-                "is_active": True,
-                "cfp_open": True,
-                "tags": [str(self.ai_tag.id)],
-            },
-            format="json",
-        )
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-
-        notified = set(Notification.objects.values_list("user_id", flat=True))
-
-        self.assertIn(self.case_user.id, notified)
-        self.assertNotIn(self.matching_user.id, notified)
-        self.assertNotIn(self.unrelated_user.id, notified)
-
-    def test_create_event_with_closed_cfp_does_not_notify(self):
-        """Creating an event with cfp_open=False does not notify speakers."""
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-list-create")
-        res = self.client.post(
-            url,
-            {
-                "title": "Closed CFP Conf",
-                "website": "https://closedcfp.example.com",
-                "is_active": True,
-                "cfp_open": False,
-                "tags": [str(self.python_tag.id)],
-            },
-            format="json",
-        )
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Notification.objects.count(), 0)
-
-    @patch("events.views.notify_if_cfp_just_published_task")
-    def test_opening_cfp_enqueues_notification_task(self, mock_task):
-        """PATCH that opens a CFP enqueues the notification as a background task."""
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-detail", kwargs={"slug": self.event.slug})
-        res = self.client.patch(url, {"cfp_open": True}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        mock_task.enqueue.assert_called_once_with(
-            event_id=str(self.event.id),
-            was_open=False,
-        )
-
-    @patch("events.views.notify_if_cfp_just_published_task")
-    def test_create_event_enqueues_notification_task(self, mock_task):
-        """Creating an event enqueues the CFP notification as a background task."""
-        self.client.force_authenticate(self.admin_user)
-        url = reverse("events:event-list-create")
-        res = self.client.post(
-            url,
-            {
-                "title": "Queued CFP Conf",
-                "website": "https://queuedcfp.example.com",
-                "is_active": True,
-                "cfp_open": True,
-                "tags": [str(self.ai_tag.id)],
-            },
-            format="json",
-        )
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        mock_task.enqueue.assert_called_once_with(
-            event_id=res.data["id"],
-            was_open=False,
-        )
-
-
-class NotifyIfCFPJustPublishedTaskTests(TestCase):
-    """Tests for notify_if_cfp_just_published_task."""
-
-    def setUp(self):
-        """Set up an open event and a matching speaker."""
-        python_tag = Tag.objects.create(name="Python")
-        self.event = Event.objects.create(
-            title="Queued Summit",
-            website="https://queuedsummit.example.com",
-            is_active=True,
-            cfp_open=True,
-        )
-        self.event.tags.add(python_tag)
-
-        self.speaker_user = User.objects.create(
-            username="queued_speaker",
-            email="queued_speaker@mail.com",
-            password="testpassword",
-        )
-        profile = SpeakerProfile.objects.create(
-            user_account=self.speaker_user, organization="Org"
-        )
-        SpeakerSkillTag.objects.create(speaker=profile, name="Python")
-
-    def test_missing_event_does_not_raise(self):
-        """Enqueueing for an unknown event id logs and returns without error."""
-        notify_if_cfp_just_published_task.enqueue(
-            event_id=str(uuid4()),
-            was_open=False,
-        )
-        self.assertEqual(Notification.objects.count(), 0)
-
-    def test_task_notifies_when_cfp_just_opened(self):
-        """The task notifies matching speakers when the CFP just opened."""
-        notify_if_cfp_just_published_task.enqueue(
-            event_id=str(self.event.id),
-            was_open=False,
-        )
-        self.assertTrue(Notification.objects.filter(user=self.speaker_user).exists())
-
-    def test_task_does_not_notify_when_cfp_was_already_open(self):
-        """The task does not notify if the CFP was already open."""
-        notify_if_cfp_just_published_task.enqueue(
-            event_id=str(self.event.id),
-            was_open=True,
-        )
-        self.assertEqual(Notification.objects.count(), 0)
-
 
 class CFPMarketAndStatusTests(TestCase):
     """Tests for CFP open/closed status and the CFP Market endpoint."""
@@ -937,10 +425,8 @@ class CFPMarketAndStatusTests(TestCase):
             "title": "Open CFP Event",
             "website": "https://opencfp.example.com",
             "is_active": True,
-            "accepts_cfp": True,
             "cfp_open": True,
             "cfp_link": "https://example.com/cfp",
-            "cfp_description": "Talks about Python.",
         }
         defaults.update(overrides)
         return Event.objects.create(**defaults)

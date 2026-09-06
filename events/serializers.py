@@ -19,6 +19,10 @@ def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
 class EventSerializer(WritableNestedModelSerializer):
     """Serializer for the Event model."""
 
+    date = serializers.SerializerMethodField()
+    date_range = serializers.SerializerMethodField()
+    is_cfp_currently_open = serializers.BooleanField(read_only=True)
+
     class Meta:
         """Meta class for the EventSerializer."""
 

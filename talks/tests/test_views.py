@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from events.models import Country, Event, Location
+from events.models import Event
 from profiles.models import SpeakerProfile
 from talks.models import Talks
 from talks.views import TalkReviewSubmitView
@@ -35,13 +35,6 @@ class TestTalkReviewSubmitView(TestCase):
             event=Event.objects.create(
                 title="View Event",
                 description="Event for view tests",
-                location=Location.objects.create(
-                    venue="Venue",
-                    address="Addr",
-                    city="City",
-                    state="State",
-                    country=Country.objects.create(name="Country"),
-                ),
             ),
         )
         self.url = reverse(

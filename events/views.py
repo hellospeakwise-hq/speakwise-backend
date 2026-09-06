@@ -14,7 +14,6 @@ from events.serializers import (
     EventSerializer,
     EventSubmitSerializer,
 )
-from events.tasks import notify_if_cfp_just_published_task
 from events.utils import create_event_payload
 
 
@@ -58,10 +57,6 @@ class EventListView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         event = serializer.save(**self._create_save_kwargs(request))
-        notify_if_cfp_just_published_task.enqueue(
-            event_id=str(event.id),
-            was_open=False,
-        )
         return Response(EventSerializer(event).data, status=status.HTTP_201_CREATED)
 
 
@@ -70,7 +65,7 @@ class EventDetailView(APIView):
 
     def get_permissions(self):
         """GET is public; mutations require superuser."""
-        if self.request.method == permissions.SAFE_METHODS:
+        if self.request.method in permissions.SAFE_METHODS:
             return [AllowAny()]
         return [IsSuperUser()]
 
@@ -95,14 +90,9 @@ class EventDetailView(APIView):
         """Update event detail."""
         event = self._get_visible_event(request, slug)
         self.check_object_permissions(request, event)
-        was_cfp_open = event.cfp_open
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
             event = serializer.save()
-            notify_if_cfp_just_published_task.enqueue(
-                event_id=str(event.id),
-                was_open=was_cfp_open,
-            )
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

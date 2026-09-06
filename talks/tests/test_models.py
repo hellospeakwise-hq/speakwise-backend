@@ -2,7 +2,7 @@
 
 from django.test import TestCase
 
-from events.models import Country, Event, Location
+from events.models import Event
 from profiles.models import SpeakerProfile
 from talks.models import TalkReviewComment, Talks
 from talks.serializers import TalkSerializer
@@ -31,13 +31,6 @@ class TestTalkSerializer(TestCase):
             event=Event.objects.create(
                 title="Sample Event",
                 description="This is a sample event.",
-                location=Location.objects.create(
-                    venue="Sample Venue",
-                    address="123 Sample St",
-                    city="Sample City",
-                    state="Sample State",
-                    country=Country.objects.create(name="Sample Country"),
-                ),
             ),
         )
         self.serializer = TalkSerializer(instance=self.talk)
@@ -120,13 +113,6 @@ class TestTalkReviewComment(TestCase):
             event=Event.objects.create(
                 title="Sample Event 2",
                 description="This is another sample event.",
-                location=Location.objects.create(
-                    venue="Sample Venue 2",
-                    address="456 Sample St",
-                    city="Sample City 2",
-                    state="Sample State 2",
-                    country=Country.objects.create(name="Sample Country 2"),
-                ),
             ),
         )
         self.comment = "This is a review comment for the talk."

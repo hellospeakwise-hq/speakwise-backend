@@ -169,38 +169,3 @@ def send_request_declined_email(
         html=html,
         recipient=organizer_email,
     )
-
-
-@task()
-def send_speaker_deck_upload_email(
-    speaker_email: str, event_name: str, upload_url: str
-) -> None:
-    """Notify an accepted speaker that they can now upload their presentation materials."""
-    subject = f"Upload Your Presentation for {event_name}"
-    body = (
-        f"Hello,\n\n"
-        f"Great news! The organizer of '{event_name}' has enabled presentation uploads.\n\n"
-        f"Please log in and upload your materials at: {upload_url}\n\n"
-        f"Supported formats: PowerPoint (.pptx/.ppt), PDF, Keynote (.key), "
-        f"OpenDocument (.odp), or ZIP archives.\n\n"
-        f"Best regards,\n"
-        f"The {settings.SITE_NAME} Team"
-    )
-    try:
-        _ = send_mail(
-            subject=subject,
-            message=body,
-            recipient_list=[speaker_email],
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            fail_silently=False,
-        )
-        logger.info(
-            "Deck upload email sent to %s for event %s", speaker_email, event_name
-        )
-    except Exception:
-        logger.exception(
-            "Failed to send deck upload email to %s for event %s",
-            speaker_email,
-            event_name,
-        )
-        raise

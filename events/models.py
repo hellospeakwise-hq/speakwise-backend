@@ -23,9 +23,7 @@ class EventQuerySet(models.QuerySet):
 
     def with_listing_relations(self):
         """Select relations used when serializing event listings."""
-        return self.select_related(
-            "location", "location__country", "submitted_by"
-        ).prefetch_related("tags")
+        return self.select_related("submitted_by")
 
     def visible_to(self, user):
         """Return events the given user is allowed to view.

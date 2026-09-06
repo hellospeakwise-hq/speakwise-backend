@@ -17,7 +17,7 @@ SITE_NAME = getattr(settings, "SITE_NAME", "SpeakWise")
 
 
 @task()
-def notify_if_cfp_just_published_task(event_id: UUID, was_open: bool):
+def notify_if_cfp_just_published_task(event_id: str, was_open: bool):
     """Notify matching speakers when a CFP transitions from closed to open.
 
     Args:
@@ -25,7 +25,7 @@ def notify_if_cfp_just_published_task(event_id: UUID, was_open: bool):
         was_open: Whether the CFP was already open before this save.
     """
     try:
-        event = Event.objects.get(id=event_id)
+        event = Event.objects.get(id=UUID(event_id))
     except Event.DoesNotExist:
         return ("Event with id %s not found", event_id)
 
@@ -62,3 +62,23 @@ def send_cfp_skill_match_email(
         logger.info("CFP skill-match email sent to %s", speaker_email)
     except Exception:
         logger.exception("Failed to send CFP skill-match email to %s", speaker_email)
+
+
+def close_expired_cfp_events() -> int:
+    """Close CFP submissions for events whose deadline has passed.
+
+    Only events still marked cfp_open are considered; events already closed,
+    events without a deadline, and events with a deadline still in the future
+    are left untouched. Returns the number of events closed.
+    """
+    return Event.objects.with_expired_cfp().update(cfp_open=False)
+
+
+@task()
+def close_expired_cfp_events_task() -> int:
+    """Background task wrapper for close_expired_cfp_events.
+
+    Intended to run every 24 hours so events with past-deadline CFPs are
+    closed even when the event itself has not been saved since the deadline.
+    """
+    return close_expired_cfp_events()

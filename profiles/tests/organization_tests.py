@@ -248,10 +248,10 @@ class OrganizationProfileListCreateViewTests(APITestCase):
         self.org_b = OrganizationProfile.objects.create(name="Beta Org")
         self.list_url = reverse("organization:organization-list-create")
 
-    def test_unauthenticated_list_returns_401(self):
-        """Listing organizations requires authentication."""
+    def test_unauthenticated_list_returns_200(self):
+        """Listing organizations is public and requires no authentication."""
         res = self.client.get(self.list_url)
-        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
 
     def test_unauthenticated_create_returns_401(self):
         """Creating an organization requires authentication."""

@@ -3,12 +3,6 @@
 from urllib.parse import urlparse
 
 
-def create_event_payload(request):
-    """Create event payload."""
-    payload = request.data.copy()
-    return payload
-
-
 def normalize_event_website(url: str) -> str:
     """Return a comparable form of an event website URL.
 

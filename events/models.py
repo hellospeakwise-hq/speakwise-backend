@@ -14,49 +14,8 @@ from events.utils import normalize_event_website
 EVENT_IMAGE_UPLOAD = "event_images/"
 
 
-class Tag(TimeStampedModel):
-    """A model for event tags in the SpeakWise application."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100)
-    color = models.CharField(max_length=20, default="#007bff")
-
-    def __str__(self):
-        """Return a string representation of the model."""
-        return self.name
-
-
 class EventQuerySet(models.QuerySet):
     """QuerySet for published, pending, duplicate, and CFP event lookups."""
-
-    def published(self):
-        """Return events that have been approved for public listing."""
-        return self.filter(is_active=True)
-
-    def pending_review(self):
-        """Return events that are waiting for approval before publication."""
-        return self.filter(is_active=False)
-
-    def with_listing_relations(self):
-        """Select relations used when serializing event listings."""
-        return self.select_related(
-            "location", "location__country", "submitted_by"
-        ).prefetch_related("tags")
-
-    def visible_to(self, user):
-        """Return events the given user is allowed to view.
-
-        Superusers see every event. Authenticated users see published events
-        plus their own unpublished submissions. Anonymous requests have no
-        user identity to match against submitted_by, so they see published
-        events only.
-        """
-        if getattr(user, "is_superuser", False):
-            return self
-        published = self.filter(is_active=True)
-        if not getattr(user, "is_authenticated", False):
-            return published
-        return (published | self.filter(submitted_by=user)).distinct()
 
     def find_duplicate(self, title, website, exclude_id=None):
         """Return an event with the same title and official website, if any."""
@@ -72,18 +31,38 @@ class EventQuerySet(models.QuerySet):
     def with_open_cfp(self):
         """Return active events whose CFP is currently open.
 
-        Open requires accepts_cfp and cfp_open, and must fall within the
+        Open requires the manual cfp_open flag, and must fall within the
         optional open_date / deadline window.
         """
         now = timezone.now()
         return self.filter(
             is_active=True,
-            accepts_cfp=True,
             cfp_open=True,
         ).filter(
             Q(cfp_open_date__isnull=True) | Q(cfp_open_date__lte=now),
             Q(cfp_deadline__isnull=True) | Q(cfp_deadline__gte=now),
         )
+
+    def with_expired_cfp(self):
+        """Return events still marked open whose CFP deadline has passed.
+
+        Intended for the periodic job that closes expired CFPs; the manual
+        cfp_open flag is the only guard, so events that have not been saved
+        since their deadline passed are still caught here.
+        """
+        return self.filter(
+            cfp_open=True,
+            cfp_deadline__isnull=False,
+            cfp_deadline__lt=timezone.now(),
+        )
+
+    def visible_to(self, user):
+        """Return events visible to the given user."""
+        if user.is_superuser:
+            return self.all()
+        if user.is_authenticated:
+            return self.filter(Q(is_active=True) | Q(submitted_by=user))
+        return self.filter(is_active=True)
 
 
 class EventManager(models.Manager.from_queryset(EventQuerySet)):
@@ -94,16 +73,10 @@ class Event(TimeStampedModel):
     """A model for events in the SpeakWise application."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, unique=True, help_text="Event title")
     event_nickname = models.CharField(max_length=255, blank=True, default="")
     event_image = models.ImageField(
         "image", upload_to=EVENT_IMAGE_UPLOAD, null=True, blank=True
-    )
-    short_description = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="Brief description for event cards",
     )
     description = models.TextField(
         blank=True, default="", help_text="Detailed description for event page"
@@ -114,12 +87,6 @@ class Event(TimeStampedModel):
             "Official event website or a public page about the event "
             "(for example a LinkedIn post)."
         ),
-    )
-    cfp_url = models.URLField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="External Call for Papers URL, if the event has one.",
     )
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -133,23 +100,13 @@ class Event(TimeStampedModel):
             "is later deleted."
         ),
     )
-    location = models.ForeignKey(
-        "Location",
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="event_location",
-    )
     start_date_time = models.DateTimeField(default=timezone.now, null=True)
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
     is_active = models.BooleanField(default=False, db_index=True)
-    tags = models.ManyToManyField(Tag, related_name="events", blank=True)
     slug = models.SlugField(max_length=255, null=True)
+    location = models.CharField(max_length=150, null=True, blank=True)
 
     # CFP configuration
-    accepts_cfp = models.BooleanField(
-        default=False,
-        help_text="Does this event accept Call for Papers submissions?",
-    )
     cfp_open = models.BooleanField(
         default=False,
         help_text="Is the CFP currently open for submissions?",
@@ -159,11 +116,6 @@ class Event(TimeStampedModel):
         blank=True,
         default="",
         help_text="External URL for the event's CFP page.",
-    )
-    cfp_description = models.TextField(
-        blank=True,
-        default="",
-        help_text="What the organizers are looking for — shown to speakers on the CFP page.",
     )
     cfp_open_date = models.DateTimeField(
         null=True,
@@ -179,11 +131,6 @@ class Event(TimeStampedModel):
         null=True,
         blank=True,
         help_text="When speakers will be notified of the outcome.",
-    )
-
-    speaker_deck_upload_enabled = models.BooleanField(
-        default=False,
-        help_text="When enabled, accepted speakers can upload their presentation materials.",
     )
 
     objects = EventManager()
@@ -202,10 +149,10 @@ class Event(TimeStampedModel):
     def is_cfp_currently_open(self) -> bool:
         """Whether this event's CFP is open right now.
 
-        Requires accepts_cfp and the manual cfp_open flag, and must fall
-        within the optional open_date / deadline window.
+        Requires the manual cfp_open flag, and must fall within the
+        optional open_date / deadline window.
         """
-        if not self.accepts_cfp or not self.cfp_open:
+        if not self.cfp_open:
             return False
         now = timezone.now()
         if self.cfp_open_date and now < self.cfp_open_date:
@@ -223,70 +170,4 @@ class Event(TimeStampedModel):
 
     def __str__(self):
         """Return a string representation of the model."""
-        return self.title
-
-
-class EventSpeakers(TimeStampedModel):
-    """Speakers who have spoken or are scheduled at an event."""
-
-    created_at = models.DateTimeField(default=timezone.now)
-    has_spoken = models.BooleanField(default=False)
-    event = models.ForeignKey(
-        "events.Event",
-        on_delete=models.CASCADE,
-    )
-    speaker = models.ForeignKey(
-        "profiles.SpeakerProfile",
-        on_delete=models.CASCADE,
-    )
-
-    class Meta:
-        """Meta-options for EventSpeakers."""
-
-        verbose_name = "Event Speaker"
-        verbose_name_plural = "Event Speakers"
-
-    def __str__(self):
-        """Return a string representation of the model."""
-        return f"{self.speaker} at {self.event}"
-
-
-class Location(TimeStampedModel):
-    """location models for events."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    venue = models.CharField(max_length=255)
-    address = models.CharField(max_length=255, blank=True)
-    city = models.CharField(max_length=255, blank=True)
-    state = models.CharField(max_length=255, blank=True)
-    postal_code = models.CharField(max_length=255, blank=True)
-    latitude = models.DecimalField(null=True, max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(null=True, max_digits=9, decimal_places=6)
-    description = models.TextField(null=True)
-    country = models.ForeignKey(
-        "Country",
-        on_delete=models.CASCADE,
-        null=True,
-        related_name="location_country",
-    )
-
-    def __str__(self):
-        """Return a string representation of the model."""
-        return self.venue
-
-
-class Country(TimeStampedModel):
-    """A model for countries in the SpeakWise application."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, null=True, unique=True)
-    code = models.CharField(max_length=2, null=True, unique=True)
-
-    class Meta:
-        """Meta-options for the Country model."""
-
-        verbose_name_plural = "Countries"
-
-    def __str__(self):
-        """Return a string representation of the model."""
-        return self.name
+        return f"{self.title} {self.submitted_by.username}"

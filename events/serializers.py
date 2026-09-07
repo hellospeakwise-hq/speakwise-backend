@@ -1,151 +1,8 @@
 """Serializers for the events app."""
 
-from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
-from events.models import Country, Event, Location, Tag
-from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
-
-
-class CountrySerializer(serializers.ModelSerializer):
-    """Serializer for the Country model."""
-
-    class Meta:
-        """Meta class for the CountrySerializer."""
-
-        model = Country
-        exclude = ["created_at", "updated_at"]
-        validators = []
-        extra_kwargs = {
-            "name": {"validators": []},
-            "code": {"validators": []},
-        }
-
-    def create(self, validated_data):
-        """Get or create a Country by name (and optionally code)."""
-        name = validated_data.get("name")
-        code = validated_data.get("code")
-        lookup = {}
-        if name:
-            lookup["name"] = name
-        if code and not name:
-            lookup["code"] = code
-        if lookup:
-            country, _ = Country.objects.get_or_create(
-                **lookup,
-                defaults=validated_data,
-            )
-            return country
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        """Update a Country, or return an existing one if name/code matches."""
-        name = validated_data.get("name", instance.name)
-        # If name changed to one that already exists, return that existing record
-        if name and name != instance.name:
-            existing = Country.objects.filter(name=name).first()
-            if existing and existing.pk != instance.pk:
-                return existing
-        return super().update(instance, validated_data)
-
-
-class LocationSerializer(WritableNestedModelSerializer):
-    """Serializer for the Region model."""
-
-    country = CountrySerializer(required=False)
-
-    class Meta:
-        """Meta class for the RegionSerializer."""
-
-        model = Location
-        exclude = ("created_at", "updated_at")
-
-
-class TagSerializer(serializers.ModelSerializer):
-    """Serializer for the Tag model."""
-
-    class Meta:
-        """Meta class for the TagSerializer."""
-
-        model = Tag
-        exclude = ["created_at", "updated_at"]
-
-
-def _resolve_location(location_data: dict | None) -> Location | None:
-    """Handles the Country nested inside location using get_or_create so that
-    picking an already-existing country never raises a unique-constraint error.
-    """
-    if not location_data:
-        return None
-
-    country_data = location_data.pop("country", None)
-    country = None
-
-    if country_data:
-        name = country_data.get("name")
-        code = country_data.get("code")
-        lookup = {}
-        if name:
-            lookup["name"] = name
-        elif code:
-            lookup["code"] = code
-
-        if lookup:
-            country, _ = Country.objects.get_or_create(**lookup, defaults=country_data)
-
-    # Build location lookup fields (everything except country and the PK)
-    city = location_data.get("city", "")
-    venue = location_data.get("venue", "")
-    postal_code = location_data.get("postal_code", "")
-    address = location_data.get("address", "")
-
-    # Try to find an existing location that matches country + city + venue
-    existing_qs = Location.objects.filter(country=country, city=city, venue=venue)
-    if existing_qs.exists():
-        location = existing_qs.first()
-        # Update mutable fields in case they changed
-        location.postal_code = postal_code
-        location.address = address
-        location.save(update_fields=["postal_code", "address"])
-        return location
-
-    # Create a new location
-    return Location.objects.create(
-        country=country,
-        city=city,
-        venue=venue,
-        postal_code=postal_code,
-        address=address,
-    )
-
-
-def create_event_with_relations(validated_data) -> Event:
-    """Create an event, resolving nested location/country and tags."""
-    tags = validated_data.pop("tags", [])
-    location_data = validated_data.pop("location", None)
-    location = _resolve_location(location_data)
-    if location:
-        validated_data["location"] = location
-    event = Event.objects.create(**validated_data)
-    if tags:
-        event.tags.set(tags)
-    return event
-
-
-def update_event_with_relations(instance, validated_data) -> Event:
-    """Update an event, resolving nested location/country and tags."""
-    tags = validated_data.pop("tags", None)
-    location_data = validated_data.pop("location", None)
-    if location_data is not None:
-        location = _resolve_location(location_data)
-        if location:
-            validated_data["location"] = location
-    for attr, value in validated_data.items():
-        setattr(instance, attr, value)
-    instance.save()
-    if tags is not None:
-        instance.tags.set(tags)
-    return instance
+from events.models import Event
 
 
 def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
@@ -158,41 +15,18 @@ def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
         )
 
 
-class EventSerializer(WritableNestedModelSerializer):
+class EventSerializer(serializers.ModelSerializer):
     """Serializer for the Event model."""
 
-    event_image = serializers.ImageField(required=False, allow_null=True)
-    tags = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Tag.objects.all(), required=False
-    )
-    website = serializers.URLField()
-    cfp_url = serializers.URLField(required=False, allow_blank=True)
-    cfp_link = serializers.URLField(required=False, allow_blank=True)
-    short_description = serializers.CharField(required=False, allow_blank=True)
-    location = LocationSerializer(required=False)
-    submitted_by = serializers.PrimaryKeyRelatedField(read_only=True)
-    # Frontend-specific computed fields
-    name = serializers.CharField(source="title", read_only=True)
     date = serializers.SerializerMethodField()
-    date_range = serializers.SerializerMethodField()  # New field for start/end dates
+    date_range = serializers.SerializerMethodField()
     is_cfp_currently_open = serializers.BooleanField(read_only=True)
-    cfp_open_date = serializers.DateTimeField(required=False, allow_null=True)
-    cfp_deadline = serializers.DateTimeField(required=False, allow_null=True)
-    cfp_speaker_notification_date = serializers.DateField(
-        required=False, allow_null=True
-    )
 
     class Meta:
         """Meta class for the EventSerializer."""
 
         model = Event
         exclude = ["created_at", "updated_at"]
-
-    def to_representation(self, instance):
-        """Return full tag objects instead of plain UUIDs."""
-        data = super().to_representation(instance)
-        data["tags"] = TagSerializer(instance.tags.all(), many=True).data
-        return data
 
     def validate(self, attrs):
         """Reject listings that duplicate an existing name and official website."""
@@ -205,14 +39,6 @@ class EventSerializer(WritableNestedModelSerializer):
             title=title, website=website or "", exclude_id=exclude_id
         )
         return attrs
-
-    def create(self, validated_data):
-        """Create an event, resolving the nested location/country and tags."""
-        return create_event_with_relations(validated_data)
-
-    def update(self, instance, validated_data):
-        """Update an event, resolving the nested location/country and tags."""
-        return update_event_with_relations(instance, validated_data)
 
     def get_date(self, obj) -> str | None:
         """Return a compact date representation for the event.
@@ -252,16 +78,6 @@ class EventSubmitSerializer(serializers.ModelSerializer):
     accepted here — those belong to the separate CFP process.
     """
 
-    location = LocationSerializer(required=False)
-    tags = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Tag.objects.all(), required=False
-    )
-    website = serializers.URLField(required=True)
-    cfp_url = serializers.URLField(required=False, allow_blank=True)
-    cfp_link = serializers.URLField(required=False, allow_blank=True)
-    event_image = serializers.ImageField(required=False, allow_null=True)
-    short_description = serializers.CharField(required=False, allow_blank=True)
-
     class Meta:
         """Meta class for the EventSubmitSerializer."""
 
@@ -271,15 +87,16 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             "title",
             "event_nickname",
             "event_image",
-            "short_description",
             "description",
             "website",
-            "cfp_url",
+            "cfp_open",
+            "cfp_open_date",
+            "cfp_deadline",
+            "cfp_speaker_notification_date",
             "cfp_link",
             "location",
             "start_date_time",
             "end_date_time",
-            "tags",
         ]
         read_only_fields = ["id"]
 
@@ -293,19 +110,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create a pending event listing from a user submission."""
-        return create_event_with_relations(validated_data)
-
-
-class EventWithGuestSpeakersSerializer(EventSerializer):
-    """Extended Event serializer that includes full speaker profile data."""
-
-    speaker_profiles = serializers.SerializerMethodField()
-    event_sessions = serializers.SerializerMethodField()
-
-    def get_speaker_profiles(self, obj) -> list[dict]:
-        """Get detailed speaker profiles for this event."""
-        speakers = obj.speakers.all()
-        return SpeakerProfileSerializer(speakers, many=True).data
+        return super().create(validated_data)
 
 
 class CFPMarketSerializer(serializers.ModelSerializer):
@@ -313,7 +118,6 @@ class CFPMarketSerializer(serializers.ModelSerializer):
 
     name = serializers.CharField(source="title", read_only=True)
     is_cfp_currently_open = serializers.BooleanField(read_only=True)
-    tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
         """Meta options for CFPMarketSerializer."""
@@ -324,12 +128,10 @@ class CFPMarketSerializer(serializers.ModelSerializer):
             "slug",
             "title",
             "name",
-            "short_description",
             "event_image",
-            "tags",
+            "cfp_open",
             "cfp_link",
             "cfp_deadline",
             "cfp_open_date",
-            "cfp_description",
             "is_cfp_currently_open",
         ]

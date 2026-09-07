@@ -11,6 +11,8 @@ class EventFilter(filters.FilterSet):
     title = filters.CharFilter(field_name="title", lookup_expr="icontains")
     country = filters.CharFilter(method="country_filter")
     venue = filters.CharFilter(method="venue_filter")
+    nick_name = filters.CharFilter(field_name="event_nickname", lookup_expr="icontains")
+    slug = filters.CharFilter(field_name="slug", lookup_expr="icontains")
 
     def country_filter(self, queryset, name, value):
         """Filter events by country name."""

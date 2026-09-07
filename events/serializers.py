@@ -1,6 +1,5 @@
 """Serializers for the events app."""
 
-from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
 
 from events.models import Event
@@ -16,7 +15,7 @@ def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
         )
 
 
-class EventSerializer(WritableNestedModelSerializer):
+class EventSerializer(serializers.ModelSerializer):
     """Serializer for the Event model."""
 
     date = serializers.SerializerMethodField()

@@ -17,29 +17,6 @@ EVENT_IMAGE_UPLOAD = "event_images/"
 class EventQuerySet(models.QuerySet):
     """QuerySet for published, pending, duplicate, and CFP event lookups."""
 
-    def published(self):
-        """Return events that have been approved for public listing."""
-        return self.filter(is_active=True)
-
-    def with_listing_relations(self):
-        """Select relations used when serializing event listings."""
-        return self.select_related("submitted_by")
-
-    def visible_to(self, user):
-        """Return events the given user is allowed to view.
-
-        Superusers see every event. Authenticated users see published events
-        plus their own unpublished submissions. Anonymous requests have no
-        user identity to match against submitted_by, so they see published
-        events only.
-        """
-        if getattr(user, "is_superuser", False):
-            return self
-        published = self.filter(is_active=True)
-        if not getattr(user, "is_authenticated", False):
-            return published
-        return (published | self.filter(submitted_by=user)).distinct()
-
     def find_duplicate(self, title, website, exclude_id=None):
         """Return an event with the same title and official website, if any."""
         qs = self.filter(title__iexact=title.strip())
@@ -185,4 +162,4 @@ class Event(TimeStampedModel):
 
     def __str__(self):
         """Return a string representation of the model."""
-        return self.title
+        return f"{self.title} {self.submitted_by.username}"

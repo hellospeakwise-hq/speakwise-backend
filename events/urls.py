@@ -14,4 +14,5 @@ urlpatterns = [
         name="cfp-market",
     ),
     path("events/<str:slug>/", views.EventDetailView.as_view(), name="event-detail"),
+    path("events/mine", views.MyEventsListView.as_view(), name="events-mine"),
 ]

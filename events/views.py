@@ -14,7 +14,6 @@ from events.serializers import (
     EventSerializer,
     EventSubmitSerializer,
 )
-from events.utils import create_event_payload
 
 
 class EventListView(APIView):
@@ -22,14 +21,14 @@ class EventListView(APIView):
 
     def get_permissions(self):
         """GET is public; POST requires an authenticated user."""
-        if self.request.method == "GET":
+        if self.request.method == permissions.SAFE_METHODS:
             return [AllowAny()]
         return [IsAuthenticated()]
 
     def _create_serializer(self, request):
         """Return the serializer used to create an event for this user."""
         if request.user.is_superuser:
-            return EventSerializer(data=create_event_payload(request))
+            return EventSerializer(data=request.data.copy())
         return EventSubmitSerializer(data=request.data)
 
     def _create_save_kwargs(self, request):
@@ -42,7 +41,7 @@ class EventListView(APIView):
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         """List published events for the general event listing."""
-        events = Event.objects.published().with_listing_relations()
+        events = Event.objects.filter(is_active=True).select_related("submitted_by")
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -69,17 +68,10 @@ class EventDetailView(APIView):
             return [AllowAny()]
         return [IsSuperUser()]
 
-    def _get_visible_event(self, request, slug):
-        """Return the event if the requester is allowed to view it."""
-        return get_object_or_404(
-            Event.objects.visible_to(request.user).with_listing_relations(),
-            slug=slug,
-        )
-
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
         """Retrieve a published event, or one the requester may see."""
-        event = self._get_visible_event(request, slug)
+        event = get_object_or_404(Event, slug=slug)
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -88,7 +80,7 @@ class EventDetailView(APIView):
     )
     def patch(self, request, slug, *args, **kwargs):
         """Update event detail."""
-        event = self._get_visible_event(request, slug)
+        event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
@@ -99,7 +91,7 @@ class EventDetailView(APIView):
     @extend_schema(tags=["Events"], responses={204: None})
     def delete(self, request, slug, *args, **kwargs):
         """Delete event."""
-        event = self._get_visible_event(request, slug)
+        event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -115,4 +107,16 @@ class CFPMarketListView(APIView):
         """Return events whose CFP is currently open for the CFP Market."""
         events = Event.objects.with_open_cfp()
         serializer = CFPMarketSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MyEventsListView(APIView):
+    """Return events created by a user."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get method."""
+        events = Event.objects.filter(submitted_by=request.user)
+        serializer = EventSerializer(data=events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

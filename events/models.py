@@ -162,4 +162,5 @@ class Event(TimeStampedModel):
 
     def __str__(self):
         """Return a string representation of the model."""
-        return f"{self.title} {self.submitted_by.username}"
+        username = self.submitted_by.username if self.submitted_by else "Unknown"
+        return f"{self.title} {username}"

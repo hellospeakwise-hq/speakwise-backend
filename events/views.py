@@ -80,8 +80,7 @@ class EventDetailView(APIView):
             else:
                 event = get_object_or_404(
                     Event,
-                    Q(slug=slug)
-                    & (Q(is_active=True) | Q(submitted_by=request.user)),
+                    Q(slug=slug) & (Q(is_active=True) | Q(submitted_by=request.user)),
                 )
         else:
             event = get_object_or_404(Event, slug=slug, is_active=True)
@@ -96,9 +95,7 @@ class EventDetailView(APIView):
         event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
         data = (
-            request.data.copy()
-            if hasattr(request.data, "copy")
-            else dict(request.data)
+            request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
         )
         if not request.user.is_superuser:
             data.pop("is_active", None)

@@ -97,6 +97,13 @@ class Event(TimeStampedModel):
     is_active = models.BooleanField(default=False, db_index=True)
     slug = models.SlugField(max_length=255, null=True)
     location = models.CharField(max_length=150, null=True, blank=True)
+    country = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Country where the event takes place.",
+        db_index=True,
+    )
 
     # CFP configuration
     cfp_open = models.BooleanField(

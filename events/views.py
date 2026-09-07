@@ -45,6 +45,9 @@ class EventListView(APIView):
     def get(self, request, *args, **kwargs):
         """List published events for the general event listing."""
         events = Event.objects.filter(is_active=True)
+        country = request.query_params.get("country")
+        if country:
+            events = events.filter(country__iexact=country)
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

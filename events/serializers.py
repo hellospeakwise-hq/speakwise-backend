@@ -95,6 +95,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             "cfp_speaker_notification_date",
             "cfp_link",
             "location",
+            "country",
             "start_date_time",
             "end_date_time",
         ]

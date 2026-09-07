@@ -25,13 +25,15 @@ class EventListView(APIView):
             return [AllowAny()]
         return [IsAuthenticated()]
 
-    def _create_serializer(self, request):
+    @staticmethod
+    def _create_serializer(request):
         """Return the serializer used to create an event for this user."""
         if request.user.is_superuser:
             return EventSerializer(data=request.data.copy())
         return EventSubmitSerializer(data=request.data)
 
-    def _create_save_kwargs(self, request):
+    @staticmethod
+    def _create_save_kwargs(request):
         """Return extra fields applied when saving a submitted event."""
         extra = {"submitted_by": request.user}
         if not request.user.is_superuser:

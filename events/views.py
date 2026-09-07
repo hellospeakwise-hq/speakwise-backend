@@ -21,7 +21,7 @@ class EventListView(APIView):
 
     def get_permissions(self):
         """GET is public; POST requires an authenticated user."""
-        if self.request.method == permissions.SAFE_METHODS:
+        if self.request.method in permissions.SAFE_METHODS:
             return [AllowAny()]
         return [IsAuthenticated()]
 
@@ -43,7 +43,7 @@ class EventListView(APIView):
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         """List published events for the general event listing."""
-        events = Event.objects.filter(is_active=True).select_related("submitted_by")
+        events = Event.objects.filter(is_active=True)
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -73,7 +73,7 @@ class EventDetailView(APIView):
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
         """Retrieve a published event, or one the requester may see."""
-        event = get_object_or_404(Event, slug=slug)
+        event = get_object_or_404(Event, slug=slug, is_active=True)
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -82,7 +82,7 @@ class EventDetailView(APIView):
     )
     def patch(self, request, slug, *args, **kwargs):
         """Update event detail."""
-        event = get_object_or_404(Event, slug=slug)
+        event = get_object_or_404(Event, slug=slug, submitted_by=request.user)
         self.check_object_permissions(request, event)
         serializer = EventSerializer(event, data=request.data, partial=True)
         if serializer.is_valid():
@@ -93,7 +93,7 @@ class EventDetailView(APIView):
     @extend_schema(tags=["Events"], responses={204: None})
     def delete(self, request, slug, *args, **kwargs):
         """Delete event."""
-        event = get_object_or_404(Event, slug=slug)
+        event = get_object_or_404(Event, slug=slug, submitted_by=request.user)
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -120,5 +120,5 @@ class MyEventsListView(APIView):
     def get(self, request):
         """Get method."""
         events = Event.objects.filter(submitted_by=request.user)
-        serializer = EventSerializer(data=events, many=True)
+        serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

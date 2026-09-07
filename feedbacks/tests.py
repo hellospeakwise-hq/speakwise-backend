@@ -101,10 +101,12 @@ class FeedbackTestDataMixin:
         self.event = Event.objects.create(
             title="Feedback Conference",
             is_active=True,
+            submitted_by=self.speaker_user,
         )
         self.other_event = Event.objects.create(
             title="Other Conference",
             is_active=True,
+            submitted_by=self.speaker_user,
         )
 
         SpeakerRequest.objects.create(

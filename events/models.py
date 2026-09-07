@@ -56,6 +56,14 @@ class EventQuerySet(models.QuerySet):
             cfp_deadline__lt=timezone.now(),
         )
 
+    def visible_to(self, user):
+        """Return events visible to the given user."""
+        if user.is_superuser:
+            return self.all()
+        if user.is_authenticated:
+            return self.filter(Q(is_active=True) | Q(submitted_by=user))
+        return self.filter(is_active=True)
+
 
 class EventManager(models.Manager.from_queryset(EventQuerySet)):
     """Manager for Event with listing and CFP queryset helpers."""

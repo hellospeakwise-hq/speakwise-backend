@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 
-from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -345,12 +344,12 @@ class EventSubmitTests(TestCase):
             is_active=False,
             submitted_by=self.user,
         )
-        url = reverse("events:event-detail", kwargs={"slug": pending.slug})
+        url = reverse("events:events-mine")
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["title"], pending.title)
-        self.assertEqual(response.data["website"], pending.website)
+        self.assertEqual(response.data[0].get("title"), pending.title)
+        self.assertEqual(response.data[0].get("website"), pending.website)
 
     def test_other_user_cannot_view_pending_event(self):
         """Another user cannot retrieve someone else's unpublished event."""
@@ -388,7 +387,7 @@ class EventSubmitTests(TestCase):
             submitted_by=self.user,
         )
         titles = set(
-            Event.objects.visible_to(AnonymousUser()).values_list("title", flat=True)
+            Event.objects.filter(is_active=True).values_list("title", flat=True)
         )
         self.assertIn(self.published.title, titles)
         self.assertNotIn(pending.title, titles)

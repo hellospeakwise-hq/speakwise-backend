@@ -1,5 +1,6 @@
 """Events views."""
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status
@@ -7,7 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsSuperUser
+from base.permissions import IsSubmitterOrSuperUser
 from events.models import Event
 from events.serializers import (
     CFPMarketSerializer,
@@ -65,15 +66,25 @@ class EventDetailView(APIView):
     """get event detail view."""
 
     def get_permissions(self):
-        """GET is public; mutations require superuser."""
+        """GET is public; mutations require submitter or superuser."""
         if self.request.method in permissions.SAFE_METHODS:
             return [AllowAny()]
-        return [IsSuperUser()]
+        return [IsAuthenticated(), IsSubmitterOrSuperUser()]
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
         """Retrieve a published event, or one the requester may see."""
-        event = get_object_or_404(Event, slug=slug, is_active=True)
+        if request.user.is_authenticated:
+            if request.user.is_superuser:
+                event = get_object_or_404(Event, slug=slug)
+            else:
+                event = get_object_or_404(
+                    Event,
+                    Q(slug=slug)
+                    & (Q(is_active=True) | Q(submitted_by=request.user)),
+                )
+        else:
+            event = get_object_or_404(Event, slug=slug, is_active=True)
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -82,9 +93,16 @@ class EventDetailView(APIView):
     )
     def patch(self, request, slug, *args, **kwargs):
         """Update event detail."""
-        event = get_object_or_404(Event, slug=slug, submitted_by=request.user)
+        event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
-        serializer = EventSerializer(event, data=request.data, partial=True)
+        data = (
+            request.data.copy()
+            if hasattr(request.data, "copy")
+            else dict(request.data)
+        )
+        if not request.user.is_superuser:
+            data.pop("is_active", None)
+        serializer = EventSerializer(event, data=data, partial=True)
         if serializer.is_valid():
             event = serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -93,7 +111,7 @@ class EventDetailView(APIView):
     @extend_schema(tags=["Events"], responses={204: None})
     def delete(self, request, slug, *args, **kwargs):
         """Delete event."""
-        event = get_object_or_404(Event, slug=slug, submitted_by=request.user)
+        event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

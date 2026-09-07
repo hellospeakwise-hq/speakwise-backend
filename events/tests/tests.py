@@ -104,6 +104,89 @@ class EventAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertTrue(Event.objects.filter(id=self.event.id).exists())
 
+    def test_submitter_can_update_own_event(self):
+        """Test that the event submitter can update their own event."""
+        regular_user = User.objects.create(
+            username="submitter",
+            email="submitter@mail.com",
+            password="testpassword",
+        )
+        event = Event.objects.create(
+            title="Submitter Event",
+            description="Created by submitter",
+            website="https://submitterevent.com",
+            submitted_by=regular_user,
+            is_active=False,
+        )
+
+        url = reverse("events:event-detail", kwargs={"slug": event.slug})
+        self.client.force_authenticate(user=regular_user)
+        response = self.client.patch(
+            url, {"description": "Updated description"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        event.refresh_from_db()
+        self.assertEqual(event.description, "Updated description")
+
+    def test_submitter_cannot_activate_own_event(self):
+        """Test that regular users cannot self-approve/activate their event."""
+        regular_user = User.objects.create(
+            username="submitter2",
+            email="submitter2@mail.com",
+            password="testpassword",
+        )
+        event = Event.objects.create(
+            title="Pending Event",
+            description="Pending approval",
+            website="https://pendingevent.com",
+            submitted_by=regular_user,
+            is_active=False,
+        )
+
+        url = reverse("events:event-detail", kwargs={"slug": event.slug})
+        self.client.force_authenticate(user=regular_user)
+        response = self.client.patch(url, {"is_active": True}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        event.refresh_from_db()
+        self.assertFalse(event.is_active)
+
+    def test_submitter_can_view_own_pending_event(self):
+        """Submitter can view unapproved event, but others cannot."""
+        regular_user = User.objects.create(
+            username="submitter3",
+            email="submitter3@mail.com",
+            password="testpassword",
+        )
+        other_user = User.objects.create(
+            username="otheruser3",
+            email="otheruser3@mail.com",
+            password="testpassword",
+        )
+        event = Event.objects.create(
+            title="Pending Event 3",
+            description="Pending approval",
+            website="https://pendingevent3.com",
+            submitted_by=regular_user,
+            is_active=False,
+        )
+
+        url = reverse("events:event-detail", kwargs={"slug": event.slug})
+
+        # Submitter can view
+        self.client.force_authenticate(user=regular_user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Other user cannot view (404)
+        self.client.force_authenticate(user=other_user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Anonymous cannot view (404)
+        self.client.force_authenticate(user=None)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
 
 class EventWebsiteNormalizationTests(TestCase):
     """Tests for official website URL normalization used in duplicate detection."""

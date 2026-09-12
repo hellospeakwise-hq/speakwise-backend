@@ -13,7 +13,7 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APIClient, APITestCase
 
 from profiles.choices import OrganizationStatusChoices
-from profiles.models import OrganizationProfile
+from profiles.models import OrganizationProfile, SpeakerProfile
 from profiles.models.organization_models import OrganizationCFP
 from profiles.serializers.organization_serializers import (
     OrganizationCFPSerializer,
@@ -496,3 +496,35 @@ class OrganizationSignalTests(TestCase):
         self.organization.status = OrganizationStatusChoices.REJECTED
         self.organization.save()
         self.assertEqual(len(mail.outbox), 0)
+
+
+class OrganizationProfileCreateRestrictionTests(APITestCase):
+    """Tests that a user can create one and only one profile."""
+
+    def setUp(self):
+        """Set up an authenticated client and a user with no profile."""
+        self.client = APIClient()
+        User = get_user_model()
+        self.user = User.objects.create(
+            username="orgrestrict",
+            email="orgrestrict@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(self.user)
+        self.list_url = reverse("organizations:organization-list-create")
+
+    def test_organization_rejected_when_user_has_speaker_profile(self):
+        """A user with a speaker profile cannot create an organization profile."""
+        SpeakerProfile.objects.create(user_account=self.user, organization="Acme")
+        res = self.client.post(self.list_url, {"name": "Bogus Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", res.data)
+        self.assertFalse(OrganizationProfile.objects.filter(name="Bogus Org").exists())
+
+    def test_second_organization_for_same_owner_is_rejected(self):
+        """A user who already owns an organization cannot create another."""
+        OrganizationProfile.objects.create(name="First Org", owner=self.user)
+        res = self.client.post(self.list_url, {"name": "Second Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", res.data)
+        self.assertFalse(OrganizationProfile.objects.filter(name="Second Org").exists())

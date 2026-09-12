@@ -19,6 +19,7 @@ from profiles.models.speaker_models import (
     SpeakerFollow,
     SpeakerProfile,
     SpeakerSkillTag,
+    get_speaker_profile,
 )
 from profiles.serializers.speaker_serializers import (
     FollowerDetailSerializer,
@@ -45,7 +46,7 @@ class SpeakerProfileListCreateView(APIView):
         speaker_profiles = SpeakerProfile.objects.annotate(
             _prefetched_followers_count=Count("followers", distinct=True),
             _prefetched_following_count=Count(
-                "user_account__speaker_following", distinct=True
+                "user_account__following_speakers", distinct=True
             ),
         )
         serializer = SpeakerProfileSerializer(
@@ -56,7 +57,9 @@ class SpeakerProfileListCreateView(APIView):
     @extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
     def post(self, request):
         """Create a new speaker profile."""
-        serializer = SpeakerProfileSerializer(data=request.data)
+        serializer = SpeakerProfileSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -301,7 +304,7 @@ class SpeakerSkillTagsListView(APIView):
         """Create a new skill tag for the authenticated user's speaker profile."""
         serializer = SpeakerSkillTagSerializer(data=request.data)
         if serializer.is_valid():
-            speaker_profile = request.user.speakers_profile_user.first()
+            speaker_profile = get_speaker_profile(request.user)
             if speaker_profile is None:
                 return Response(
                     {"detail": "Speaker profile not found for user."},

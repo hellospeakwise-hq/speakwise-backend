@@ -5,6 +5,7 @@ from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
+from profiles.models.organization_models import OrganizationProfile
 from profiles.models.speaker_models import (
     Notification,
     SpeakerExperiences,
@@ -12,6 +13,7 @@ from profiles.models.speaker_models import (
     SpeakerProfile,
     SpeakerSkillTag,
     SpeakerSocialLinks,
+    get_speaker_profile,
 )
 
 
@@ -44,14 +46,17 @@ class SpeakerExperiencesSerializer(ModelSerializer):
         model = SpeakerExperiences
         exclude = ["created_at", "updated_at"]
 
-    def create(self, validated_data) -> SpeakerExperiences:
-        """Create speaker experience with validation."""
-        event_date = validated_data.get("event_date")
-        if event_date is None:
-            raise ValidationError("Event date is required.")
-        speaker = self.context["request"].user.speakers_profile_user.first()
-        validated_data["speaker"] = speaker
-        return super().create(validated_data)
+
+def create(self, validated_data) -> SpeakerExperiences:
+    """Create speaker experience with validation."""
+    event_date = validated_data.get("event_date")
+    if event_date is None:
+        raise ValidationError("Event date is required.")
+    speaker = get_speaker_profile(self.context["request"].user)
+    if speaker is None:
+        raise ValidationError({"detail": "Speaker profile not found for this user."})
+    validated_data["speaker"] = speaker
+    return super().create(validated_data)
 
 
 class SpeakerFollowSerializer(ModelSerializer):
@@ -181,12 +186,24 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        """Create a speaker profile."""
+        """Create a speaker profile.
+
+        A user is allowed to have one and only one profile: they cannot create a
+        speaker profile when they already own an organization profile, nor can
+        they hold more than one speaker profile.
+        """
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             if SpeakerProfile.objects.filter(user_account=request.user).exists():
                 raise ValidationError(
                     {"detail": "Speaker profile already exists for this user."}
+                )
+            if OrganizationProfile.objects.filter(owner=request.user).exists():
+                raise ValidationError(
+                    {
+                        "detail": "User already has an organization profile; "
+                        "a user can have only one profile."
+                    }
                 )
             validated_data["user_account"] = request.user
         else:

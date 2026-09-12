@@ -8,6 +8,7 @@ from .speaker_models import (
     SpeakerProfile,
     SpeakerSkillTag,
     SpeakerSocialLinks,
+    get_speaker_profile,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "SpeakerProfile",
     "SpeakerSocialLinks",
     "SpeakerSkillTag",
+    "get_speaker_profile",
 ]

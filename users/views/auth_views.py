@@ -139,7 +139,7 @@ class UserLoginView(LoginBaseClass):
         not embedded in the JWT.
         """
         response = super().get_response()
-        response.data["profiles"] = LoginProfilesSerializer(self.user).data
+        response.data["profile"] = LoginProfilesSerializer(self.user).data
         return response
 
 

@@ -149,10 +149,9 @@ class OAuthProfileDataTests(TestCase):
             self.github_callback_url, {"code": "code", "state": "test_state"}
         )
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        profiles = self._user_param(response)["profiles"]
+        profiles = self._user_param(response)["profile"]
         # Signup does not auto-create a profile; a new user has neither type.
-        self.assertIsNone(profiles["speaker_profile"])
-        self.assertIsNone(profiles["organization_profile"])
+        self.assertEqual(profiles, {})
 
     @patch("users.views.oauth_views.get_github_session")
     def test_github_callback_returns_existing_speaker_profile(self, mock_get_session):
@@ -175,10 +174,10 @@ class OAuthProfileDataTests(TestCase):
             self.github_callback_url, {"code": "code", "state": "test_state"}
         )
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        profiles = self._user_param(response)["profiles"]
+        profiles = self._user_param(response)["profile"]
         self.assertIsNotNone(profiles["speaker_profile"])
         self.assertEqual(profiles["speaker_profile"]["organization"], "Acme")
-        self.assertIsNone(profiles["organization_profile"])
+        self.assertNotIn("organization_profile", profiles)
 
     @patch("users.views.oauth_views.get_google_session")
     def test_google_callback_returns_existing_organization_profile(
@@ -204,7 +203,7 @@ class OAuthProfileDataTests(TestCase):
             self.google_callback_url, {"code": "code", "state": "test_state"}
         )
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        profiles = self._user_param(response)["profiles"]
+        profiles = self._user_param(response)["profile"]
         self.assertIsNotNone(profiles["organization_profile"])
         self.assertEqual(profiles["organization_profile"]["name"], "Acme Org")
-        self.assertIsNone(profiles["speaker_profile"])
+        self.assertNotIn("speaker_profile", profiles)

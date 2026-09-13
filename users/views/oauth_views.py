@@ -93,7 +93,7 @@ def github_callback(request):
         user = User.objects.create(email=email, username=username)
 
     user_data = UserSerializer(user).data
-    user_data["profiles"] = LoginProfilesSerializer(user).data
+    user_data["profile"] = LoginProfilesSerializer(user).data
 
     refresh = RefreshToken.for_user(user)
     refresh.payload.update(UserSerializer(user).data)
@@ -151,7 +151,7 @@ def google_callback(request):
         user = User.objects.create(email=email, username=username)
 
     user_data = UserSerializer(user).data
-    user_data["profiles"] = LoginProfilesSerializer(user).data
+    user_data["profile"] = LoginProfilesSerializer(user).data
 
     refresh = RefreshToken.for_user(user)
     refresh.payload.update(UserSerializer(user).data)

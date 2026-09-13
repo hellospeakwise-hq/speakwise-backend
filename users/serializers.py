@@ -108,3 +108,11 @@ class LoginProfilesSerializer(serializers.Serializer):
     organization_profile = OrganizationProfileSerializer(
         source="organization_owner", read_only=True, allow_null=True
     )
+
+    def to_representation(self, instance):
+        """Omit the profile keys that hold no data.
+
+        Login responses should report only the profile a user actually has.
+        """
+        data = super().to_representation(instance)
+        return {key: value for key, value in data.items() if value is not None}

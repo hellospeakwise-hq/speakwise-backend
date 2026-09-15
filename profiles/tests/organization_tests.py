@@ -177,6 +177,7 @@ class OrganizationProfileSerializerTests(TestCase):
                 "branding",
                 "contact_email",
                 "status",
+                "admin_notes",
                 "cfps",
             },
         )

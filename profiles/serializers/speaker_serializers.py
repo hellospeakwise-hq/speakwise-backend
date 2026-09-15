@@ -46,17 +46,18 @@ class SpeakerExperiencesSerializer(ModelSerializer):
         model = SpeakerExperiences
         exclude = ["created_at", "updated_at"]
 
-
-def create(self, validated_data) -> SpeakerExperiences:
-    """Create speaker experience with validation."""
-    event_date = validated_data.get("event_date")
-    if event_date is None:
-        raise ValidationError("Event date is required.")
-    speaker = get_speaker_profile(self.context["request"].user)
-    if speaker is None:
-        raise ValidationError({"detail": "Speaker profile not found for this user."})
-    validated_data["speaker"] = speaker
-    return super().create(validated_data)
+    def create(self, validated_data) -> SpeakerExperiences:
+        """Create speaker experience with validation."""
+        event_date = validated_data.get("event_date")
+        if event_date is None:
+            raise ValidationError("Event date is required.")
+        speaker = get_speaker_profile(self.context["request"].user)
+        if speaker is None:
+            raise ValidationError(
+                {"detail": "Speaker profile not found for this user."}
+            )
+        validated_data["speaker"] = speaker
+        return super().create(validated_data)
 
 
 class SpeakerFollowSerializer(ModelSerializer):

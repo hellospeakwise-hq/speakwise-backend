@@ -244,6 +244,7 @@ class OrganizationProfileListCreateViewTests(APITestCase):
             username="orglistuser",
             email="orglist@example.com",
             password="testpass123",
+            is_email_verified=True,
         )
         self.org_a = OrganizationProfile.objects.create(name="Alpha Org")
         self.org_b = OrganizationProfile.objects.create(name="Beta Org")
@@ -352,6 +353,7 @@ class OrganizationProfileDetailViewTests(APITestCase):
             username="orgdetailuser",
             email="orgdetail@example.com",
             password="testpass123",
+            is_email_verified=True,
         )
         self.organization = OrganizationProfile.objects.create(
             name="Alpha Org",
@@ -510,6 +512,7 @@ class OrganizationProfileCreateRestrictionTests(APITestCase):
             username="orgrestrict",
             email="orgrestrict@example.com",
             password="testpass123",
+            is_email_verified=True,
         )
         self.client.force_authenticate(self.user)
         self.list_url = reverse("organizations:organization-list-create")

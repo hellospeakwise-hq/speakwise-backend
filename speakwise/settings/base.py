@@ -198,6 +198,12 @@ SPECTACULAR_SETTINGS = {
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 SITE_NAME = "SpeakWise"
 
+# OTP verification
+OTP_CODE_LENGTH = 6
+OTP_EXPIRY_MINUTES = 10
+OTP_RESEND_COOLDOWN_MINUTES = 2
+OTP_MAX_ATTEMPTS = 3
+
 # django-ckeditor-5 settings
 CKEDITOR_5_CONFIGS = {
     "default": {

@@ -202,6 +202,7 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
             first_name="Test",
             last_name="User",
             nationality="Kenya",
+            is_email_verified=True,
         )
         self.client.force_authenticate(user=self.user)
         self.url = reverse("users:retrieve_update_authenticated_user")

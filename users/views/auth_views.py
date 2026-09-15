@@ -15,14 +15,23 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.filters import UserFilter
 from users.models import User
+from users.permissions import IsEmailVerified
 from users.serializers import (
     LoginProfilesSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    ResendOtpSerializer,
     UserLoginSerializer,
     UserProfileSerializer,
     UserSerializer,
+    VerifyOtpSerializer,
+)
+from users.services import (
+    issue_otp,
+    resend_otp_by_email,
+    send_otp_email,
+    verify_otp_by_email,
 )
 from users.tasks import send_password_reset_email_task, send_welcome_email_task
 
@@ -37,10 +46,12 @@ class UserCreateView(APIView):
 
     @extend_schema(request=UserSerializer, responses={201: UserSerializer})
     def post(self, request):
-        """Create a new user."""
+        """Create a new user and issue an email verification OTP."""
         serializer = UserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        send_otp_email(user, issue_otp(user))
 
         # get auth tokens
         refresh = RefreshToken.for_user(user)
@@ -56,6 +67,42 @@ class UserCreateView(APIView):
         # send welcome email task
         send_welcome_email_task.enqueue(str(user.id))
         return Response(serializer_data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(request=VerifyOtpSerializer, responses={200: None})
+class VerifyOtpView(APIView):
+    """Verify an email address with a one-time password."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Verify the submitted OTP and mark the user's email as verified."""
+        serializer = VerifyOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        verify_otp_by_email(
+            serializer.validated_data["email"], serializer.validated_data["otp"]
+        )
+        return Response(
+            {"detail": "Email verified successfully."}, status=status.HTTP_200_OK
+        )
+
+
+@extend_schema(request=ResendOtpSerializer, responses={200: None})
+class ResendOtpView(APIView):
+    """Resend an email verification OTP code."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Issue and email a fresh OTP, respecting the resend cooldown."""
+        serializer = ResendOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user, code = resend_otp_by_email(serializer.validated_data["email"])
+        send_otp_email(user, code)
+        return Response(
+            {"detail": "A new verification code has been sent."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class UserLogoutView(APIView):
@@ -192,7 +239,11 @@ class PasswordResetConfirmView(APIView):
 class RetrieveUpdateAuthenticatedUserView(APIView):
     """View to retrieve and update the authenticated user's details."""
 
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        """Allow verified users to update; any authenticated user to read."""
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsEmailVerified()]
 
     def get_object(self, pk):
         """Get the authenticated user."""

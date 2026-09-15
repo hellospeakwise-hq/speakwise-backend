@@ -35,9 +35,10 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
             "branding",
             "contact_email",
             "status",
+            "admin_notes",
             "cfps",
         ]
-        read_only_fields = ["owner", "status", "id"]
+        read_only_fields = ["owner", "status", "admin_notes", "id"]
 
     def create(self, validated_data):
         """Create the organization profile owned by the requesting user.

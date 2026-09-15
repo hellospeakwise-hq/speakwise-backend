@@ -2,32 +2,79 @@
 
 from rest_framework import serializers
 
-from events.models import Event
-from feedbacks.models import EventFeedbackPreference, Feedback
+from feedbacks.models import RATING_FIELDS, Feedback
+from profiles.models.speaker_models import SpeakerExperiences
 
 
-class FeedbackSerializer(serializers.ModelSerializer):
-    """Serializer for feedback with support for anonymous feedback."""
+class FeedbackRateSerializer(serializers.ModelSerializer):
+    """Public submission serializer for rating a presentation.
 
-    # Required on submission even though the model column is nullable for
-    # legacy rows — event-based feedback gating depends on it.
-    event = serializers.PrimaryKeyRelatedField(queryset=Event.objects.all())
+    The audience only supplies optional name, optional comments, and the six
+    ratings. The experience (and thus the speaker) is resolved from the URL
+    slug, so no internal identifiers are accepted from the client.
+    """
+
+    name = serializers.CharField(
+        max_length=100, required=False, allow_blank=True, default=""
+    )
 
     class Meta:
         """Meta options."""
 
         model = Feedback
-        exclude = ["created_at", "updated_at"]
+        fields = ["name", "comments", *RATING_FIELDS]
 
 
-class EventFeedbackPreferenceSerializer(serializers.ModelSerializer):
-    """Serializer for a speaker's per-event feedback preference."""
-
-    is_feedback_enabled = serializers.BooleanField()
+class FeedbackExperienceSummarySerializer(serializers.ModelSerializer):
+    """Minimal read representation of the experience a feedback row belongs to."""
 
     class Meta:
         """Meta options."""
 
-        model = EventFeedbackPreference
-        fields = ["event", "is_feedback_enabled"]
-        read_only_fields = ["event"]
+        model = SpeakerExperiences
+        fields = ["feedback_slug", "event_name", "event_date", "topic"]
+
+
+class FeedbackReadSerializer(serializers.ModelSerializer):
+    """Read shape for feedback returned to the speaker's own list."""
+
+    experience = FeedbackExperienceSummarySerializer(read_only=True)
+
+    class Meta:
+        """Meta options."""
+
+        model = Feedback
+        fields = [
+            "id",
+            "experience",
+            "speaker",
+            "name",
+            "is_anonymous",
+            *RATING_FIELDS,
+            "comments",
+            "created_at",
+        ]
+        read_only_fields = ["speaker"]
+
+
+class FeedbackSubmittedSerializer(serializers.ModelSerializer):
+    """Audience-facing response after a successful submission.
+
+    Deliberately excludes internal model identifiers so no UUIDs leak to the
+    page that scanned the QR code.
+    """
+
+    experience = FeedbackExperienceSummarySerializer(read_only=True)
+
+    class Meta:
+        """Meta options."""
+
+        model = Feedback
+        fields = [
+            "experience",
+            "name",
+            "is_anonymous",
+            *RATING_FIELDS,
+            "comments",
+            "created_at",
+        ]

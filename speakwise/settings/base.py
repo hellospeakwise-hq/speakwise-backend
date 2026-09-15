@@ -204,6 +204,11 @@ OTP_EXPIRY_MINUTES = 10
 OTP_RESEND_COOLDOWN_MINUTES = 2
 OTP_MAX_ATTEMPTS = 3
 
+# Feedback
+# Minimum interval between feedback submissions from the same IP for the same
+# presentation, used to dampen re-submission spam on the public rate endpoint.
+FEEDBACK_IP_COOLDOWN_MINUTES = 60
+
 # django-ckeditor-5 settings
 CKEDITOR_5_CONFIGS = {
     "default": {

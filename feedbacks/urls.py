@@ -9,12 +9,17 @@ app_name = "feedbacks"
 urlpatterns = [
     path(
         "feedbacks/",
-        views.FeedbackListCreateView.as_view(),
-        name="feedbacks_list_create",
+        views.FeedbackListView.as_view(),
+        name="feedback_list",
     ),
     path(
-        "feedbacks/preferences/<uuid:event_id>/",
-        views.EventFeedbackPreferenceView.as_view(),
-        name="event_feedback_preference",
+        "feedbacks/rate/<str:feedback_slug>/",
+        views.FeedbackRateView.as_view(),
+        name="feedback_rate",
+    ),
+    path(
+        "feedbacks/qrcode/<str:feedback_slug>/",
+        views.FeedbackQRCodeView.as_view(),
+        name="feedback_qrcode",
     ),
 ]

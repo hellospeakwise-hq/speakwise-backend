@@ -1,121 +1,123 @@
 """Feedback views using Generic Views."""
 
-from django.shortcuts import get_object_or_404
+from io import BytesIO
+
+import qrcode
+from django.http import HttpResponse
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, Throttled
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from events.models import Event
-from profiles.models import get_speaker_profile
-from speakerrequests.choices import RequestStatusChoices
-from speakerrequests.models import SpeakerRequest
-
-from .models import EventFeedbackPreference, Feedback
-from .serializers import EventFeedbackPreferenceSerializer, FeedbackSerializer
-
-
-class FeedbackListCreateView(APIView):
-    """List and create feedback."""
-
-    serializer_class = FeedbackSerializer
-
-    def get_permissions(self):
-        """Set permissions based on action."""
-        if self.request.method == "GET":
-            return [IsAuthenticated()]
-        return [AllowAny()]
-
-    @extend_schema(responses=FeedbackSerializer(many=True))
-    def get(self, request, *args, **kwargs):
-        """List feedbacks for the authenticated speaker."""
-        feedbacks = Feedback.objects.filter(speaker__user_account=request.user)
-        serializer = self.serializer_class(feedbacks, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @extend_schema(request=FeedbackSerializer, responses=FeedbackSerializer)
-    def post(self, request, *args, **kwargs):
-        """Create a new feedback.
-
-        Rejected when the speaker has closed feedback for the given event.
-        """
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        speaker = serializer.validated_data.get("speaker")
-        event = serializer.validated_data["event"]
-        if speaker and not EventFeedbackPreference.objects.is_enabled_for(
-            speaker, event
-        ):
-            raise PermissionDenied(
-                "This speaker is not accepting feedback for this event."
-            )
-
-        serializer.save()
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+from feedbacks.models import Feedback
+from feedbacks.serializers import (
+    FeedbackRateSerializer,
+    FeedbackReadSerializer,
+    FeedbackSubmittedSerializer,
+)
+from feedbacks.services import (
+    build_feedback_qr_payload,
+    hash_submitter_ip,
+    is_feedback_open,
+    resolve_feedback_experience,
+    submitted_recently_by_ip,
+)
+from users.permissions import IsEmailVerified
 
 
-@extend_schema(tags=["Feedbacks"])
-class EventFeedbackPreferenceView(APIView):
-    """Read or set the authenticated speaker's feedback preference for an event.
-
-    GET returns the current preference (open by default when none has been set).
-    PUT sets it explicitly with {"is_feedback_enabled": true|false}.
-    Only speakers with an accepted speaker request for the event may access it.
-    """
+class FeedbackListView(APIView):
+    """List the authenticated speaker's own feedback."""
 
     permission_classes = [IsAuthenticated]
-    serializer_class = EventFeedbackPreferenceSerializer
+    serializer_class = FeedbackReadSerializer
 
-    def get_speaker(self, user, event):
-        """Return the user's profile when accepted to speak at the event."""
-        speaker = get_speaker_profile(user)
-        if speaker is None:
-            raise PermissionDenied("Speaker profile not found for this user.")
+    @extend_schema(responses=FeedbackReadSerializer(many=True))
+    def get(self, request, *args, **kwargs):
+        """List feedback for the authenticated speaker, optionally per-experience."""
+        queryset = Feedback.objects.filter(speaker__user_account=request.user)
+        feedback_slug = request.query_params.get("experience")
+        if feedback_slug:
+            experience = resolve_feedback_experience(feedback_slug)
+            if experience is None:
+                raise NotFound("Unknown experience.")
+            queryset = queryset.filter(experience=experience)
 
-        is_accepted = SpeakerRequest.objects.filter(
-            speaker=speaker,
-            event=event,
-            status=RequestStatusChoices.ACCEPTED,
-        ).exists()
-        if not is_accepted:
-            raise PermissionDenied("You are not an accepted speaker for this event.")
-        return speaker
-
-    @extend_schema(responses=EventFeedbackPreferenceSerializer)
-    def get(self, request, event_id, *args, **kwargs):
-        """Return the speaker's feedback preference for the event."""
-        event = get_object_or_404(Event, pk=event_id)
-        speaker = self.get_speaker(request.user, event)
-
-        preference = event.speaker_feedback_preferences.filter(
-            speaker=speaker
-        ).first() or EventFeedbackPreference(
-            speaker=speaker, event=event, is_feedback_enabled=True
+        serializer = self.serializer_class(
+            queryset.select_related("experience"), many=True
         )
-        serializer = self.serializer_class(preference)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+class FeedbackRateView(APIView):
+    """Public endpoint to rate a specific presentation via its QR slug.
+
+    No authentication is required. The experience slug, resolved from the URL,
+    identifies both the speaker and the presentation.
+    """
+
+    permission_classes = [AllowAny]
+    serializer_class = FeedbackRateSerializer
+
     @extend_schema(
-        request=EventFeedbackPreferenceSerializer,
-        responses=EventFeedbackPreferenceSerializer,
+        request=FeedbackRateSerializer, responses=FeedbackSubmittedSerializer
     )
-    def put(self, request, event_id, *args, **kwargs):
-        """Set the speaker's feedback preference for the event."""
-        event = get_object_or_404(Event, pk=event_id)
-        speaker = self.get_speaker(request.user, event)
+    def post(self, request, feedback_slug, *args, **kwargs):
+        """Submit anonymous or named feedback for a presentation."""
+        experience = resolve_feedback_experience(feedback_slug)
+        if experience is None:
+            raise NotFound("Presentation not found.")
+
+        if not is_feedback_open(experience):
+            raise PermissionDenied("Feedback for this presentation has not opened yet.")
+        if not experience.feedback_enabled:
+            raise PermissionDenied(
+                "The speaker is not accepting feedback for this presentation."
+            )
 
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        preference = EventFeedbackPreference.objects.set_for(
-            speaker,
-            event,
-            serializer.validated_data["is_feedback_enabled"],
+        ip = self._client_ip(request)
+        ip_hash = hash_submitter_ip(ip) if ip else ""
+        if ip_hash and submitted_recently_by_ip(experience, ip_hash):
+            raise Throttled(
+                detail="You have already submitted feedback for this presentation."
+            )
+
+        feedback = serializer.save(
+            experience=experience,
+            speaker=experience.speaker,
+            submitter_ip_hash=ip_hash,
         )
         return Response(
-            self.serializer_class(preference).data, status=status.HTTP_200_OK
+            FeedbackSubmittedSerializer(feedback).data, status=status.HTTP_201_CREATED
         )
+
+    @staticmethod
+    def _client_ip(request) -> str:
+        """Return the request's originating IP address, or an empty string."""
+        return request.META.get("REMOTE_ADDR", "")
+
+
+class FeedbackQRCodeView(APIView):
+    """Return a PNG QR code for the audience to rate a presentation."""
+
+    permission_classes = [IsEmailVerified]
+
+    @extend_schema(responses={200: OpenApiTypes.BINARY})
+    def get(self, request, feedback_slug, *args, **kwargs):
+        """Generate a QR code encoding the public rating URL."""
+        experience = resolve_feedback_experience(feedback_slug)
+        if experience is None:
+            raise NotFound("Presentation not found.")
+        if experience.speaker.user_account != request.user:
+            raise PermissionDenied("You do not own this presentation.")
+
+        payload = build_feedback_qr_payload(feedback_slug)
+        image = qrcode.make(payload)
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        return HttpResponse(buffer.getvalue(), content_type="image/png")

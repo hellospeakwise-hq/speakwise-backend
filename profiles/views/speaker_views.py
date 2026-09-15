@@ -25,6 +25,7 @@ from profiles.serializers.speaker_serializers import (
     FollowerDetailSerializer,
     NotificationSerializer,
     SpeakerExperiencesSerializer,
+    SpeakerProfileDetailSerializer,
     SpeakerProfileSerializer,
     SpeakerSkillTagSerializer,
 )
@@ -66,7 +67,9 @@ class SpeakerProfileListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
+@extend_schema(
+    request=SpeakerProfileSerializer, responses=SpeakerProfileDetailSerializer
+)
 class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker profile.
 
@@ -92,7 +95,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     def get(self, request, slug: str):
         """Retrieve a specific speaker profile by ID."""
         speaker_profile = self.get_object(slug)
-        serializer = SpeakerProfileSerializer(
+        serializer = SpeakerProfileDetailSerializer(
             speaker_profile, context={"request": request}
         )
         return Response(serializer.data)

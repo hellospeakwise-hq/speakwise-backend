@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from events.models import Event
+from profiles.models import get_speaker_profile
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.models import SpeakerRequest
 
@@ -71,7 +72,7 @@ class EventFeedbackPreferenceView(APIView):
 
     def get_speaker(self, user, event):
         """Return the user's profile when accepted to speak at the event."""
-        speaker = user.speakers_profile_user.first()
+        speaker = get_speaker_profile(user)
         if speaker is None:
             raise PermissionDenied("Speaker profile not found for this user.")
 

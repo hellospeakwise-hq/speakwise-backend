@@ -13,7 +13,7 @@ class OrganizationProfile(TimeStampedModel):
     """Organization profile model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    owner = models.ForeignKey(
+    owner = models.OneToOneField(
         "users.User",
         on_delete=models.CASCADE,
         null=True,

@@ -121,8 +121,10 @@ class SpeakerProfile(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     objects = SpeakerProfileManager()
-    user_account = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="speakers_profile_user"
+    user_account = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="speakers_profile_user",
     )
     events_spoken = models.ManyToManyField(
         "events.Event",
@@ -183,6 +185,18 @@ class SpeakerProfile(TimeStampedModel):
     def followers_count(self) -> int:
         """Return the number of users following this speaker."""
         return self.followers.count()
+
+
+def get_speaker_profile(user):
+    """Return the user's speaker profile, or None when they have none.
+
+    Accesses the one-to-one reverse relation, which raises
+    ``SpeakerProfile.DoesNotExist`` for users without a speaker profile.
+    """
+    try:
+        return user.speakers_profile_user
+    except SpeakerProfile.DoesNotExist:
+        return None
 
 
 class SpeakerSocialLinks(SocialLinks):

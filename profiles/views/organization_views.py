@@ -31,9 +31,11 @@ class OrganizationProfileListCreateView(views.APIView):
     )
     def post(self, request, *args, **kwargs):
         """Create a new organization profile owned by the requesting user."""
-        serializer = OrganizationProfileSerializer(data=request.data)
+        serializer = OrganizationProfileSerializer(
+            data=request.data, context={"request": request}
+        )
         if serializer.is_valid():
-            serializer.save(owner=request.user)
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

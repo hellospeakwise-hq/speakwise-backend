@@ -8,7 +8,6 @@ from django.contrib.auth import logout
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from users.filters import UserFilter
 from users.models import User
 from users.serializers import (
+    LoginProfilesSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -30,17 +30,32 @@ logger = logging.getLogger(__name__)
 
 
 @extend_schema(responses=UserSerializer)
-class UserCreateView(CreateAPIView):
+class UserCreateView(APIView):
     """User create view."""
 
-    serializer_class = UserSerializer
-    queryset = User.objects.all()
     permission_classes = [AllowAny]
 
-    def perform_create(self, serializer):
-        """Create user and send welcome email."""
+    @extend_schema(request=UserSerializer, responses={201: UserSerializer})
+    def post(self, request):
+        """Create a new user."""
+        serializer = UserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        # get auth tokens
+        refresh = RefreshToken.for_user(user)
+        for key, value in UserSerializer(user).data.items():
+            refresh[key] = value
+        access = refresh.access_token
+
+        # add tokens to response data
+        serializer_data = serializer.data
+        serializer_data["refresh"] = str(refresh)
+        serializer_data["access"] = str(access)
+
+        # send welcome email task
         send_welcome_email_task.enqueue(str(user.id))
+        return Response(serializer_data, status=status.HTTP_201_CREATED)
 
 
 class UserLogoutView(APIView):
@@ -114,8 +129,18 @@ class UserLoginView(LoginBaseClass):
         return self.user
 
     def get_extra_payload(self) -> dict:
-        """Return the speaker data."""
+        """Return the user data, which is also embedded in the refresh token."""
         return UserSerializer(self.user).data
+
+    def get_response(self):
+        """Return the login response with the user's detected profiles.
+
+        Profile data is added to the response body only — it is intentionally
+        not embedded in the JWT.
+        """
+        response = super().get_response()
+        response.data["profile"] = LoginProfilesSerializer(self.user).data
+        return response
 
 
 @extend_schema(responses=PasswordResetRequestSerializer)

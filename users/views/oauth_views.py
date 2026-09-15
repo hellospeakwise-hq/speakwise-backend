@@ -10,10 +10,11 @@ from requests_oauthlib import OAuth2Session
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.utils.encoders import JSONEncoder
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import User
-from users.serializers import UserSerializer
+from users.serializers import LoginProfilesSerializer, UserSerializer
 
 frontend_url = os.environ.get("FRONTEND_URL")
 
@@ -91,6 +92,9 @@ def github_callback(request):
     if not user:
         user = User.objects.create(email=email, username=username)
 
+    user_data = UserSerializer(user).data
+    user_data["profile"] = LoginProfilesSerializer(user).data
+
     refresh = RefreshToken.for_user(user)
     refresh.payload.update(UserSerializer(user).data)
 
@@ -99,7 +103,7 @@ def github_callback(request):
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "user": json.dumps(
-                UserSerializer(user).data
+                user_data, cls=JSONEncoder
             ),  # ← FIXED: Convert dict to JSON string
         }
     )
@@ -146,6 +150,9 @@ def google_callback(request):
     if not user:
         user = User.objects.create(email=email, username=username)
 
+    user_data = UserSerializer(user).data
+    user_data["profile"] = LoginProfilesSerializer(user).data
+
     refresh = RefreshToken.for_user(user)
     refresh.payload.update(UserSerializer(user).data)
 
@@ -154,7 +161,7 @@ def google_callback(request):
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "user": json.dumps(
-                UserSerializer(user).data
+                user_data, cls=JSONEncoder
             ),  # ← Convert dict to JSON string
         }
     )

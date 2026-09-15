@@ -4,6 +4,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
+from profiles.serializers.organization_serializers import OrganizationProfileSerializer
 from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
 from users.models import User
 
@@ -78,9 +79,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class UserProfileSerializer(UserSerializer):
     """Serializer for user profile."""
 
-    speaker = SpeakerProfileSerializer(
-        source="speakers_profile_user", many=True, required=False
-    )
+    speaker = SpeakerProfileSerializer(source="speakers_profile_user", required=False)
 
     class Meta:
         """meta options."""
@@ -93,3 +92,27 @@ class LogoutSerializer(serializers.Serializer):
     """Serializer for logging out a user by blacklisting a refresh token."""
 
     refresh = serializers.CharField(write_only=True)
+
+
+class LoginProfilesSerializer(serializers.Serializer):
+    """Detect and serialize a user's speaker and organization profiles.
+
+    Returns the profile data attached to the user so login flows can report
+    which profile exists. A user can hold one and only one profile, so each
+    field is either the profile object or ``None``.
+    """
+
+    speaker_profile = SpeakerProfileSerializer(
+        source="speakers_profile_user", read_only=True, allow_null=True
+    )
+    organization_profile = OrganizationProfileSerializer(
+        source="organization_owner", read_only=True, allow_null=True
+    )
+
+    def to_representation(self, instance):
+        """Omit the profile keys that hold no data.
+
+        Login responses should report only the profile a user actually has.
+        """
+        data = super().to_representation(instance)
+        return {key: value for key, value in data.items() if value is not None}

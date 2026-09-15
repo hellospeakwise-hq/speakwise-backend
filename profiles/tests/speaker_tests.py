@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient, APITestCase
 
+from profiles.models.organization_models import OrganizationProfile
 from profiles.models.speaker_models import (
     SpeakerExperiences,
     SpeakerProfile,
@@ -1170,3 +1171,48 @@ class SpeakerSkillMatchingQuerySetTests(TestCase):
         ids = set(matches.values_list("id", flat=True))
         self.assertIn(self.python_speaker.id, ids)
         self.assertNotIn(self.ruby_speaker.id, ids)
+
+
+class SpeakerProfileCreateRestrictionTests(APITestCase):
+    """Tests that a user can create one and only one profile."""
+
+    def setUp(self):
+        """Set up an authenticated client and a user with no profile."""
+        self.client = APIClient()
+        User = get_user_model()
+        self.user = User.objects.create(
+            username="restrictuser",
+            email="restrict@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(self.user)
+        self.profiles_url = reverse("speakers:speakers_list_create")
+
+    def test_user_can_create_a_speaker_profile(self):
+        """A user without any profile can create a speaker profile."""
+        res = self.client.post(self.profiles_url, {"short_bio": "Hi"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        profile = SpeakerProfile.objects.get(user_account=self.user)
+        self.assertEqual(profile.short_bio, "Hi")
+        self.assertEqual(res.data["user_account"], self.user.id)
+
+    def test_second_speaker_profile_is_rejected(self):
+        """Creating a second speaker profile for the same user is rejected."""
+        SpeakerProfile.objects.create(user_account=self.user)
+        res = self.client.post(self.profiles_url, {"short_bio": "Hi"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", res.data)
+
+    def test_speaker_profile_rejected_when_user_has_organization(self):
+        """A user who owns an organization profile cannot create a speaker profile."""
+        OrganizationProfile.objects.create(name="Restrict Org", owner=self.user)
+        res = self.client.post(self.profiles_url, {"short_bio": "Hi"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", res.data)
+        self.assertFalse(SpeakerProfile.objects.filter(user_account=self.user).exists())
+
+    def test_unauthenticated_create_is_rejected(self):
+        """Creating a speaker profile requires authentication."""
+        self.client.force_authenticate(user=None)
+        res = self.client.post(self.profiles_url, {"short_bio": "Hi"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)

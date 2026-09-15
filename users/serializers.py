@@ -1,6 +1,8 @@
 """user serializers."""
 
+from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.validators import RegexValidator
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
@@ -24,8 +26,13 @@ class UserSerializer(WritableNestedModelSerializer):
             "nationality",
             "username",
             "password",
+            "is_email_verified",
         ]
-        extra_kwargs = {"password": {"write_only": True}, "id": {"read_only": True}}
+        extra_kwargs = {
+            "password": {"write_only": True},
+            "id": {"read_only": True},
+            "is_email_verified": {"read_only": True},
+        }
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -33,6 +40,26 @@ class UserLoginSerializer(serializers.Serializer):
 
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+
+
+class VerifyOtpSerializer(serializers.Serializer):
+    """Serializer for verifying an email address with an OTP code."""
+
+    email = serializers.EmailField()
+    otp = serializers.CharField(
+        max_length=settings.OTP_CODE_LENGTH,
+        min_length=settings.OTP_CODE_LENGTH,
+        validators=[
+            RegexValidator(r"^\d+$", message="OTP code must contain only digits.")
+        ],
+        trim_whitespace=False,
+    )
+
+
+class ResendOtpSerializer(serializers.Serializer):
+    """Serializer for requesting a new OTP code."""
+
+    email = serializers.EmailField()
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):

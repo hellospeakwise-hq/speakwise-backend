@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from profiles.models.organization_models import OrganizationProfile
 from profiles.serializers.organization_serializers import OrganizationProfileSerializer
+from users.permissions import IsEmailVerified
 
 
 class OrganizationProfileListCreateView(views.APIView):
@@ -16,7 +17,7 @@ class OrganizationProfileListCreateView(views.APIView):
         """Return view permission based on request."""
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        return [IsEmailVerified()]
 
     @extend_schema(responses={200: OrganizationProfileSerializer(many=True)})
     def get(self, request, *args, **kwargs):
@@ -51,7 +52,7 @@ class OrganizationProfileDetailView(views.APIView):
         """Return permission based on request."""
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        return [IsEmailVerified()]
 
     def get(self, request, pk, *args, **kwargs):
         """Retrieve an organization profile."""

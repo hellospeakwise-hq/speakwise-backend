@@ -90,7 +90,13 @@ def github_callback(request):
 
     user = User.objects.filter(email=email).first()
     if not user:
-        user = User.objects.create(email=email, username=username)
+        user = User.objects.create(
+            email=email, username=username, is_email_verified=True
+        )
+    elif not user.is_email_verified:
+        # The provider has already verified the email on a returning OAuth login.
+        user.is_email_verified = True
+        user.save(update_fields=["is_email_verified"])
 
     user_data = UserSerializer(user).data
     user_data["profile"] = LoginProfilesSerializer(user).data
@@ -148,7 +154,13 @@ def google_callback(request):
 
     user = User.objects.filter(email=email).first()
     if not user:
-        user = User.objects.create(email=email, username=username)
+        user = User.objects.create(
+            email=email, username=username, is_email_verified=True
+        )
+    elif not user.is_email_verified:
+        # The provider has already verified the email on a returning OAuth login.
+        user.is_email_verified = True
+        user.save(update_fields=["is_email_verified"])
 
     user_data = UserSerializer(user).data
     user_data["profile"] = LoginProfilesSerializer(user).data

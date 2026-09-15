@@ -8,6 +8,12 @@ app_name = "users"
 
 urlpatterns = [
     path("users/auth/register/", auth_views.UserCreateView.as_view(), name="register"),
+    path(
+        "users/auth/verify-otp/", auth_views.VerifyOtpView.as_view(), name="verify-otp"
+    ),
+    path(
+        "users/auth/resend-otp/", auth_views.ResendOtpView.as_view(), name="resend-otp"
+    ),
     path("users/auth/login/", auth_views.UserLoginView.as_view(), name="login"),
     path("users/auth/logout/", auth_views.UserLogoutView.as_view(), name="logout"),
     path("users/auth/github-login/", oauth_views.github_login, name="github-login"),

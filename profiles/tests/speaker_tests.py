@@ -1184,6 +1184,7 @@ class SpeakerProfileCreateRestrictionTests(APITestCase):
             username="restrictuser",
             email="restrict@example.com",
             password="testpass123",
+            is_email_verified=True,
         )
         self.client.force_authenticate(self.user)
         self.profiles_url = reverse("speakers:speakers_list_create")

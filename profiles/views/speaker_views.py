@@ -29,6 +29,7 @@ from profiles.serializers.speaker_serializers import (
     SpeakerSkillTagSerializer,
 )
 from users.models import User
+from users.permissions import IsEmailVerified
 
 
 class SpeakerProfileListCreateView(APIView):
@@ -38,7 +39,7 @@ class SpeakerProfileListCreateView(APIView):
         """Get permissions depending on the request method."""
         if self.request.method == "GET":
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsEmailVerified()]
 
     @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
@@ -79,7 +80,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         """Get permissions based on request method."""
         if self.request.method in self.SAFE_METHODS:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsEmailVerified()]
 
     def get_object(self, slug: str):
         """Get speaker profile by ID."""

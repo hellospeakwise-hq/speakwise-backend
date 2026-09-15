@@ -154,6 +154,50 @@ class OAuthProfileDataTests(TestCase):
         self.assertEqual(profiles, {})
 
     @patch("users.views.oauth_views.get_github_session")
+    def test_github_callback_marks_new_user_email_verified(self, mock_get_session):
+        """A user created via GitHub OAuth skips OTP verification."""
+        mock_github = mock_get_session.return_value
+        session = self.client.session
+        session["oauth_state"] = "test_state"
+        session.save()
+        mock_github.fetch_token.return_value = {"access_token": "token"}
+        mock_github.get.return_value.json.side_effect = [
+            {"email": "gh_verified@example.com", "login": "ghverified"}
+        ]
+
+        response = self.client.get(
+            self.github_callback_url, {"code": "code", "state": "test_state"}
+        )
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        user = User.objects.get(email="gh_verified@example.com")
+        self.assertTrue(user.is_email_verified)
+        self.assertTrue(self._user_param(response)["is_email_verified"])
+
+    @patch("users.views.oauth_views.get_github_session")
+    def test_github_callback_verifies_existing_email_user(self, mock_get_session):
+        """A returning OAuth login verifies an email/password account's email."""
+        user = User.objects.create(
+            email="gh_existing@example.com",
+            username="ghexisting",
+            is_email_verified=False,
+        )
+        mock_github = mock_get_session.return_value
+        session = self.client.session
+        session["oauth_state"] = "test_state"
+        session.save()
+        mock_github.fetch_token.return_value = {"access_token": "token"}
+        mock_github.get.return_value.json.side_effect = [
+            {"email": "gh_existing@example.com", "login": "ghexisting"}
+        ]
+
+        response = self.client.get(
+            self.github_callback_url, {"code": "code", "state": "test_state"}
+        )
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        user.refresh_from_db()
+        self.assertTrue(user.is_email_verified)
+
+    @patch("users.views.oauth_views.get_github_session")
     def test_github_callback_returns_existing_speaker_profile(self, mock_get_session):
         """A returning OAuth user with a speaker profile gets it reported."""
         user = User.objects.create(

@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from feedbacks.models import Feedback
 from feedbacks.serializers import (
+    FeedbackExperienceInfoSerializer,
     FeedbackRateSerializer,
     FeedbackReadSerializer,
     FeedbackSubmittedSerializer,
@@ -60,6 +61,15 @@ class FeedbackRateView(APIView):
 
     permission_classes = [AllowAny]
     serializer_class = FeedbackRateSerializer
+
+    @extend_schema(responses=FeedbackExperienceInfoSerializer)
+    def get(self, request, feedback_slug, *args, **kwargs):
+        """Return public presentation info so the audience page can display it."""
+        experience = resolve_feedback_experience(feedback_slug)
+        if experience is None:
+            raise NotFound("Presentation not found.")
+        serializer = FeedbackExperienceInfoSerializer(experience)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         request=FeedbackRateSerializer, responses=FeedbackSubmittedSerializer

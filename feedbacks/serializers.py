@@ -6,6 +6,47 @@ from feedbacks.models import RATING_FIELDS, Feedback
 from profiles.models.speaker_models import SpeakerExperiences
 
 
+class FeedbackExperienceInfoSerializer(serializers.ModelSerializer):
+    """Public-safe experience info returned by GET /feedbacks/rate/<slug>/.
+
+    Exposes presentation context so the audience landing page can display the
+    talk title, event, and speaker name without leaking any internal IDs.
+    Also exposes ``is_open`` so the page can detect a closed/gated form
+    before the user even attempts to submit.
+    """
+
+    speaker_name = serializers.SerializerMethodField()
+    is_open = serializers.SerializerMethodField()
+
+    class Meta:
+        """Meta options."""
+
+        model = SpeakerExperiences
+        fields = [
+            "topic",
+            "event_name",
+            "event_date",
+            "speaker_name",
+            "feedback_enabled",
+            "is_open",
+        ]
+
+    def get_speaker_name(self, obj) -> str:
+        """Return the speaker's full name from their user account."""
+        user = getattr(getattr(obj, "speaker", None), "user_account", None)
+        if user is None:
+            return ""
+        first = user.first_name or ""
+        last = user.last_name or ""
+        return f"{first} {last}".strip() or user.username
+
+    def get_is_open(self, obj) -> bool:
+        """Return whether the date gate allows feedback submission right now."""
+        from feedbacks.services import is_feedback_open
+
+        return is_feedback_open(obj)
+
+
 class FeedbackRateSerializer(serializers.ModelSerializer):
     """Public submission serializer for rating a presentation.
 

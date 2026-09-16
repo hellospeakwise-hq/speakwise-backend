@@ -1,6 +1,8 @@
 """speakers app views."""
 
-from django.db.models import Count
+import uuid
+
+from django.db.models import Count, Q
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -25,6 +27,7 @@ from profiles.serializers.speaker_serializers import (
     FollowerDetailSerializer,
     NotificationSerializer,
     SpeakerExperiencesSerializer,
+    SpeakerProfileDetailSerializer,
     SpeakerProfileSerializer,
     SpeakerSkillTagSerializer,
 )
@@ -66,7 +69,9 @@ class SpeakerProfileListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
+@extend_schema(
+    request=SpeakerProfileSerializer, responses=SpeakerProfileDetailSerializer
+)
 class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     """View to retrieve, update, and delete a speaker profile.
 
@@ -83,7 +88,14 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
         return [IsEmailVerified()]
 
     def get_object(self, slug: str):
-        """Get speaker profile by ID."""
+        """Get speaker profile by slug or UUID."""
+        try:
+            val = uuid.UUID(slug)
+            profile = SpeakerProfile.objects.filter(Q(slug=slug) | Q(id=val)).first()
+            if profile:
+                return profile
+        except (ValueError, AttributeError):
+            pass
         try:
             return SpeakerProfile.objects.get(slug=slug)
         except SpeakerProfile.DoesNotExist as err:
@@ -92,7 +104,7 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     def get(self, request, slug: str):
         """Retrieve a specific speaker profile by ID."""
         speaker_profile = self.get_object(slug)
-        serializer = SpeakerProfileSerializer(
+        serializer = SpeakerProfileDetailSerializer(
             speaker_profile, context={"request": request}
         )
         return Response(serializer.data)
@@ -206,11 +218,17 @@ class PublicSpeakerExperiencesListView(APIView):
         tags=["speaker experiences (public view)"],
     )
     def get(self, request, slug: str = None):
-        """List all speaker experiences for the provided speaker slug.
+        """List all speaker experiences for the provided speaker slug or UUID.
 
         If the slug does not match any speaker, an empty list is returned.
         """
-        speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
+        try:
+            val = uuid.UUID(slug)
+            speaker_filter = Q(speaker__id=val) | Q(speaker__slug=slug)
+        except (ValueError, AttributeError):
+            speaker_filter = Q(speaker__slug=slug)
+
+        speaker_experiences = SpeakerExperiences.objects.filter(speaker_filter)
         serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

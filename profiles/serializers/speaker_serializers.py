@@ -45,6 +45,7 @@ class SpeakerExperiencesSerializer(ModelSerializer):
 
         model = SpeakerExperiences
         exclude = ["created_at", "updated_at"]
+        read_only_fields = ["feedback_slug"]
 
     def create(self, validated_data) -> SpeakerExperiences:
         """Create speaker experience with validation."""
@@ -267,6 +268,48 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
                 SpeakerSocialLinks.objects.create(speaker=instance, **item)
 
         return instance
+
+
+class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
+    """Public speaker profile for detail views.
+
+    Adds ``feedback_summary``, an aggregate of the speaker's ratings across all
+    events they spoke at. List views keep using ``SpeakerProfileSerializer`` so
+    the aggregate is never computed for paginated results.
+    """
+
+    feedback_summary = SerializerMethodField()
+
+    def get_feedback_summary(self, obj) -> dict:
+        """Return per-criterion averages and distributions for the speaker."""
+        from feedbacks.services import build_feedback_summary
+
+        return build_feedback_summary(obj)
+
+    class Meta:
+        """Meta options."""
+
+        model = SpeakerProfile
+        fields = [
+            "id",
+            "slug",
+            "user_account",
+            "avatar",
+            "speaker_name",
+            "organization",
+            "short_bio",
+            "long_bio",
+            "country",
+            "events_spoken",
+            "social_links",
+            "skill_tags",
+            "experiences",
+            "followers_count",
+            "following_count",
+            "is_following",
+            "feedback_summary",
+        ]
+        read_only_fields = ("slug", "user_account")
 
 
 # ---------- Speaker Deck ----------

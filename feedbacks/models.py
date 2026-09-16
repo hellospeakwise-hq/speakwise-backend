@@ -7,9 +7,17 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from base.models import TimeStampedModel
-from profiles.models.speaker_models import SpeakerProfile
 
 RATING_VALIDATORS = [MinValueValidator(1), MaxValueValidator(10)]
+
+RATING_FIELDS = (
+    "overall_rating",
+    "engagement",
+    "clarity",
+    "content_depth",
+    "speaker_knowledge",
+    "practical_relevance",
+)
 
 
 class Feedback(TimeStampedModel):
@@ -22,15 +30,13 @@ class Feedback(TimeStampedModel):
         null=True,
         related_name="speaker_feedback",
     )
-    # Nullable at the database level only for feedback that predates
-    # event-scoping; new submissions must provide it (enforced in the serializer).
-    event = models.ForeignKey(
-        "events.Event",
+    experience = models.ForeignKey(
+        "profiles.SpeakerExperiences",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="feedbacks",
-        help_text="The event the feedback was given at.",
+        related_name="feedback",
+        help_text="The presentation the feedback was given for.",
     )
     overall_rating = models.IntegerField(
         validators=RATING_VALIDATORS,
@@ -57,8 +63,19 @@ class Feedback(TimeStampedModel):
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     comments = models.TextField(max_length=2000, blank=True, null=True)
+    name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Optional public name of the person giving feedback.",
+    )
     is_anonymous = models.BooleanField(default=False)
-    is_attendee = models.BooleanField(default=False)
+    submitter_ip_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Salted hash of the submitter's IP used for rate limiting.",
+    )
 
     class Meta:
         """Meta options for Feedback model."""
@@ -68,62 +85,11 @@ class Feedback(TimeStampedModel):
         verbose_name_plural = "Feedbacks"
         ordering = ["-created_at"]
 
+    def save(self, *args, **kwargs):
+        """Derive anonymity from the name field before saving."""
+        self.is_anonymous = not bool(self.name.strip())
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         """Return string representation."""
         return f"Feedback for {self.speaker} with overall rating {self.overall_rating}"
-
-
-class EventFeedbackPreferenceManager(models.Manager):
-    """Manage event-scoped speaker feedback preferences."""
-
-    def is_enabled_for(self, speaker, event):
-        """Return whether feedback is enabled for a speaker at an event."""
-        preference = self.filter(speaker=speaker, event=event).first()
-        return preference is None or preference.is_feedback_enabled
-
-    def set_for(self, speaker, event, is_feedback_enabled):
-        """Create or update a speaker's feedback preference for an event."""
-        preference, _ = self.update_or_create(
-            speaker=speaker,
-            event=event,
-            defaults={"is_feedback_enabled": is_feedback_enabled},
-        )
-        return preference
-
-
-class EventFeedbackPreference(TimeStampedModel):
-    """A speaker's choice to accept or close feedback for a specific event.
-
-    Absence of a record means feedback is open — speakers only opt out.
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    objects = EventFeedbackPreferenceManager()
-    speaker = models.ForeignKey(
-        SpeakerProfile,
-        on_delete=models.CASCADE,
-        related_name="event_feedback_preferences",
-    )
-    event = models.ForeignKey(
-        "events.Event",
-        on_delete=models.CASCADE,
-        related_name="speaker_feedback_preferences",
-    )
-    is_feedback_enabled = models.BooleanField(
-        default=True,
-        help_text="Whether the speaker accepts feedback for this event.",
-    )
-
-    class Meta:
-        """Meta options for EventFeedbackPreference model."""
-
-        db_table = "event_feedback_preferences"
-        verbose_name = "Event Feedback Preference"
-        verbose_name_plural = "Event Feedback Preferences"
-        unique_together = ("speaker", "event")
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        """Return string representation."""
-        state = "enabled" if self.is_feedback_enabled else "disabled"
-        return f"Feedback {state} for {self.speaker} at {self.event}"

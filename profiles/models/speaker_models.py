@@ -1,5 +1,6 @@
 """speakers models."""
 
+import secrets
 import uuid
 from itertools import count
 
@@ -110,6 +111,39 @@ class SpeakerExperiences(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="experiences",
     )
+    # Optional link used only when the event is listed on this platform; feedback
+    # gating prefers the linked event's start time when present.
+    event = models.ForeignKey(
+        "events.Event",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="speaker_experiences",
+        help_text="The platform event this experience represents, if listed.",
+    )
+    feedback_slug = models.SlugField(
+        max_length=16,
+        unique=True,
+        blank=True,
+        help_text="Opaque token used in the public feedback (QR) URL.",
+    )
+    feedback_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether the speaker accepts feedback for this experience.",
+    )
+
+    def _generate_feedback_slug(self) -> str:
+        """Return a unique opaque feedback token, retrying on collision."""
+        while True:
+            candidate = secrets.token_urlsafe(6)
+            if not SpeakerExperiences.objects.filter(feedback_slug=candidate).exists():
+                return candidate
+
+    def save(self, *args, **kwargs):
+        """Set a feedback token when empty and keep it stable across updates."""
+        if not self.feedback_slug:
+            self.feedback_slug = self._generate_feedback_slug()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         """String representation of the speaker experience."""

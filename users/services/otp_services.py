@@ -14,10 +14,11 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from users.models import OtpCode, User
+from users.models import OAuthExchangeCode, OtpCode, User
 from users.tasks import send_otp_email_task
 
 
@@ -27,8 +28,18 @@ def _generate_otp_code() -> str:
 
 
 def _hash_otp_code(code: str, salt: str) -> str:
-    """Hash the OTP code with its per-record salt."""
-    return hashlib.sha256(f"{salt}:{code}".encode("utf-8")).hexdigest()
+    """Hash the OTP code with its per-record salt using PBKDF2-HMAC-SHA256.
+
+    Key stretching makes the low-entropy 6-digit code resistant to offline
+    brute force if the stored hashes leak. The digest fits ``code_hash``'s
+    64-character limit.
+    """
+    return hashlib.pbkdf2_hmac(
+        "sha256",
+        code.encode("utf-8"),
+        salt.encode("utf-8"),
+        100_000,
+    ).hex()
 
 
 def _get_verifiable_user(email: str) -> User:
@@ -125,3 +136,19 @@ def send_otp_email(user: User, code: str) -> None:
     This is the single delivery chokepoint for OTP codes.
     """
     send_otp_email_task.enqueue(str(user.id), code)
+
+
+def purge_expired_auth_tokens() -> int:
+    """Delete used or expired OTP and OAuth exchange codes.
+
+    Returns the number of rows removed. Intended to be scheduled periodically
+    so auth code tables do not grow without bound.
+    """
+    now = timezone.now()
+    otp_deleted, _ = OtpCode.objects.filter(
+        Q(is_used=True) | Q(expires_at__lte=now)
+    ).delete()
+    exchange_deleted, _ = OAuthExchangeCode.objects.filter(
+        Q(is_used=True) | Q(expires_at__lte=now)
+    ).delete()
+    return otp_deleted + exchange_deleted

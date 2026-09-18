@@ -1,6 +1,7 @@
 """user serializers."""
 
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.validators import RegexValidator
 from drf_writable_nested.serializers import WritableNestedModelSerializer
@@ -9,6 +10,7 @@ from rest_framework import serializers
 from profiles.serializers.organization_serializers import OrganizationProfileSerializer
 from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
 from users.models import User
+from users.services.auth_services import authenticate_user
 
 
 class UserSerializer(WritableNestedModelSerializer):
@@ -34,12 +36,32 @@ class UserSerializer(WritableNestedModelSerializer):
             "is_email_verified": {"read_only": True},
         }
 
+    def validate_password(self, value) -> str:
+        """Enforce the project password policy for new registrations."""
+        validate_password(value)
+        return value
+
 
 class UserLoginSerializer(serializers.Serializer):
-    """User login serializer."""
+    """Serializer that authenticates a user with their email and password.
+
+    Credential verification and the failed-login lockout are delegated to
+    :func:`users.auth_services.authenticate_user`; a successful login exposes
+    the resolved user through ``validated_data["user"]``.
+    """
 
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate(self, attrs) -> dict:
+        """Authenticate the credentials and attach the user to the attrs."""
+        user = authenticate_user(
+            attrs["email"],
+            attrs["password"],
+            request=self.context.get("request"),
+        )
+        attrs["user"] = user
+        return attrs
 
 
 class VerifyOtpSerializer(serializers.Serializer):
@@ -63,19 +85,20 @@ class ResendOtpSerializer(serializers.Serializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    """Serializer for requesting a password reset via email."""
+    """Serializer for requesting a password reset via email.
+
+    The response and behaviour must not reveal whether an email address is
+    registered, so validation never fails on an unknown email. The matched
+    user (when one exists) is exposed through ``context["user"]``.
+    """
 
     email = serializers.EmailField()
 
     def validate_email(self, value) -> str:
-        """Validate that the provided email is associated with a user."""
-        try:
-            user = User.objects.get(email=value)
+        """Look up the user for the email without leaking its existence."""
+        user = User.objects.filter(email=value).first()
+        if user is not None:
             self.context["user"] = user
-        except User.DoesNotExist:
-            raise serializers.ValidationError(
-                "No user is associated with this email address."
-            ) from None
         return value
 
 
@@ -86,39 +109,35 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True, min_length=8)
 
-    def validate(self, data) -> dict:
+    def validate(self, attrs) -> dict:
         """Validate the provided email and token, and ensure the user exists."""
         try:
-            user = User.objects.get(email=data["email"])
+            user = User.objects.get(email=attrs["email"])
         except User.DoesNotExist:
             raise serializers.ValidationError(
                 "No user is associated with this email address."
             ) from None
 
         token_generator = PasswordResetTokenGenerator()
-        if not token_generator.check_token(user, data["token"]):
+        if not token_generator.check_token(user, attrs["token"]):
             raise serializers.ValidationError("Invalid or expired token.")
 
+        validate_password(attrs["new_password"], user=user)
+
         self.context["user"] = user
-        return data
-
-
-class UserProfileSerializer(UserSerializer):
-    """Serializer for user profile."""
-
-    speaker = SpeakerProfileSerializer(source="speakers_profile_user", required=False)
-
-    class Meta:
-        """meta options."""
-
-        model = User
-        exclude = ["password"]
+        return attrs
 
 
 class LogoutSerializer(serializers.Serializer):
     """Serializer for logging out a user by blacklisting a refresh token."""
 
     refresh = serializers.CharField(write_only=True)
+
+
+class OAuthCodeExchangeSerializer(serializers.Serializer):
+    """Serializer for exchanging a one-time OAuth code for tokens."""
+
+    code = serializers.CharField(write_only=True)
 
 
 class LoginProfilesSerializer(serializers.Serializer):

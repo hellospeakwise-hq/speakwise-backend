@@ -44,7 +44,6 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
-    "rest_framework.authtoken",
     "django_filters",
     "corsheaders",
     "django_tasks",
@@ -175,6 +174,11 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
+        "login": "10/minute",
+        "otp_verify": "10/minute",
+        "otp_resend": "5/minute",
+        "password_reset": "3/hour",
+        "oauth_token": "10/minute",
     },
 }
 
@@ -203,6 +207,11 @@ OTP_CODE_LENGTH = 6
 OTP_EXPIRY_MINUTES = 10
 OTP_RESEND_COOLDOWN_MINUTES = 2
 OTP_MAX_ATTEMPTS = 3
+
+# OAuth: lifetime of the one-time code a callback hands the frontend before it
+# is exchanged (via POST) for real tokens. Kept very short because the code is
+# carried in a redirect URL.
+OAUTH_EXCHANGE_CODE_EXPIRY_SECONDS = 120
 
 # Feedback
 # Minimum interval between feedback submissions from the same IP for the same
@@ -242,22 +251,4 @@ CACHES = {
     }
 }
 
-# Task queue configuration
-# django-q configuration
-Q_CLUSTER = {
-    "name": "myproject",
-    "workers": 8,
-    "recycle": 500,
-    "timeout": 60,
-    "compress": True,
-    "cpu_affinity": 1,
-    "save_limit": 250,
-    "queue_limit": 500,
-    "label": "Django Q",
-    "redis": {
-        "host": "127.0.0.1",
-        "port": 6379,
-        "db": 0,
-    },
-}
 TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}

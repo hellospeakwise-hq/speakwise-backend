@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.permissions import IsEmailVerified
 from feedbacks.models import Feedback
 from feedbacks.serializers import (
     FeedbackExperienceInfoSerializer,
@@ -26,7 +27,6 @@ from feedbacks.services import (
     resolve_feedback_experience,
     submitted_recently_by_ip,
 )
-from users.permissions import IsEmailVerified
 
 
 class FeedbackListView(APIView):

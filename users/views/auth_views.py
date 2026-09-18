@@ -68,10 +68,11 @@ class VerifyOtpView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "otp_verify"
+    serializer_class = VerifyOtpSerializer
 
     def post(self, request):
         """Verify the submitted OTP and mark the user's email as verified."""
-        serializer = VerifyOtpSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         verify_otp_by_email(
             serializer.validated_data["email"], serializer.validated_data["otp"]
@@ -94,10 +95,11 @@ class ResendOtpView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "otp_resend"
+    serializer_class = ResendOtpSerializer
 
     def post(self, request):
         """Issue and email a fresh OTP, respecting the resend cooldown."""
-        serializer = ResendOtpSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
         try:

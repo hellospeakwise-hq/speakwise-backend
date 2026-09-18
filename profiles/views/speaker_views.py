@@ -15,6 +15,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.permissions import IsEmailVerified
 from profiles.models.speaker_models import (
     Notification,
     SpeakerExperiences,
@@ -32,7 +33,6 @@ from profiles.serializers.speaker_serializers import (
     SpeakerSkillTagSerializer,
 )
 from users.models import User
-from users.permissions import IsEmailVerified
 
 
 class SpeakerProfileListCreateView(APIView):

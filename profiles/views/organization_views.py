@@ -5,9 +5,9 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status, views
 from rest_framework.response import Response
 
+from base.permissions import IsEmailVerified
 from profiles.models.organization_models import OrganizationProfile
 from profiles.serializers.organization_serializers import OrganizationProfileSerializer
-from users.permissions import IsEmailVerified
 
 
 class OrganizationProfileListCreateView(views.APIView):

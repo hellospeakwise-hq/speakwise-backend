@@ -79,3 +79,44 @@ class OtpCode(models.Model):
         from django.conf import settings
 
         return self.attempt_count >= settings.OTP_MAX_ATTEMPTS
+
+
+class OAuthExchangeCode(models.Model):
+    """A short-lived, single-use code exchanged for auth tokens after OAuth login.
+
+    The plaintext code is a high-entropy random token; only its SHA-256 hash is
+    stored so a database leak does not expose usable codes. Unlike :class:`OtpCode`
+    no per-record salt is needed, because the plaintext carries enough entropy to
+    resist offline brute force.
+    """
+
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, db_index=True
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="oauth_exchange_codes"
+    )
+    code_hash = models.CharField(
+        max_length=64, unique=True, editable=False, db_index=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        """Meta options."""
+
+        ordering = ["-created_at"]
+        verbose_name = "OAuth exchange code"
+        verbose_name_plural = "OAuth exchange codes"
+
+    def __str__(self):
+        """Return a human-readable identifier without exposing the code."""
+        return f"Exchange code for {self.user.email} (used={self.is_used})"
+
+    @property
+    def is_expired(self) -> bool:
+        """Return True when the code is past its expiry time."""
+        from django.utils import timezone
+
+        return self.expires_at <= timezone.now()

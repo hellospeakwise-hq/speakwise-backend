@@ -12,7 +12,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from users.models import OtpCode, User
+from users.models import OAuthExchangeCode, OtpCode, User
+from users.services.otp_services import purge_expired_auth_tokens
 
 
 class OtpFlowTestBase(TestCase):
@@ -193,15 +194,22 @@ class VerifyOtpTests(OtpFlowTestBase):
 class ResendOtpTests(OtpFlowTestBase):
     """Resending enforces a cooldown and issues a fresh code."""
 
-    def test_resend_within_cooldown_is_rejected(self):
-        """Requesting a resend too soon is rejected."""
+    def test_resend_within_cooldown_returns_generic_response(self):
+        """A resend inside the cooldown is not distinguishable from a success.
+
+        The endpoint always answers 200 with the same message; the underlying
+        cooldown rule still prevents another email from being dispatched.
+        """
         self._register()
-        self._code_from_email()
+        initial_outbox = len(mail.outbox)
         response = self.client.post(
             self.resend_url, {"email": "reg@example.com"}, format="json"
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Too soon", str(response.data))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["detail"], "A new verification code has been sent."
+        )
+        self.assertEqual(len(mail.outbox), initial_outbox)
 
     def test_resend_after_cooldown_issues_new_code(self):
         """After the cooldown a new, distinct OTP is emailed and the old one dies."""
@@ -227,16 +235,32 @@ class ResendOtpTests(OtpFlowTestBase):
         self.assertTrue(old_otp.is_used)
         self.assertNotEqual(new_otp.pk, old_otp.pk)
 
-    def test_resend_for_already_verified_user_is_rejected(self):
-        """A verified account cannot request more codes."""
+    def test_resend_for_verified_user_returns_generic_response(self):
+        """A verified account gets the generic response and no further email."""
         self._register()
+        initial_outbox = len(mail.outbox)
+        self._code_from_email()
         code = self._code_from_email()
         self._verify(otp=code)
         response = self.client.post(
             self.resend_url, {"email": "reg@example.com"}, format="json"
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("already verified", str(response.data))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["detail"], "A new verification code has been sent."
+        )
+        self.assertEqual(len(mail.outbox), initial_outbox)
+
+    def test_resend_unknown_email_returns_generic_response(self):
+        """An unregistered email is answered like a genuine resend, silently."""
+        response = self.client.post(
+            self.resend_url, {"email": "nobody@example.com"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["detail"], "A new verification code has been sent."
+        )
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class ProfileVerificationGateTests(OtpFlowTestBase):
@@ -283,3 +307,48 @@ class ProfileVerificationGateTests(OtpFlowTestBase):
         url = reverse("users:retrieve_update_authenticated_user")
         response = self.client.patch(url, {"first_name": "X"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PurgeExpiredAuthTokensTests(TestCase):
+    """The purge routine removes used and expired OTP/exchange codes."""
+
+    def setUp(self):
+        """Create a user and a batch of auth codes in varied states."""
+        self.user = User.objects.create(username="purgeuser", email="purge@example.com")
+
+    def _otp(self, *, is_used=False, is_expired=False, salt="salt"):
+        """Create an OTP row for the test user."""
+        return OtpCode.objects.create(
+            user=self.user,
+            code_hash="a" * 64,
+            salt=salt,
+            expires_at=(
+                timezone.now() - timedelta(minutes=1)
+                if is_expired
+                else timezone.now() + timedelta(minutes=5)
+            ),
+            is_used=is_used,
+        )
+
+    def test_purge_removes_used_expired_and_keeps_active(self):
+        """Only used or expired codes are deleted."""
+        self._otp(is_used=True)
+        self._otp(is_expired=True)
+        active = self._otp()
+        exchange = OAuthExchangeCode.objects.create(
+            user=self.user,
+            code_hash="b" * 64,
+            expires_at=timezone.now() + timedelta(minutes=5),
+            is_used=True,
+        )
+
+        purged = purge_expired_auth_tokens()
+
+        self.assertEqual(purged, 3)
+        self.assertTrue(OtpCode.objects.filter(pk=active.pk).exists())
+        self.assertEqual(OtpCode.objects.count(), 1)
+        self.assertFalse(OAuthExchangeCode.objects.filter(pk=exchange.pk).exists())
+
+    def test_purge_on_empty_tables_returns_zero(self):
+        """An empty table purges cleanly."""
+        self.assertEqual(purge_expired_auth_tokens(), 0)

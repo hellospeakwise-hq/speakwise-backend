@@ -59,7 +59,7 @@ def send_otp_email_task(user_id, otp_code) -> None:
         )
         logger.info("OTP email sent to user ID: %s", user.id)
     except Exception as e:
-        logger.error("Failed to send OTP email to %s: %s", user.email, e)
+        logger.error("Failed to send OTP email to user ID %s: %s", user.id, e)
 
 
 @task()
@@ -103,18 +103,15 @@ def send_welcome_email_task(user_id) -> None:
         )
         logger.info("Welcome email sent to user ID: %s", user.id)
     except Exception as e:
-        logger.error("Failed to send welcome email to %s: %s", user.email, e)
+        logger.error("Failed to send welcome email to user ID %s: %s", user.id, e)
 
 
 @task()
-def send_password_reset_email_task(user_id) -> str:
+def send_password_reset_email_task(user_id) -> None:
     """Send password reset email to the user.
 
     Args:
         user_id: The ID of the User instance (UUID or int).
-
-    Returns:
-        The generated token for the password reset.
     """
     from users.models import User
 
@@ -122,7 +119,7 @@ def send_password_reset_email_task(user_id) -> str:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         logger.error("User with id %s not found", user_id)
-        return ""
+        return
 
     token_generator = PasswordResetTokenGenerator()
     token = token_generator.make_token(user)
@@ -152,6 +149,18 @@ def send_password_reset_email_task(user_id) -> str:
         )
         logger.info("Password reset email sent to user ID: %s", user.id)
     except Exception as e:
-        logger.error("Failed to send password reset email to %s: %s", user.email, e)
+        logger.error(
+            "Failed to send password reset email to user ID %s: %s", user.id, e
+        )
 
-    return token
+
+@task()
+def purge_expired_auth_tokens_task() -> int:
+    """Background task wrapper that purges used or expired auth codes.
+
+    Intended to run periodically so the OTP and OAuth exchange code tables do
+    not grow without bound.
+    """
+    from users.services.otp_services import purge_expired_auth_tokens
+
+    return purge_expired_auth_tokens()

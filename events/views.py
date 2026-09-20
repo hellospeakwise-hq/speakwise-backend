@@ -207,5 +207,3 @@ class PrivateEventListView(APIView):
 
 class MyEventsListView(PrivateEventListView):
     """Backward-compatible alias for the current-user events route."""
-
-    pass

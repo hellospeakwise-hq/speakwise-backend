@@ -16,6 +16,11 @@ urlpatterns = [
     ),
     path("users/auth/login/", auth_views.UserLoginView.as_view(), name="login"),
     path("users/auth/logout/", auth_views.UserLogoutView.as_view(), name="logout"),
+    path(
+        "users/auth/oauth/token/",
+        oauth_views.OAuthTokenExchangeView.as_view(),
+        name="oauth-token-exchange",
+    ),
     path("users/auth/github-login/", oauth_views.github_login, name="github-login"),
     path(
         "users/auth/github-callback/",

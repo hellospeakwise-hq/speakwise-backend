@@ -17,5 +17,5 @@ class UserAdmin(admin.ModelAdmin):
         "password",
         "nationality",
     ]
-    search_fields = ["nationality", "role", "email"]
+    search_fields = ["nationality", "username", "email"]
     list_display = ["username", "email", "first_name", "last_name", "nationality"]

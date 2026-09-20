@@ -1,6 +1,6 @@
 """custom users' permissions."""
 
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, IsAuthenticated
 
 
 class IsSuperUser(BasePermission):
@@ -33,3 +33,18 @@ class IsSubmitterOrSuperUser(BasePermission):
         if request.user.is_superuser:
             return True
         return getattr(obj, "submitted_by", None) == request.user
+
+
+class IsEmailVerified(IsAuthenticated):
+    """Allow only authenticated users whose email address is verified.
+
+    Email/password users become verified by completing the OTP flow. OAuth
+    users (Google/GitHub) are verified at signup because the provider has
+    already validated their email.
+    """
+
+    message = "Email verification is required to perform this action."
+
+    def has_permission(self, request, view):
+        """Return True for verified, authenticated users."""
+        return super().has_permission(request, view) and request.user.is_email_verified

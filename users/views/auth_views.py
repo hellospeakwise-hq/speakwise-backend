@@ -1,21 +1,20 @@
 """users views."""
 
-import logging
-from abc import ABC, abstractmethod
-
-from dj_rest_auth.views import LoginView
-from django.contrib.auth import logout
-from django.http import Http404
+from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from base.permissions import IsEmailVerified
 from users.filters import UserFilter
 from users.models import User
-from users.permissions import IsEmailVerified
 from users.serializers import (
     LoginProfilesSerializer,
     LogoutSerializer,
@@ -23,11 +22,11 @@ from users.serializers import (
     PasswordResetRequestSerializer,
     ResendOtpSerializer,
     UserLoginSerializer,
-    UserProfileSerializer,
     UserSerializer,
     VerifyOtpSerializer,
 )
-from users.services import (
+from users.services.auth_services import build_auth_payload, reset_email_verification
+from users.services.otp_services import (
     issue_otp,
     resend_otp_by_email,
     send_otp_email,
@@ -35,7 +34,9 @@ from users.services import (
 )
 from users.tasks import send_password_reset_email_task, send_welcome_email_task
 
-logger = logging.getLogger(__name__)
+GENERIC_PASSWORD_RESET_MESSAGE = "Password reset email sent successfully."
+GENERIC_RESEND_OTP_MESSAGE = "A new verification code has been sent."
+GENERIC_EMAIL_VERIFICATION_MESSAGE = "Please verify your email address."
 
 
 @extend_schema(responses=UserSerializer)
@@ -53,20 +54,11 @@ class UserCreateView(APIView):
 
         send_otp_email(user, issue_otp(user))
 
-        # get auth tokens
-        refresh = RefreshToken.for_user(user)
-        for key, value in UserSerializer(user).data.items():
-            refresh[key] = value
-        access = refresh.access_token
-
-        # add tokens to response data
-        serializer_data = serializer.data
-        serializer_data["refresh"] = str(refresh)
-        serializer_data["access"] = str(access)
+        data = build_auth_payload(user)
 
         # send welcome email task
         send_welcome_email_task.enqueue(str(user.id))
-        return Response(serializer_data, status=status.HTTP_201_CREATED)
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(request=VerifyOtpSerializer, responses={200: None})
@@ -74,10 +66,13 @@ class VerifyOtpView(APIView):
     """Verify an email address with a one-time password."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "otp_verify"
+    serializer_class = VerifyOtpSerializer
 
     def post(self, request):
         """Verify the submitted OTP and mark the user's email as verified."""
-        serializer = VerifyOtpSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         verify_otp_by_email(
             serializer.validated_data["email"], serializer.validated_data["otp"]
@@ -89,113 +84,102 @@ class VerifyOtpView(APIView):
 
 @extend_schema(request=ResendOtpSerializer, responses={200: None})
 class ResendOtpView(APIView):
-    """Resend an email verification OTP code."""
+    """Resend an email verification OTP code.
+
+    Responds identically whether the email is unregistered, already verified,
+    or inside the resend cooldown, so the endpoint does not reveal which
+    addresses have accounts. The OTP business rules are unchanged; an email is
+    only dispatched when all of them pass.
+    """
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "otp_resend"
+    serializer_class = ResendOtpSerializer
 
     def post(self, request):
         """Issue and email a fresh OTP, respecting the resend cooldown."""
-        serializer = ResendOtpSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user, code = resend_otp_by_email(serializer.validated_data["email"])
-        send_otp_email(user, code)
+        email = serializer.validated_data["email"]
+        try:
+            user, code = resend_otp_by_email(email)
+        except ValidationError:
+            pass
+        else:
+            send_otp_email(user, code)
         return Response(
-            {"detail": "A new verification code has been sent."},
-            status=status.HTTP_200_OK,
+            {"detail": GENERIC_RESEND_OTP_MESSAGE}, status=status.HTTP_200_OK
         )
 
 
 class UserLogoutView(APIView):
     """User logout view."""
 
+    permission_classes = [IsAuthenticated]
     serializer_class = LogoutSerializer
 
     @extend_schema(request=LogoutSerializer, responses={205: None})
     def post(self, request):
-        """Logout user."""
+        """Blacklist the user's refresh token."""
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         refresh = serializer.validated_data["refresh"]
         try:
             token = RefreshToken(refresh)
             token.blacklist()
-            logout(request)
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception as e:
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-
-class LoginBaseClass(ABC, LoginView):
-    """This class inherits the LoginView from the rest_auth package.
-    Django rest auth lib does not support the refresh token
-    logic. However,restframework_simplejwt does. Rest auth was
-    used because it's based off all-auth which can be used for
-    social logins as well as signing in with either username or
-    password(of which simplejwt does not support). The two libraries
-    were combined to give the required results.
-    """
-
-    def get_extra_payload(self) -> dict:
-        """This method is used to add extra payload to the refresh token."""
-        return {}
-
-    def get_token(self, user):
-        """Generate the refresh token."""
-        refresh_token = RefreshToken.for_user(user)
-        for key, value in self.get_extra_payload().items():
-            refresh_token[key] = value
-        return refresh_token
-
-    @abstractmethod
-    def login(self):
-        """Login in the user."""
-
-    def get_response(self):
-        """Return the response with the refresh token."""
-        data = {}
-
-        refresh = self.get_token(self.user)
-        # generate access and refresh tokens
-        data["refresh"] = str(refresh)
-        data["access"] = str(refresh.access_token)
-        data.update(self.get_extra_payload())
-
-        return Response(data)
+        except TokenError as exc:
+            raise ValidationError({"detail": "Invalid refresh token."}) from exc
+        return Response(status=status.HTTP_205_RESET_CONTENT)
 
 
 @extend_schema(request=UserLoginSerializer, responses=UserSerializer)
-class UserLoginView(LoginBaseClass):
-    """Login view for speaker."""
+class UserLoginView(APIView):
+    """Log a user in with email and password, issuing JWT tokens.
 
-    def login(self):
-        """Login the speaker."""
-        self.user = self.serializer.validated_data["user"]
-        return self.user
+    Provides the same behavior as the previous rst-auth-based login: a generic
+    failure message (no account enumeration), the user's data in the response
+    body, and their profiles reported under ``profile``.
+    """
 
-    def get_extra_payload(self) -> dict:
-        """Return the user data, which is also embedded in the refresh token."""
-        return UserSerializer(self.user).data
+    permission_classes = [AllowAny]
+    serializer_class = UserLoginSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
-    def get_response(self):
-        """Return the login response with the user's detected profiles.
-
-        Profile data is added to the response body only — it is intentionally
-        not embedded in the JWT.
-        """
-        response = super().get_response()
-        response.data["profile"] = LoginProfilesSerializer(self.user).data
-        return response
+    def post(self, request):
+        """Authenticate the credentials and return the token payload."""
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        try:
+            if not user.is_email_verified:
+                return Response(
+                    {"detail": GENERIC_EMAIL_VERIFICATION_MESSAGE},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except ValidationError as exc:
+            raise ValidationError({"detail": exc.detail}) from exc
+        data = build_auth_payload(user)
+        data["profile"] = LoginProfilesSerializer(user).data
+        return Response(data, status=status.HTTP_200_OK)
 
 
 @extend_schema(responses=PasswordResetRequestSerializer)
 class PasswordResetRequestView(APIView):
-    """Password request view for users."""
+    """Password request view for users.
+
+    Always returns the same success response, whether the email is
+    registered, so the endpoint does not reveal which addresses have accounts.
+    The reset email is only dispatched when a matching user exists.
+    """
 
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset"
 
     @extend_schema(request=PasswordResetRequestSerializer, responses={200: None})
     def post(self, request):
@@ -204,13 +188,13 @@ class PasswordResetRequestView(APIView):
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        user = serializer.context["user"]
+        user = serializer.context.get("user")
 
-        send_password_reset_email_task.enqueue(str(user.id))
+        if user is not None:
+            send_password_reset_email_task.enqueue(str(user.id))
 
         return Response(
-            {"detail": "Password reset email sent successfully."},
-            status=status.HTTP_200_OK,
+            {"detail": GENERIC_PASSWORD_RESET_MESSAGE}, status=status.HTTP_200_OK
         )
 
 
@@ -245,41 +229,37 @@ class RetrieveUpdateAuthenticatedUserView(APIView):
             return [IsAuthenticated()]
         return [IsEmailVerified()]
 
-    def get_object(self, pk):
-        """Get the authenticated user."""
-        try:
-            return User.objects.get(pk=pk)
-        except User.DoesNotExist as err:
-            raise Http404 from err
-
-    @extend_schema(responses=UserProfileSerializer)
+    @extend_schema(responses=UserSerializer)
     def get(self, request):
         """Retrieve the authenticated user's details."""
-        user = self.get_object(request.user.pk)
-        serializer = UserProfileSerializer(user, context={"request": request})
+        user = get_object_or_404(User, id=request.user.pk)
+        serializer = UserSerializer(user, context={"request": request})
         return Response(serializer.data)
 
-    @extend_schema(responses=UserProfileSerializer, request=UserProfileSerializer)
+    @extend_schema(responses=UserSerializer, request=UserSerializer)
     def patch(self, request):
-        """Update the authenticated user's details."""
-        user = self.get_object(request.user.pk)
-        serializer = UserProfileSerializer(
+        """Update the authenticated user's details.
+
+        Changing the email address requires re-verification: the account is
+        marked unverified and a fresh OTP is issued for the new address.
+        """
+        user = get_object_or_404(User, id=request.user.pk)
+        previous_email = user.email
+        serializer = UserSerializer(
             user, data=request.data, partial=True, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        updated_user = serializer.save()
+        if serializer.instance.email != previous_email:
+            reset_email_verification(updated_user)
         return Response(serializer.data)
 
 
-class UsersListView(APIView):
-    """View to list all users."""
+class UsersListView(generics.ListAPIView):
+    """List users, restricted to staff with global pagination."""
 
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(responses=UserSerializer(many=True))
-    def get(self, request):
-        """List all users."""
-        users = User.objects.all()
-        user_filters = UserFilter(request.GET, queryset=users)
-        serializer = UserSerializer(user_filters.qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    permission_classes = [IsAdminUser]
+    serializer_class = UserSerializer
+    queryset = User.objects.all().order_by("username")
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = UserFilter

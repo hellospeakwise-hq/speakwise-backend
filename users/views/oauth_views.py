@@ -1,22 +1,30 @@
 """OAuth views."""
 
-import json
-import os
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.shortcuts import redirect
+from drf_spectacular.utils import extend_schema
 from requests_oauthlib import OAuth2Session
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.utils.encoders import JSONEncoder
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 
-from users.models import User
-from users.serializers import LoginProfilesSerializer, UserSerializer
-
-frontend_url = os.environ.get("FRONTEND_URL")
+from users.serializers import (
+    LoginProfilesSerializer,
+    OAuthCodeExchangeSerializer,
+    UserSerializer,
+)
+from users.services.auth_services import build_auth_payload
+from users.services.oauth_services import (
+    consume_exchange_code,
+    create_exchange_code,
+    get_or_create_oauth_user,
+)
 
 
 def get_github_session():
@@ -55,22 +63,8 @@ def github_login(request):
     return redirect(authorization_url)
 
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def github_callback(request):
-    """View to handle GitHub callback."""
-    code = request.GET.get("code")
-    state = request.GET.get("state")
-
-    if not state or state != request.session.get("oauth_state"):
-        return Response({"error": "Invalid state parameter"}, status=400)
-
-    github = get_github_session()
-    github.fetch_token(
-        "https://github.com/login/oauth/access_token",
-        client_secret=settings.GITHUB_CLIENT_SECRET,
-        code=code,
-    )
+def _github_email(github) -> tuple[str, str | None]:
+    """Best-effort email from the GitHub profile, preferring a verified one."""
     user_info = github.get("https://api.github.com/user").json()
 
     email = user_info.get("email")
@@ -84,38 +78,36 @@ def github_callback(request):
             email = primary_emails[0]
         elif emails_res:
             email = emails_res[0].get("email")
+    return email or "", username
 
-    if not email:
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def github_callback(request):
+    """View to handle GitHub callback."""
+    code = request.GET.get("code")
+    state = request.GET.get("state")
+
+    if not state or state != request.session.get("oauth_state"):
+        return Response({"error": "Invalid state parameter"}, status=400)
+
+    request.session.pop("oauth_state", None)
+
+    github = get_github_session()
+    github.fetch_token(
+        "https://github.com/login/oauth/access_token",
+        client_secret=settings.GITHUB_CLIENT_SECRET,
+        code=code,
+    )
+    email, username = _github_email(github)
+
+    try:
+        user, _created = get_or_create_oauth_user(email=email, username=username)
+    except ValidationError:
         return Response({"error": "Email not found from GitHub"}, status=400)
 
-    user = User.objects.filter(email=email).first()
-    if not user:
-        user = User.objects.create(
-            email=email, username=username, is_email_verified=True
-        )
-    elif not user.is_email_verified:
-        # The provider has already verified the email on a returning OAuth login.
-        user.is_email_verified = True
-        user.save(update_fields=["is_email_verified"])
-
-    user_data = UserSerializer(user).data
-    user_data["profile"] = LoginProfilesSerializer(user).data
-
-    refresh = RefreshToken.for_user(user)
-    refresh.payload.update(UserSerializer(user).data)
-
-    params = urlencode(
-        {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "user": json.dumps(
-                user_data, cls=JSONEncoder
-            ),  # ← FIXED: Convert dict to JSON string
-        }
-    )
-    return redirect(
-        f"{frontend_url}/auth/callback?{params}"
-    )  # ← FIXED: Added /auth/callback
+    params = urlencode({"code": create_exchange_code(user)})
+    return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
 
 
 @api_view(["GET"])
@@ -142,6 +134,8 @@ def google_callback(request):
     if not state or state != request.session.get("oauth_state"):
         return Response({"error": "Invalid state parameter"}, status=400)
 
+    request.session.pop("oauth_state", None)
+
     google = get_google_session()
     google.fetch_token(
         "https://oauth2.googleapis.com/token",
@@ -152,29 +146,34 @@ def google_callback(request):
     email = user_info.get("email")
     username = user_info.get("name")
 
-    user = User.objects.filter(email=email).first()
-    if not user:
-        user = User.objects.create(
-            email=email, username=username, is_email_verified=True
-        )
-    elif not user.is_email_verified:
-        # The provider has already verified the email on a returning OAuth login.
-        user.is_email_verified = True
-        user.save(update_fields=["is_email_verified"])
+    try:
+        user, _created = get_or_create_oauth_user(email=email, username=username)
+    except ValidationError:
+        return Response({"error": "Email not found from Google"}, status=400)
 
-    user_data = UserSerializer(user).data
-    user_data["profile"] = LoginProfilesSerializer(user).data
+    params = urlencode({"code": create_exchange_code(user)})
+    return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
 
-    refresh = RefreshToken.for_user(user)
-    refresh.payload.update(UserSerializer(user).data)
 
-    params = urlencode(
-        {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "user": json.dumps(
-                user_data, cls=JSONEncoder
-            ),  # ← Convert dict to JSON string
-        }
-    )
-    return redirect(f"{frontend_url}/auth/callback?{params}")  #  Added /auth/callback
+@extend_schema(request=OAuthCodeExchangeSerializer, responses=UserSerializer)
+class OAuthTokenExchangeView(APIView):
+    """Exchange a one-time OAuth code for JWT access and refresh tokens.
+
+    The callback hands the frontend only a short-lived, single-use code; the
+    real tokens are returned here in the response body so they never appear in
+    URLs.
+    """
+
+    permission_classes = [AllowAny]
+    serializer_class = OAuthCodeExchangeSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "oauth_token"
+
+    def post(self, request):
+        """Consume the code and return the token payload for its user."""
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = consume_exchange_code(serializer.validated_data["code"])
+        data = build_auth_payload(user)
+        data["profile"] = LoginProfilesSerializer(user).data
+        return Response(data, status=status.HTTP_200_OK)

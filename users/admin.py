@@ -18,6 +18,7 @@ class UserAdmin(admin.ModelAdmin):
         "nationality",
         "is_email_verified",
     ]
+    
     search_fields = ["nationality", "email", "first_name", "last_name", "username"]
     list_display = ["username", "email", "first_name", "last_name", "nationality"]
     list_filter = ["is_email_verified", "nationality"]

@@ -7,10 +7,6 @@ services:
     mem_limit: 128m
     restart: unless-stopped
 
-  redis:
-    mem_limit: 64m
-    restart: unless-stopped
-
   web:
     ports:
       - "8001:8000"
@@ -19,6 +15,15 @@ services:
     environment:
       - DB_NAME=speakwise_staging
     mem_limit: 256m
+    restart: unless-stopped
+
+  db_worker:
+    env_file:
+      - .env.staging
+    environment:
+      - DB_NAME=speakwise_staging
+    command: python manage.py db_worker
+    mem_limit: 128m
     restart: unless-stopped
 
 volumes:

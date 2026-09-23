@@ -32,6 +32,7 @@ urlpatterns = [
     path("api/", include("feedbacks.urls", namespace="feedbacks")),
     path("api/", include("speakerrequests.urls", namespace="speakerrequests")),
     path("api/", include("blogs.urls", namespace="blogs")),
+    path("", include("base.urls", namespace="base")),
     path("ckeditor5/", include("django_ckeditor_5.urls")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

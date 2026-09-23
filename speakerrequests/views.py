@@ -33,7 +33,7 @@ class SpeakerRequestListView(APIView):
     This view allows organizers to list all their speaker requests and create new ones.
     """
 
-    permission_classes = [IsAuthenticated, IsSuperUser]
+    permission_classes = [IsAuthenticated]
     serializer_class = SpeakerRequestSerializer
 
     def get_objects(self, user):

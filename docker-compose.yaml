@@ -13,14 +13,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   web:
     build: .
     volumes:
@@ -33,55 +25,29 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://redis:6379/1
       - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-speakwise.settings.production}
       - SECRET_KEY=${SECRET_KEY:-django-insecure-default-key}
       - DEBUG=1
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
 
-#  celery_worker:
-#    build: .
-#    command: celery -A speakwise worker -l info
-#    volumes:
-#      - .:/app
-#    environment:
-#      - DB_NAME=${DB_NAME:-speakwise}
-#      - DB_USER=${DB_USER:-postgres}
-#      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-#      - DB_HOST=db
-#      - DB_PORT=5432
-#      - REDIS_URL=redis://redis:6379/1
-#      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-speakwise.settings.local}
-#      - SECRET_KEY=${SECRET_KEY:-django-insecure-default-key}
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#
-#  celery_beat:
-#    build: .
-#    command: celery -A speakwise beat -l info
-#    volumes:
-#      - .:/app
-#    environment:
-#      - DB_NAME=${DB_NAME:-speakwise}
-#      - DB_USER=${DB_USER:-postgres}
-#      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-#      - DB_HOST=db
-#      - DB_PORT=5432
-#      - REDIS_URL=redis://redis:6379/1
-#      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-speakwise.settings.local}
-#      - SECRET_KEY=${SECRET_KEY:-django-insecure-default-key}
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
+  db_worker:
+    build: .
+    volumes:
+      - .:/app
+    command: python manage.py db_worker
+    environment:
+      - DB_NAME=${DB_NAME:-speakwise}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-speakwise.settings.local}
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-default-key}
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

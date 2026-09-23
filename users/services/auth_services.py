@@ -1,8 +1,8 @@
 """Credential authentication and failed-login lockout services.
 
 Business rules for the email/password login flow live here so views and
-serializers stay thin. The failed-login counter is stored in the Django cache;
-it is per-worker until a shared cache backend (e.g. Redis) is configured.
+serializers stay thin. The failed-login counter is stored in the Django cache,
+which is Postgres-backed (DatabaseCache) and therefore shared across workers.
 """
 
 from django.contrib.auth import authenticate

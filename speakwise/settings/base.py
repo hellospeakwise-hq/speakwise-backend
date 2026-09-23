@@ -47,12 +47,14 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "corsheaders",
     "django_tasks",
+    "django_tasks_db",
     "django_ckeditor_5",
     # "debug_toolbar",
 ]
 
 LOCAL_APPS = [
     # locally installed apps
+    "base",
     "events",
     "profiles",
     "talks",
@@ -244,11 +246,19 @@ CKEDITOR_5_CONFIGS = {
 # behaviour of the previous ckeditor_uploader integration.
 CKEDITOR_5_FILE_UPLOAD_PERMISSION = "staff"
 
-# Cache
+# Cache — shared across workers via Postgres so throttles and the login
+# lockout behave correctly with multiple processes. No Redis service required.
+# Requires the `django_cache` table (see entrypoint.sh `createcachetable`).
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
     }
 }
 
-TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
+TASKS = {
+    "default": {
+        "BACKEND": "django_tasks_db.DatabaseBackend",
+        "QUEUES": ["default"],
+    }
+}

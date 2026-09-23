@@ -1217,3 +1217,58 @@ class SpeakerProfileCreateRestrictionTests(APITestCase):
         self.client.force_authenticate(user=None)
         res = self.client.post(self.profiles_url, {"short_bio": "Hi"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class FollowResponseSerializerTests(TestCase):
+    """Unit tests for the follow response serializers' output shape."""
+
+    def test_follow_status_shape(self):
+        """FollowStatusSerializer exposes exactly the status keys."""
+        from profiles.serializers.speaker_serializers import FollowStatusSerializer
+
+        data = FollowStatusSerializer(
+            {"is_following": True, "followers_count": 3, "following_count": 1}
+        ).data
+        self.assertEqual(
+            set(data.keys()), {"is_following", "followers_count", "following_count"}
+        )
+        self.assertTrue(data["is_following"])
+
+    def test_follow_action_shape(self):
+        """FollowActionSerializer exposes exactly the action keys."""
+        from profiles.serializers.speaker_serializers import FollowActionSerializer
+
+        data = FollowActionSerializer(
+            {
+                "detail": "Successfully followed speaker.",
+                "followers_count": 1,
+                "following_count": 0,
+            }
+        ).data
+        self.assertEqual(
+            set(data.keys()), {"detail", "followers_count", "following_count"}
+        )
+
+    def test_followers_list_envelope_shape(self):
+        """Followers envelope carries the count alongside nested followers."""
+        from profiles.serializers.speaker_serializers import (
+            FollowersListResponseSerializer,
+        )
+
+        data = FollowersListResponseSerializer(
+            {"followers_count": 0, "followers": []}
+        ).data
+        self.assertEqual(set(data.keys()), {"followers_count", "followers"})
+        self.assertEqual(data["followers"], [])
+
+    def test_following_list_envelope_shape(self):
+        """Following envelope carries the count alongside nested following."""
+        from profiles.serializers.speaker_serializers import (
+            FollowingListResponseSerializer,
+        )
+
+        data = FollowingListResponseSerializer(
+            {"following_count": 0, "following": []}
+        ).data
+        self.assertEqual(set(data.keys()), {"following_count", "following"})
+        self.assertEqual(data["following"], [])

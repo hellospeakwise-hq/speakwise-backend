@@ -250,6 +250,32 @@ class EventListingTests(TestCase):
         self.assertIn(self.showcase_only.title, by_title)
         self.assertNotIn(self.unpublished.title, by_title)
 
+    def test_public_listing_supports_broader_filters(self):
+        """The public listing accepts broad filter criteria on real Event fields."""
+        Event.objects.create(
+            title="Berlin DevConf",
+            description="Conference in Berlin.",
+            website="https://berlin-devconf.example.com",
+            country="Germany",
+            location="Berlin",
+            cfp_open=True,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            self.list_url,
+            {
+                "title": "berlin",
+                "country": "germany",
+                "location": "berlin",
+                "cfp_open": "true",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = {item["title"] for item in response.data}
+        self.assertIn("Berlin DevConf", titles)
+        self.assertNotIn(self.unpublished.title, titles)
+
     def test_listing_includes_basic_information_and_official_website(self):
         """Listed events include basic info and the official website."""
         payload = self._listing_by_title()[self.listed.title]
@@ -427,12 +453,26 @@ class EventSubmitTests(TestCase):
             is_active=False,
             submitted_by=self.user,
         )
-        url = reverse("events:events-mine")
+        url = reverse("events:events-me")
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data[0].get("title"), pending.title)
         self.assertEqual(response.data[0].get("website"), pending.website)
+
+    def test_submitter_can_view_own_pending_event_private_detail(self):
+        """The submitter can fetch their own pending event via the private detail route."""
+        pending = Event.objects.create(
+            title="My Private Pending Conf",
+            website="https://mypending.private.example.com",
+            is_active=False,
+            submitted_by=self.user,
+        )
+        url = reverse("events:event-private-detail", kwargs={"slug": pending.slug})
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], pending.title)
 
     def test_other_user_cannot_view_pending_event(self):
         """Another user cannot retrieve someone else's unpublished event."""

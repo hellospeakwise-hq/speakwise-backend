@@ -6,28 +6,40 @@ from events.models import Event
 
 
 class EventFilter(filters.FilterSet):
-    """Event filter."""
+    """Broad public filter for the event catalog."""
 
     title = filters.CharFilter(field_name="title", lookup_expr="icontains")
-    country = filters.CharFilter(method="country_filter")
-    venue = filters.CharFilter(method="venue_filter")
-    nick_name = filters.CharFilter(field_name="event_nickname", lookup_expr="icontains")
+    event_nickname = filters.CharFilter(
+        field_name="event_nickname", lookup_expr="icontains"
+    )
+    country = filters.CharFilter(field_name="country", lookup_expr="icontains")
+    location = filters.CharFilter(field_name="location", lookup_expr="icontains")
     slug = filters.CharFilter(field_name="slug", lookup_expr="icontains")
-
-    def country_filter(self, queryset, name, value):
-        """Filter events by country name."""
-        if value:
-            return queryset.filter(location__country__name__icontains=value)
-        return queryset
-
-    def venue_filter(self, queryset, name, value):
-        """Filter events by venue name."""
-        if value:
-            return queryset.filter(location__venue__icontains=value)
-        return queryset
+    submitted_by = filters.CharFilter(
+        field_name="submitted_by__username", lookup_expr="icontains"
+    )
+    is_active = filters.BooleanFilter()
+    cfp_open = filters.BooleanFilter()
+    cfp_open_date = filters.DateTimeFilter(field_name="cfp_open_date")
+    cfp_deadline = filters.DateTimeFilter(field_name="cfp_deadline")
+    start_date_time = filters.DateTimeFilter(field_name="start_date_time")
+    end_date_time = filters.DateTimeFilter(field_name="end_date_time")
 
     class Meta:
         """Event filter meta options."""
 
         model = Event
-        fields = ["title", "country", "venue"]
+        fields = [
+            "title",
+            "event_nickname",
+            "country",
+            "location",
+            "slug",
+            "submitted_by",
+            "is_active",
+            "cfp_open",
+            "cfp_open_date",
+            "cfp_deadline",
+            "start_date_time",
+            "end_date_time",
+        ]

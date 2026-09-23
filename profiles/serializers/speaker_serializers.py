@@ -3,7 +3,14 @@
 from django.db import transaction
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import ModelSerializer, SerializerMethodField
+from rest_framework.serializers import (
+    BooleanField,
+    CharField,
+    IntegerField,
+    ModelSerializer,
+    Serializer,
+    SerializerMethodField,
+)
 
 from profiles.models.organization_models import OrganizationProfile
 from profiles.models.speaker_models import (
@@ -164,6 +171,36 @@ class FollowerDetailSerializer(ModelSerializer):
         """Return the organization."""
         profile = self._get_profile(self._get_user(obj))
         return profile.organization if profile else ""
+
+
+class FollowStatusSerializer(Serializer):
+    """Read shape for GET /speakers/<slug>/follow/."""
+
+    is_following = BooleanField(read_only=True)
+    followers_count = IntegerField(read_only=True)
+    following_count = IntegerField(read_only=True)
+
+
+class FollowActionSerializer(Serializer):
+    """Read shape for POST/DELETE /speakers/<slug>/follow/."""
+
+    detail = CharField(read_only=True)
+    followers_count = IntegerField(read_only=True)
+    following_count = IntegerField(read_only=True)
+
+
+class FollowersListResponseSerializer(Serializer):
+    """Read shape for the speaker followers list envelope."""
+
+    followers_count = IntegerField(read_only=True)
+    followers = FollowerDetailSerializer(many=True, read_only=True)
+
+
+class FollowingListResponseSerializer(Serializer):
+    """Read shape for the speaker following list envelope."""
+
+    following_count = IntegerField(read_only=True)
+    following = FollowerDetailSerializer(many=True, read_only=True)
 
 
 class SpeakerProfileSerializer(WritableNestedModelSerializer):

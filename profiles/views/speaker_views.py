@@ -25,7 +25,10 @@ from profiles.models.speaker_models import (
     get_speaker_profile,
 )
 from profiles.serializers.speaker_serializers import (
-    FollowerDetailSerializer,
+    FollowActionSerializer,
+    FollowersListResponseSerializer,
+    FollowingListResponseSerializer,
+    FollowStatusSerializer,
     NotificationSerializer,
     SpeakerExperiencesSerializer,
     SpeakerProfileDetailSerializer,
@@ -394,49 +397,28 @@ class SpeakerFollowView(APIView):
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
-    @extend_schema(
-        responses={
-            200: {
-                "type": "object",
-                "properties": {
-                    "is_following": {"type": "boolean"},
-                    "followers_count": {"type": "integer"},
-                    "following_count": {"type": "integer"},
-                },
-            }
-        },
-    )
+    @staticmethod
+    def _following_count(speaker: SpeakerProfile) -> int:
+        """Return how many speakers this speaker follows."""
+        return SpeakerFollow.objects.filter(follower=speaker.user_account).count()
+
+    @extend_schema(responses=FollowStatusSerializer)
     def get(self, request, slug: str) -> Response:
         """Check if the authenticated user is following this speaker."""
         speaker = self.get_speaker(slug)
         is_following = SpeakerFollow.objects.filter(
             follower=request.user, speaker=speaker
         ).exists()
-        # following_count = how many speakers THIS speaker follows (not the logged-in user)
-        following_count = SpeakerFollow.objects.filter(
-            follower=speaker.user_account
-        ).count()
-        return Response(
+        serializer = FollowStatusSerializer(
             {
                 "is_following": is_following,
                 "followers_count": speaker.followers_count,
-                "following_count": following_count,
-            },
-            status=status.HTTP_200_OK,
+                "following_count": self._following_count(speaker),
+            }
         )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(
-        responses={
-            201: {
-                "type": "object",
-                "properties": {
-                    "detail": {"type": "string"},
-                    "followers_count": {"type": "integer"},
-                    "following_count": {"type": "integer"},
-                },
-            },
-        },
-    )
+    @extend_schema(responses={201: FollowActionSerializer})
     def post(self, request, slug: str) -> Response:
         """Follow a speaker. Returns 201 on success, 400 if already following."""
         speaker = self.get_speaker(slug)
@@ -453,31 +435,16 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are already following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # following_count = how many speakers THIS speaker follows (not the logged-in user)
-        following_count = SpeakerFollow.objects.filter(
-            follower=speaker.user_account
-        ).count()
-        return Response(
+        serializer = FollowActionSerializer(
             {
                 "detail": "Successfully followed speaker.",
                 "followers_count": speaker.followers_count,
-                "following_count": following_count,
-            },
-            status=status.HTTP_201_CREATED,
-        )
-
-    @extend_schema(
-        responses={
-            200: {
-                "type": "object",
-                "properties": {
-                    "detail": {"type": "string"},
-                    "followers_count": {"type": "integer"},
-                    "following_count": {"type": "integer"},
-                },
+                "following_count": self._following_count(speaker),
             }
-        },
-    )
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={200: FollowActionSerializer})
     def delete(self, request, slug: str) -> Response:
         """Unfollow a speaker. Returns 200 on success, 400 if not following."""
         speaker = self.get_speaker(slug)
@@ -489,18 +456,14 @@ class SpeakerFollowView(APIView):
                 {"detail": "You are not following this speaker."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # following_count = how many speakers THIS speaker follows (not the logged-in user)
-        following_count = SpeakerFollow.objects.filter(
-            follower=speaker.user_account
-        ).count()
-        return Response(
+        serializer = FollowActionSerializer(
             {
                 "detail": "Successfully unfollowed speaker.",
                 "followers_count": speaker.followers_count,
-                "following_count": following_count,
-            },
-            status=status.HTTP_200_OK,
+                "following_count": self._following_count(speaker),
+            }
         )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["speaker follow"])
@@ -516,20 +479,18 @@ class SpeakerFollowersListView(APIView):
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
-    @extend_schema(responses=FollowerDetailSerializer(many=True))
+    @extend_schema(responses=FollowersListResponseSerializer)
     def get(self, request, slug: str) -> Response:
         """List all users following the given speaker."""
         speaker = self.get_speaker(slug)
         follows = SpeakerFollow.objects.filter(speaker=speaker).select_related(
             "follower"
         )
-        serializer = FollowerDetailSerializer(
-            follows, many=True, context={"type": "followers"}
+        serializer = FollowersListResponseSerializer(
+            {"followers_count": speaker.followers_count, "followers": follows},
+            context={"type": "followers"},
         )
-        return Response(
-            {"followers_count": speaker.followers_count, "followers": serializer.data},
-            status=status.HTTP_200_OK,
-        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["speaker follow"])
@@ -545,23 +506,18 @@ class SpeakerFollowingListView(APIView):
         except SpeakerProfile.DoesNotExist as err:
             raise Http404 from err
 
-    @extend_schema(responses=FollowerDetailSerializer(many=True))
+    @extend_schema(responses=FollowingListResponseSerializer)
     def get(self, request, slug: str) -> Response:
         """List all speakers that the given speaker follows."""
         speaker = self.get_speaker(slug)
         follows = SpeakerFollow.objects.filter(
             follower=speaker.user_account
         ).select_related("speaker", "speaker__user_account")
-        serializer = FollowerDetailSerializer(
-            follows, many=True, context={"type": "following"}
+        serializer = FollowingListResponseSerializer(
+            {"following_count": follows.count(), "following": follows},
+            context={"type": "following"},
         )
-        return Response(
-            {
-                "following_count": follows.count(),
-                "following": serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ---------- Notification Views ----------

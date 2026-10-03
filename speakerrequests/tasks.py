@@ -9,7 +9,7 @@ from django_tasks import task
 
 logger = logging.getLogger(__name__)
 
-FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://speak-wise.live")
+FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://speakwise.live")
 
 
 def _send(subject: str, plain_text: str, html: str, recipient: str) -> None:

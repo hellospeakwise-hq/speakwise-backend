@@ -245,7 +245,7 @@ class SpeakerRequestAcceptView(APIView):
         req = serializer.instance
         speaker_user = req.speaker.user_account
         speaker_name = speaker_user.first_name or speaker_user.username
-        organizer_email = "admin@speak-wise.live"
+        organizer_email = "admin@speakwise.live"
         requester_name = "Admin"
         event_name = req.event.title
         event_date = (

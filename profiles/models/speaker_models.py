@@ -10,6 +10,7 @@ from django.db.models.functions import Lower
 from django.utils.text import slugify
 
 from base.models import SocialLinks, TimeStampedModel
+from base.validators import validate_image_extension, validate_image_size
 from users.models import User
 
 # Speakers file upload directory
@@ -169,7 +170,11 @@ class SpeakerProfile(TimeStampedModel):
     short_bio = models.CharField(max_length=255, blank=True)
     long_bio = models.TextField(blank=True, null=True)
     country = models.CharField(max_length=255, blank=True)
-    avatar = models.ImageField(upload_to=SPEAKERS_UPLOAD_DIR, blank=True)
+    avatar = models.ImageField(
+        upload_to=SPEAKERS_UPLOAD_DIR,
+        blank=True,
+        validators=[validate_image_extension, validate_image_size],
+    )
     slug = models.SlugField(unique=True)
 
     def __str__(self):

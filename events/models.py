@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from base.models import TimeStampedModel
+from base.validators import validate_image_extension, validate_image_size
 from events.utils import normalize_event_website
 
 EVENT_IMAGE_UPLOAD = "event_images/"
@@ -68,7 +69,11 @@ class Event(TimeStampedModel):
     title = models.CharField(max_length=255, unique=True, help_text="Event title")
     event_nickname = models.CharField(max_length=255, blank=True, default="")
     event_image = models.ImageField(
-        "image", upload_to=EVENT_IMAGE_UPLOAD, null=True, blank=True
+        "image",
+        upload_to=EVENT_IMAGE_UPLOAD,
+        null=True,
+        blank=True,
+        validators=[validate_image_extension, validate_image_size],
     )
     description = models.TextField(
         blank=True, default="", help_text="Detailed description for event page"
@@ -95,7 +100,7 @@ class Event(TimeStampedModel):
     start_date_time = models.DateTimeField(default=timezone.now, null=True)
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
     is_active = models.BooleanField(default=False, db_index=True)
-    slug = models.SlugField(max_length=255, null=True)
+    slug = models.SlugField(max_length=255, null=True, db_index=True)
     location = models.CharField(max_length=150, null=True, blank=True)
     country = models.CharField(
         max_length=100,

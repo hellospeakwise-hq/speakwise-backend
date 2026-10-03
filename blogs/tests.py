@@ -51,14 +51,15 @@ class BlogAPITests(APITestCase):
         """Blog list should be readable without authentication."""
         response = self.client.get(reverse("blogs:blog-list-create"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], "First Post")
+        self.assertIn("results", response.data)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["title"], "First Post")
 
     def test_list_returns_all_blog_fields(self):
         """Blog list should include every requested field."""
         response = self.client.get(reverse("blogs:blog-list-create"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        item = response.data[0]
+        item = response.data["results"][0]
         self.assertIn("image", item)
         self.assertIn("title", item)
         self.assertIn("short_description", item)

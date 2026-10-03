@@ -63,7 +63,7 @@ class CFPMarketTests(TestCase):
         """Only active, manual-open CFPs within their date window appear."""
         res = self.client.get(self.market_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        titles = {item["title"] for item in res.data}
+        titles = {item["title"] for item in res.data["results"]}
         self.assertIn("Open CFP", titles)
         self.assertNotIn("Closed CFP", titles)
         self.assertNotIn("Expired CFP", titles)
@@ -73,7 +73,7 @@ class CFPMarketTests(TestCase):
         """Returned cards include the computed open flag."""
         res = self.client.get(self.market_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        open_items = [item for item in res.data if item["title"] == "Open CFP"]
+        open_items = [item for item in res.data["results"] if item["title"] == "Open CFP"]
         self.assertEqual(len(open_items), 1)
         self.assertTrue(open_items[0]["is_cfp_currently_open"])
 
@@ -87,4 +87,4 @@ class CFPMarketTests(TestCase):
         Event.objects.filter(cfp_open=True).update(cfp_open=False)
         res = self.client.get(self.market_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data, [])
+        self.assertEqual(res.data["results"], [])

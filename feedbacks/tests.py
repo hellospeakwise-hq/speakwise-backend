@@ -376,7 +376,7 @@ class FeedbackListAPITests(FeedbackTestMixin, APITestCase):
         self.client.force_authenticate(self.speaker_user)
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data["results"]), 2)
 
     def test_list_can_filter_by_experience(self):
         """An experience filter narrows the results."""
@@ -385,9 +385,9 @@ class FeedbackListAPITests(FeedbackTestMixin, APITestCase):
             self.list_url, {"experience": self.experience.feedback_slug}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["experience"]["feedback_slug"],
+            response.data["results"][0]["experience"]["feedback_slug"],
             self.experience.feedback_slug,
         )
 
@@ -397,7 +397,7 @@ class FeedbackListAPITests(FeedbackTestMixin, APITestCase):
         self.client.force_authenticate(other)
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [])
+        self.assertEqual(response.data["results"], [])
 
     def test_list_unknown_experience_returns_404(self):
         """An unknown experience slug is rejected."""
@@ -489,4 +489,4 @@ class FeedbackSummaryAPITests(FeedbackTestMixin, APITestCase):
         """The paginated list responses carry no feedback summary."""
         response = self.client.get(reverse("speakers:speakers_list_create"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertNotIn("feedback_summary", response.data[0])
+        self.assertNotIn("feedback_summary", response.data["results"][0])

@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status, views
 from rest_framework.response import Response
 
+from base.pagination import paginate_api_view
 from base.permissions import IsEmailVerified
 from profiles.models.organization_models import OrganizationProfile
 from profiles.serializers.organization_serializers import OrganizationProfileSerializer
@@ -21,10 +22,11 @@ class OrganizationProfileListCreateView(views.APIView):
 
     @extend_schema(responses={200: OrganizationProfileSerializer(many=True)})
     def get(self, request, *args, **kwargs):
-        """List all organization profiles."""
-        organizations = OrganizationProfile.objects.all()
-        serializer = OrganizationProfileSerializer(organizations, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        """List all organization profiles (paginated)."""
+        organizations = OrganizationProfile.objects.select_related("owner").order_by(
+            "-created_at"
+        )
+        return paginate_api_view(request, organizations, OrganizationProfileSerializer)
 
     @extend_schema(
         request=OrganizationProfileSerializer,

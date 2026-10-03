@@ -189,9 +189,9 @@ class PublicSpeakerExperiencesViewTests(APITestCase):
         """Should return experiences for the given speaker slug."""
         res = self.client.get(self.url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]["event_name"], "Public Conf")
-        self.assertEqual(res.data[0]["topic"], "Public Speaking")
+        self.assertEqual(len(res.data["results"]), 1)
+        self.assertEqual(res.data["results"][0]["event_name"], "Public Conf")
+        self.assertEqual(res.data["results"][0]["topic"], "Public Speaking")
 
     def test_public_experiences_invalid_slug_returns_empty(self):
         """Invalid slug should return empty list (200)."""
@@ -200,7 +200,7 @@ class PublicSpeakerExperiencesViewTests(APITestCase):
         )
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data, [])
+        self.assertEqual(res.data["results"], [])
 
 
 class SpeakerSkillTagsViewsTests(APITestCase):
@@ -247,8 +247,8 @@ class SpeakerSkillTagsViewsTests(APITestCase):
         self.client.force_authenticate(self.u1)
         res = self.client.get(self.list_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]["name"], "Django")
+        self.assertEqual(len(res.data["results"]), 1)
+        self.assertEqual(res.data["results"][0]["name"], "Django")
 
     def test_create_skill_tag_associates_with_user_profile(self):
         """Create view creates a tag associated with authenticated user's profile."""
@@ -1031,8 +1031,8 @@ class NotificationViewTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.get(self.list_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 2)
-        titles = {n["message"] for n in res.data}
+        self.assertEqual(len(res.data["results"]), 2)
+        titles = {n["message"] for n in res.data["results"]}
         self.assertIn("Please upload your presentation.", titles)
         self.assertIn("Don't forget to upload.", titles)
         self.assertNotIn("Not for you.", titles)
@@ -1042,16 +1042,16 @@ class NotificationViewTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.get(f"{self.list_url}?is_read=false")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]["message"], "Please upload your presentation.")
+        self.assertEqual(len(res.data["results"]), 1)
+        self.assertEqual(res.data["results"][0]["message"], "Please upload your presentation.")
 
     def test_list_filter_read(self):
         """GET ?is_read=true returns only read notifications."""
         self.client.force_authenticate(self.user)
         res = self.client.get(f"{self.list_url}?is_read=true")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]["message"], "Don't forget to upload.")
+        self.assertEqual(len(res.data["results"]), 1)
+        self.assertEqual(res.data["results"][0]["message"], "Don't forget to upload.")
 
     # ── Mark as read ────────────────────────────────────────────────────────
 

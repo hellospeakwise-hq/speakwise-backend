@@ -51,4 +51,4 @@ jobs:
   #                   docker compose -f docker-compose.yml -f docker-compose.staging.yml build --no-cache
   #                   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
   #
-  #                   echo "--- Staging backend live at https://apis-staging.speak-wise.live ---"
+  #                   echo "--- Staging backend live at https://apis-staging.speakwise.live ---"

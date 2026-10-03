@@ -18,6 +18,10 @@ DEBUG = False
 
 
 ALLOWED_HOSTS = [
+    "apis.speakwise.live",
+    "speakwise.live",
+    "www.speakwise.live",
+    # Transitional support
     "apis.speak-wise.live",
     "speak-wise.live",
     "www.speak-wise.live",
@@ -48,6 +52,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # Add CORS settings for your Next.js frontend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "https://www.speakwise.live",
+    "https://speakwise.live",
     "https://www.speak-wise.live",
     "https://speak-wise.live",
 ]

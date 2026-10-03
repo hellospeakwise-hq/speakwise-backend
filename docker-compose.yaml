@@ -26,7 +26,7 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-speakwise.settings.production}
-      - SECRET_KEY=${SECRET_KEY:-django-insecure-default-key}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env (no insecure default)}
       - DEBUG=1
     depends_on:
       db:
@@ -44,7 +44,7 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-speakwise.settings.local}
-      - SECRET_KEY=${SECRET_KEY:-django-insecure-default-key}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env (no insecure default)}
     depends_on:
       db:
         condition: service_healthy

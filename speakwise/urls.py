@@ -3,12 +3,33 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+
+
+def api_not_found(request, exception=None):
+    """Return JSON for unknown routes instead of Django's HTML 404 page."""
+    return JsonResponse(
+        {"detail": "Not found.", "code": "not_found"},
+        status=404,
+    )
+
+
+def api_server_error(request):
+    """Return JSON for unhandled errors instead of Django's HTML 500 page."""
+    return JsonResponse(
+        {"detail": "Internal server error.", "code": "server_error"},
+        status=500,
+    )
+
+
+handler404 = api_not_found
+handler500 = api_server_error
 
 urlpatterns = [
     path("admin/", admin.site.urls),

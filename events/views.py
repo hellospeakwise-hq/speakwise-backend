@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.pagination import paginate_api_view
 from base.permissions import IsSubmitterOrSuperUser
 from events.filters import EventFilter
 from events.models import Event
@@ -44,11 +45,14 @@ class EventListView(APIView):
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
-        """List published events with broad filtering support."""
-        queryset = Event.objects.filter(is_active=True)
+        """List published events with broad filtering support (paginated)."""
+        queryset = (
+            Event.objects.filter(is_active=True)
+            .select_related("submitted_by")
+            .order_by("-created_at")
+        )
         filtered_queryset = EventFilter(request.GET, queryset=queryset).qs
-        serializer = EventSerializer(filtered_queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(request, filtered_queryset, EventSerializer)
 
     @extend_schema(
         tags=["Events"],
@@ -187,10 +191,13 @@ class CFPMarketListView(APIView):
 
     @extend_schema(tags=["CFP Market"], responses={200: CFPMarketSerializer(many=True)})
     def get(self, request, *args, **kwargs):
-        """Return events whose CFP is currently open for the CFP Market."""
-        events = Event.objects.with_open_cfp()
-        serializer = CFPMarketSerializer(events, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        """Return events whose CFP is currently open for the CFP Market (paginated)."""
+        events = (
+            Event.objects.with_open_cfp()
+            .select_related("submitted_by")
+            .order_by("-created_at")
+        )
+        return paginate_api_view(request, events, CFPMarketSerializer)
 
 
 class PrivateEventListView(APIView):
@@ -199,10 +206,13 @@ class PrivateEventListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Return all events submitted by the authenticated user."""
-        events = Event.objects.filter(submitted_by=request.user)
-        serializer = EventSerializer(events, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        """Return all events submitted by the authenticated user (paginated)."""
+        events = (
+            Event.objects.filter(submitted_by=request.user)
+            .select_related("submitted_by")
+            .order_by("-created_at")
+        )
+        return paginate_api_view(request, events, EventSerializer)
 
 
 class MyEventsListView(PrivateEventListView):

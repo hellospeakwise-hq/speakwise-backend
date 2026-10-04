@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.pagination import paginate_api_view
 from base.permissions import IsSuperUser
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.filters import EmailRequestsFilter, SpeakerRequestFilter
@@ -38,7 +39,9 @@ class SpeakerRequestListView(APIView):
 
     def get_objects(self, user):
         """Get speaker requests."""
-        return SpeakerRequest.objects.all()
+        return SpeakerRequest.objects.all().select_related(
+            "speaker__user_account", "event"
+        )
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
     def get(self, request):
@@ -51,8 +54,7 @@ class SpeakerRequestListView(APIView):
             Response: A list of speaker requests.
         """
         speaker_requests = self.get_objects(request.user)
-        serializer = SpeakerRequestSerializer(speaker_requests, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(request, speaker_requests, SpeakerRequestSerializer)
 
     @extend_schema(request=SpeakerRequestSerializer)
     def post(self, request):
@@ -175,13 +177,15 @@ class SpeakerRequestsListView(APIView):
     def get_objects(self, speaker):
         """Get speaker requests by speaker."""
         try:
-            return SpeakerRequest.objects.filter(speaker__user_account=speaker)
+            return SpeakerRequest.objects.filter(
+                speaker__user_account=speaker
+            ).select_related("speaker__user_account", "event")
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
     def get(self, request, pk=None):
-        """Get all incoming speaker requests for the authenticated speaker.
+        """Get all incoming speaker requests for the authenticated speaker (paginated).
 
         Args:
             request: The HTTP request object.
@@ -194,8 +198,9 @@ class SpeakerRequestsListView(APIView):
         speaker_requests_filter = SpeakerRequestFilter(
             request.GET, queryset=speaker_requests
         )
-        serializer = SpeakerRequestSerializer(speaker_requests_filter.qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(
+            request, speaker_requests_filter.qs, SpeakerRequestSerializer
+        )
 
 
 class SpeakerRequestAcceptView(APIView):
@@ -296,11 +301,12 @@ class SpeakerEmailRequestListView(APIView):
             return NotFound
 
     def get(self, request):
-        """Return request sent or received by the authenticated user."""
+        """Return request sent or received by the authenticated user (paginated)."""
         email_requests = self.get_object(request.user)
         email_request_filter = EmailRequestsFilter(request.GET, queryset=email_requests)
-        serializer = EmailRequestsSerializer(email_request_filter.qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(
+            request, email_request_filter.qs, EmailRequestsSerializer
+        )
 
     def post(self, request):
         """Create a new request sent via email."""

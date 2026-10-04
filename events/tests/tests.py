@@ -39,13 +39,13 @@ class EventAPITestCase(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
         # Anonymous (sees active events)
         self.client.force_authenticate(user=None)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_create_event(self):
         """Test creating a new event."""
@@ -88,7 +88,7 @@ class EventAPITestCase(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # 1 from setUp + 1 from here
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data["results"]), 2)
 
     def test_delete_event_unauthorized(self):
         """Test that a regular user cannot delete this event."""
@@ -241,7 +241,7 @@ class EventListingTests(TestCase):
         """Return listing payloads keyed by event title."""
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        return {item["title"]: item for item in response.data}
+        return {item["title"]: item for item in response.data["results"]}
 
     def test_anonymous_users_can_browse_published_events(self):
         """The public listing returns published events only."""
@@ -272,7 +272,7 @@ class EventListingTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        titles = {item["title"] for item in response.data}
+        titles = {item["title"] for item in response.data["results"]}
         self.assertIn("Berlin DevConf", titles)
         self.assertNotIn(self.unpublished.title, titles)
 
@@ -306,7 +306,7 @@ class EventListingTests(TestCase):
         listing_titles = set(self._listing_by_title())
         market = self.client.get(self.market_url)
         self.assertEqual(market.status_code, status.HTTP_200_OK)
-        market_titles = {item["title"] for item in market.data}
+        market_titles = {item["title"] for item in market.data["results"]}
 
         self.assertIn(self.showcase_only.title, listing_titles)
         self.assertNotIn(self.showcase_only.title, market_titles)
@@ -429,7 +429,7 @@ class EventSubmitTests(TestCase):
         )
         response = self.client.get(self.submit_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        titles = [event["title"] for event in response.data]
+        titles = [event["title"] for event in response.data["results"]]
         self.assertIn(self.published.title, titles)
         self.assertNotIn("Pending Conf", titles)
 
@@ -457,8 +457,8 @@ class EventSubmitTests(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data[0].get("title"), pending.title)
-        self.assertEqual(response.data[0].get("website"), pending.website)
+        self.assertEqual(response.data["results"][0].get("title"), pending.title)
+        self.assertEqual(response.data["results"][0].get("website"), pending.website)
 
     def test_submitter_can_view_own_pending_event_private_detail(self):
         """The submitter can fetch their own pending event via the private detail route."""
@@ -557,13 +557,13 @@ class CFPMarketAndStatusTests(TestCase):
         """Return event IDs from an unauthenticated market GET."""
         response = self.client.get(self.market_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        return [item["id"] for item in response.data]
+        return [item["id"] for item in response.data["results"]]
 
     def test_unauthenticated_market_returns_200(self):
         """CFP Market is publicly accessible."""
         response = self.client.get(self.market_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [])
+        self.assertEqual(response.data["results"], [])
 
     def test_marked_open_without_dates_appears_in_market(self):
         """Marked open CFP with no dates appears in Market and is currently open."""
@@ -622,7 +622,9 @@ class CFPMarketAndStatusTests(TestCase):
 
         response = self.client.get(self.market_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        match = next(item for item in response.data if item["id"] == str(event.id))
+        match = next(
+            item for item in response.data["results"] if item["id"] == str(event.id)
+        )
         self.assertEqual(match["cfp_link"], "https://conf.example/cfp")
         self.assertTrue(match["is_cfp_currently_open"])
         self.assertEqual(match["title"], "Window CFP")

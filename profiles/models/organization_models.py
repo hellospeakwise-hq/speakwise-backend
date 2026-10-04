@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 
 from base.models import TimeStampedModel
+from base.validators import validate_image_extension, validate_image_size
 from profiles.choices import OrganizationStatusChoices
 
 
@@ -30,6 +31,7 @@ class OrganizationProfile(TimeStampedModel):
         upload_to="organization_branding/",
         blank=True,
         null=True,
+        validators=[validate_image_extension, validate_image_size],
         help_text="Organization branding image",
     )
     contact_email = models.EmailField(

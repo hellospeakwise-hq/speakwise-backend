@@ -7,6 +7,7 @@ from django.db import models
 from django_ckeditor_5.fields import CKEditor5Field
 
 from base.models import TimeStampedModel
+from base.validators import validate_image_extension, validate_image_size
 
 BLOG_IMAGE_UPLOAD = "blog_images/"
 
@@ -22,7 +23,12 @@ class Blog(TimeStampedModel):
         ARCHIVED = "archived", "Archived"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    image = models.ImageField(upload_to=BLOG_IMAGE_UPLOAD, null=True, blank=True)
+    image = models.ImageField(
+        upload_to=BLOG_IMAGE_UPLOAD,
+        null=True,
+        blank=True,
+        validators=[validate_image_extension, validate_image_size],
+    )
     title = models.CharField(max_length=255)
     short_description = models.CharField(
         max_length=255,

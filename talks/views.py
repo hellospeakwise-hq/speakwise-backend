@@ -30,7 +30,11 @@ class TalkListCreateView(ListCreateAPIView):
     def get_queryset(self):
         """Filter talks by the authenticated user if modifying."""
         if self.request.user.is_authenticated:
-            return Talks.objects.filter(speaker__user_account=self.request.user)
+            return (
+                Talks.objects.filter(speaker__user_account=self.request.user)
+                .select_related("speaker", "speaker__user_account", "event")
+                .prefetch_related("talk_sessions", "talk_review_comments")
+            )
         return Talks.objects.none()
 
 
@@ -42,15 +46,22 @@ class TalkRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         """Filter talks by the authenticated user if modifying."""
+        base = Talks.objects.select_related(
+            "speaker", "speaker__user_account", "event"
+        ).prefetch_related("talk_sessions", "talk_review_comments")
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
-            return Talks.objects.all()
-        return Talks.objects.filter(speaker__user_account=self.request.user)
+            return base.all()
+        if self.request.user.is_authenticated:
+            return base.filter(speaker__user_account=self.request.user)
+        return base.none()
 
 
 class PublicTalkDetailView(RetrieveAPIView):
     """Public detail view for a specific talk."""
 
-    queryset = Talks.objects.filter(is_public=True)
+    queryset = Talks.objects.filter(is_public=True).select_related(
+        "speaker", "speaker__user_account", "event"
+    )
     serializer_class = TalkSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
@@ -65,7 +76,11 @@ class SpeakerPublicTalksView(ListAPIView):
     def get_queryset(self):
         """Filter talks by public visibility and speaker slug."""
         speaker_slug = self.kwargs.get("slug")
-        return Talks.objects.filter(is_public=True, speaker__slug=speaker_slug)
+        return (
+            Talks.objects.filter(is_public=True, speaker__slug=speaker_slug)
+            .select_related("speaker", "speaker__user_account", "event")
+            .prefetch_related("talk_sessions", "talk_review_comments")
+        )
 
 
 class TalkReviewSubmitView(ListCreateAPIView):
@@ -78,7 +93,11 @@ class TalkReviewSubmitView(ListCreateAPIView):
     def get_queryset(self):
         """Filter comments by the parent talk slug from the URL."""
         slug = self.kwargs.get("slug")
-        return TalkReviewComment.objects.filter(talk__slug=slug, talk__is_public=True)
+        return (
+            TalkReviewComment.objects.filter(talk__slug=slug, talk__is_public=True)
+            .select_related("talk")
+            .order_by("-created_at")
+        )
 
     def perform_create(self, serializer):
         """Set the talk on creation and validate it is reviewable."""

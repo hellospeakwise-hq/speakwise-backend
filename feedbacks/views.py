@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.pagination import paginate_api_view
 from base.permissions import IsEmailVerified
 from feedbacks.models import Feedback
 from feedbacks.serializers import (
@@ -37,8 +38,10 @@ class FeedbackListView(APIView):
 
     @extend_schema(responses=FeedbackReadSerializer(many=True))
     def get(self, request, *args, **kwargs):
-        """List feedback for the authenticated speaker, optionally per-experience."""
-        queryset = Feedback.objects.filter(speaker__user_account=request.user)
+        """List feedback for the authenticated speaker, optionally per-experience (paginated)."""
+        queryset = Feedback.objects.filter(speaker__user_account=request.user).order_by(
+            "-created_at"
+        )
         feedback_slug = request.query_params.get("experience")
         if feedback_slug:
             experience = resolve_feedback_experience(feedback_slug)
@@ -46,10 +49,8 @@ class FeedbackListView(APIView):
                 raise NotFound("Unknown experience.")
             queryset = queryset.filter(experience=experience)
 
-        serializer = self.serializer_class(
-            queryset.select_related("experience"), many=True
-        )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        queryset = queryset.select_related("experience")
+        return paginate_api_view(request, queryset, self.serializer_class)
 
 
 class FeedbackRateView(APIView):

@@ -15,6 +15,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.pagination import paginate_api_view
 from base.permissions import IsEmailVerified
 from profiles.models.speaker_models import (
     Notification,
@@ -49,17 +50,21 @@ class SpeakerProfileListCreateView(APIView):
 
     @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
-        """List all speaker profiles."""
-        speaker_profiles = SpeakerProfile.objects.annotate(
-            _prefetched_followers_count=Count("followers", distinct=True),
-            _prefetched_following_count=Count(
-                "user_account__following_speakers", distinct=True
-            ),
+        """List all speaker profiles (paginated)."""
+        speaker_profiles = (
+            SpeakerProfile.objects.select_related("user_account")
+            .prefetch_related("skill_tags", "experiences", "social_links")
+            .annotate(
+                _prefetched_followers_count=Count("followers", distinct=True),
+                _prefetched_following_count=Count(
+                    "user_account__following_speakers", distinct=True
+                ),
+            )
+            .order_by("-created_at")
         )
-        serializer = SpeakerProfileSerializer(
-            speaker_profiles, many=True, context={"request": request}
+        return paginate_api_view(
+            request, speaker_profiles, SpeakerProfileSerializer, {"request": request}
         )
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
     def post(self, request):
@@ -149,12 +154,15 @@ class SpeakerExperiencesListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """List all speaker experiences for the authenticated user."""
-        speaker_experiences = SpeakerExperiences.objects.filter(
-            speaker__user_account=request.user
+        """List all speaker experiences for the authenticated user (paginated)."""
+        speaker_experiences = (
+            SpeakerExperiences.objects.filter(speaker__user_account=request.user)
+            .select_related("speaker", "event")
+            .order_by("-created_at")
         )
-        serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(
+            request, speaker_experiences, SpeakerExperiencesSerializer
+        )
 
     def post(self, request):
         """Create a new speaker experience for the authenticated user."""
@@ -221,7 +229,7 @@ class PublicSpeakerExperiencesListView(APIView):
         tags=["speaker experiences (public view)"],
     )
     def get(self, request, slug: str = None):
-        """List all speaker experiences for the provided speaker slug or UUID.
+        """List all speaker experiences for the provided speaker slug or UUID (paginated).
 
         If the slug does not match any speaker, an empty list is returned.
         """
@@ -231,9 +239,14 @@ class PublicSpeakerExperiencesListView(APIView):
         except (ValueError, AttributeError):
             speaker_filter = Q(speaker__slug=slug)
 
-        speaker_experiences = SpeakerExperiences.objects.filter(speaker_filter)
-        serializer = SpeakerExperiencesSerializer(speaker_experiences, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        speaker_experiences = (
+            SpeakerExperiences.objects.filter(speaker_filter)
+            .select_related("speaker", "event")
+            .order_by("-created_at")
+        )
+        return paginate_api_view(
+            request, speaker_experiences, SpeakerExperiencesSerializer
+        )
 
 
 @extend_schema(
@@ -314,10 +327,9 @@ class SpeakerSkillTagsListView(APIView):
         request=SpeakerSkillTagSerializer,
     )
     def get(self, request):
-        """List all skill tags for the authenticated user."""
-        skill_tags = self.get_objects(request.user)
-        serializer = SpeakerSkillTagSerializer(skill_tags, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        """List all skill tags for the authenticated user (paginated)."""
+        skill_tags = self.get_objects(request.user).order_by("-created_at")
+        return paginate_api_view(request, skill_tags, SpeakerSkillTagSerializer)
 
     @extend_schema(
         responses=SpeakerSkillTagSerializer, request=SpeakerSkillTagSerializer
@@ -483,11 +495,13 @@ class SpeakerFollowersListView(APIView):
     def get(self, request, slug: str) -> Response:
         """List all users following the given speaker."""
         speaker = self.get_speaker(slug)
-        follows = SpeakerFollow.objects.filter(speaker=speaker).select_related(
-            "follower"
+        follows = (
+            SpeakerFollow.objects.filter(speaker=speaker)
+            .select_related("follower")
+            .order_by("-created_at")
         )
         serializer = FollowersListResponseSerializer(
-            {"followers_count": speaker.followers_count, "followers": follows},
+            {"followers_count": follows.count(), "followers": follows[:100]},
             context={"type": "followers"},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -510,11 +524,13 @@ class SpeakerFollowingListView(APIView):
     def get(self, request, slug: str) -> Response:
         """List all speakers that the given speaker follows."""
         speaker = self.get_speaker(slug)
-        follows = SpeakerFollow.objects.filter(
-            follower=speaker.user_account
-        ).select_related("speaker", "speaker__user_account")
+        follows = (
+            SpeakerFollow.objects.filter(follower=speaker.user_account)
+            .select_related("speaker", "speaker__user_account")
+            .order_by("-created_at")
+        )
         serializer = FollowingListResponseSerializer(
-            {"following_count": follows.count(), "following": follows},
+            {"following_count": follows.count(), "following": follows[:100]},
             context={"type": "following"},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -534,16 +550,17 @@ class NotificationListView(APIView):
 
     @extend_schema(responses=NotificationSerializer(many=True))
     def get(self, request):
-        """List notifications for the authenticated user."""
-        notifications = Notification.objects.filter(user=request.user)
+        """List notifications for the authenticated user (paginated)."""
+        notifications = Notification.objects.filter(user=request.user).order_by(
+            "-created_at"
+        )
 
         is_read_param = request.query_params.get("is_read")
         if is_read_param is not None:
             is_read = is_read_param.lower() == "true"
             notifications = notifications.filter(is_read=is_read)
 
-        serializer = NotificationSerializer(notifications, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(request, notifications, NotificationSerializer)
 
 
 @extend_schema(tags=["notifications"])

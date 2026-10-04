@@ -265,7 +265,7 @@ class OrganizationProfileListCreateViewTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.get(self.list_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        names = {org["name"] for org in res.data}
+        names = {org["name"] for org in res.data["results"]}
         self.assertIn("Alpha Org", names)
         self.assertIn("Beta Org", names)
 
@@ -275,7 +275,7 @@ class OrganizationProfileListCreateViewTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.get(self.list_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data, [])
+        self.assertEqual(res.data["results"], [])
 
     def test_create_organization_returns_201(self):
         """A valid payload creates the organization and returns it."""

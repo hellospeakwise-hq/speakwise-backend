@@ -8,6 +8,10 @@ from django.utils.crypto import get_random_string
 from django.utils.text import slugify
 
 from base.models import TimeStampedModel
+from base.validators import (
+    validate_presentation_extension,
+    validate_presentation_size,
+)
 from events.models import Event
 from profiles.models.speaker_models import SpeakerProfile
 from talks.choices import TalkCategoryChoices
@@ -52,7 +56,9 @@ class Talks(TimeStampedModel):
     duration = models.IntegerField()
     category = models.CharField(max_length=100, choices=TalkCategoryChoices.choices)
     presentation_files = models.FileField(
-        upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
+        upload_to=PRESENTATION_FILES_UPLOAD_DIR,
+        null=True,
+        validators=[validate_presentation_extension, validate_presentation_size],
     )
 
     slug = models.SlugField(unique=True, max_length=255, null=True, blank=True)

@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.pagination import paginate_api_view
 from blogs.models import Blog
 from blogs.serializers import BlogSerializer
 
@@ -23,10 +24,11 @@ class BlogListView(APIView):
 
     @extend_schema(tags=["Blogs"], responses={200: BlogSerializer(many=True)})
     def get(self, request, *args, **kwargs):
-        """List all blog posts."""
-        blogs = Blog.objects.select_related("created_by")
-        serializer = BlogSerializer(blogs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        """List all blog posts (paginated)."""
+        blogs = Blog.objects.select_related("created_by").order_by(
+            "-published_date", "-created_at"
+        )
+        return paginate_api_view(request, blogs, BlogSerializer)
 
     @extend_schema(
         tags=["Blogs"], request=BlogSerializer, responses={201: BlogSerializer}

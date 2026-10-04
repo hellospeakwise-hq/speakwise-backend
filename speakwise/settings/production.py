@@ -73,6 +73,8 @@ STATIC_ROOT = os.environ.get("STATIC_ROOT") or os.path.join(BASE_DIR, "staticfil
 _CORS_EXTRA = _csv_env("CORS_ALLOWED_ORIGINS_EXTRA", "")
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "https://www.speakwise.live",
+    "https://speakwise.live",
     "https://www.speak-wise.live",
     "https://speak-wise.live",
     *_CORS_EXTRA,

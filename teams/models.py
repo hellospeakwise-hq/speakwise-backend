@@ -5,6 +5,7 @@ import uuid
 from django.db import models
 
 from base.models import SocialLinks, TimeStampedModel
+from base.validators import validate_image_extension, validate_image_size
 
 TEAM_UPLOAD_DIR = "team/avatars/"
 
@@ -56,6 +57,7 @@ class TeamMember(TimeStampedModel):
         upload_to=TEAM_UPLOAD_DIR,
         blank=True,
         null=True,
+        validators=[validate_image_extension, validate_image_size],
         help_text="Profile picture of the team member",
     )
 

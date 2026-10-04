@@ -7,11 +7,12 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import OrganizationMembership
+from base.pagination import paginate_api_view
+from base.permissions import IsSuperUser
 from speakerrequests.choices import RequestStatusChoices
 from speakerrequests.filters import EmailRequestsFilter, SpeakerRequestFilter
 from speakerrequests.models import SpeakerEmailRequests, SpeakerRequest
@@ -19,7 +20,7 @@ from speakerrequests.serializers import (
     EmailRequestsSerializer,
     SpeakerRequestSerializer,
 )
-from speakerrequests.utils import (
+from speakerrequests.tasks import (
     send_request_accepted_email,
     send_request_declined_email,
     send_speaker_email_request_email,
@@ -33,38 +34,18 @@ class SpeakerRequestListView(APIView):
     This view allows organizers to list all their speaker requests and create new ones.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = SpeakerRequestSerializer
 
-    def get_objects(self, organizer, organization_id=None):
-        """Get speaker requests by organizer.
-
-        Args:
-            organizer: The user making the request
-            organization_id: Optional organization ID to filter by
-        """
-        try:
-            # If organization_id is provided, use it directly
-            if organization_id:
-                # Verify user is a member of this organization
-                membership = OrganizationMembership.objects.filter(
-                    user=organizer, organization_id=organization_id
-                ).first()
-                if membership:
-                    return SpeakerRequest.objects.filter(organizer_id=organization_id)
-                else:
-                    return SpeakerRequest.objects.none()
-
-            # Otherwise, get requests for all organizations the user is a member of
-            memberships = OrganizationMembership.objects.filter(user=organizer)
-            org_ids = memberships.values_list("organization_id", flat=True)
-            return SpeakerRequest.objects.filter(organizer_id__in=org_ids)
-        except Exception as err:
-            raise Http404 from err
+    def get_objects(self, user):
+        """Get speaker requests."""
+        return SpeakerRequest.objects.all().select_related(
+            "speaker__user_account", "event"
+        )
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
     def get(self, request):
-        """Get all speaker requests for the authenticated organizer.
+        """Get all speaker requests.
 
         Args:
             request: The HTTP request object.
@@ -72,10 +53,8 @@ class SpeakerRequestListView(APIView):
         Returns:
             Response: A list of speaker requests.
         """
-        organization_id = request.GET.get("organization")
-        speaker_requests = self.get_objects(request.user, organization_id)
-        serializer = SpeakerRequestSerializer(speaker_requests, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        speaker_requests = self.get_objects(request.user)
+        return paginate_api_view(request, speaker_requests, SpeakerRequestSerializer)
 
     @extend_schema(request=SpeakerRequestSerializer)
     def post(self, request):
@@ -90,14 +69,11 @@ class SpeakerRequestListView(APIView):
         serializer = SpeakerRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Check for duplicate request (same org, speaker, event)
-        organizer = serializer.validated_data.get("organizer")
+        # Check for duplicate request (same speaker, event)
         speaker = serializer.validated_data.get("speaker")
         event = serializer.validated_data.get("event")
 
-        if SpeakerRequest.objects.filter(
-            organizer=organizer, speaker=speaker, event=event
-        ).exists():
+        if SpeakerRequest.objects.filter(speaker=speaker, event=event).exists():
             return Response(
                 {
                     "detail": "A speaker request for this speaker and event already exists."
@@ -112,14 +88,14 @@ class SpeakerRequestListView(APIView):
         send_speaker_org_request_email.enqueue(
             speaker_email=speaker_user.email,
             speaker_name=speaker_user.first_name or speaker_user.username,
-            organization_name=req.organizer.name,
-            organizer_name=req.organizer.name,
+            organization_name="SpeakWise",
+            organizer_name="Admin",
             event_name=req.event.title,
             event_date=req.event.start_date_time.strftime("%B %-d, %Y")
             if req.event.start_date_time
             else "",
             message=req.message,
-            request_id=req.id,
+            request_id=str(req.id),
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -127,13 +103,13 @@ class SpeakerRequestListView(APIView):
 class SPeakerRequestDetailView(APIView):
     """View to retrieve, update, and delete a specific speaker request.
 
-    This view allows organizers to manage individual speaker requests.
+    This view allows superusers to manage individual speaker requests.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated, IsSuperUser]
     serializer_class = SpeakerRequestSerializer
 
-    def get_object(self, pk, organizer):
+    def get_object(self, pk, user):
         """Get object by pk."""
         try:
             return SpeakerRequest.objects.get(pk=pk)
@@ -196,18 +172,20 @@ class SpeakerRequestsListView(APIView):
     This view allows speakers to see all requests sent to them.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_objects(self, speaker):
         """Get speaker requests by speaker."""
         try:
-            return SpeakerRequest.objects.filter(speaker__user_account=speaker)
+            return SpeakerRequest.objects.filter(
+                speaker__user_account=speaker
+            ).select_related("speaker__user_account", "event")
         except SpeakerRequest.DoesNotExist as err:
             raise Http404 from err
 
     @extend_schema(responses=SpeakerRequestSerializer(many=True))
     def get(self, request, pk=None):
-        """Get all incoming speaker requests for the authenticated speaker.
+        """Get all incoming speaker requests for the authenticated speaker (paginated).
 
         Args:
             request: The HTTP request object.
@@ -220,8 +198,9 @@ class SpeakerRequestsListView(APIView):
         speaker_requests_filter = SpeakerRequestFilter(
             request.GET, queryset=speaker_requests
         )
-        serializer = SpeakerRequestSerializer(speaker_requests_filter.qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(
+            request, speaker_requests_filter.qs, SpeakerRequestSerializer
+        )
 
 
 class SpeakerRequestAcceptView(APIView):
@@ -230,7 +209,7 @@ class SpeakerRequestAcceptView(APIView):
     This view allows speakers to respond to a request.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self, pk, user):
         """Get object by pk and ensure it belongs to the speaker."""
@@ -266,15 +245,15 @@ class SpeakerRequestAcceptView(APIView):
         req = serializer.instance
         speaker_user = req.speaker.user_account
         speaker_name = speaker_user.first_name or speaker_user.username
-        organizer_email = req.organizer.email
-        requester_name = req.organizer.name
+        organizer_email = "admin@speakwise.live"
+        requester_name = "Admin"
         event_name = req.event.title
         event_date = (
             req.event.start_date_time.strftime("%B %-d, %Y")
             if req.event.start_date_time
             else ""
         )
-        event_location = req.event.location.name if req.event.location else ""
+        event_location = req.event.location.venue if req.event.location else ""
         dashboard_url = f"{settings.FRONTEND_URL}/dashboard/organizer"
         speaker_profile_url = f"{settings.FRONTEND_URL}/speakers/{req.speaker.id}"
         discover_url = f"{settings.FRONTEND_URL}/speakers"
@@ -322,11 +301,12 @@ class SpeakerEmailRequestListView(APIView):
             return NotFound
 
     def get(self, request):
-        """Return request sent or received by the authenticated user."""
+        """Return request sent or received by the authenticated user (paginated)."""
         email_requests = self.get_object(request.user)
         email_request_filter = EmailRequestsFilter(request.GET, queryset=email_requests)
-        serializer = EmailRequestsSerializer(email_request_filter.qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginate_api_view(
+            request, email_request_filter.qs, EmailRequestsSerializer
+        )
 
     def post(self, request):
         """Create a new request sent via email."""
@@ -372,6 +352,8 @@ class SpeakerEmailRequestListView(APIView):
 )
 class SpeakerEmailRequestDetailView(APIView):
     """Detail view of Speaker request sent through email."""
+
+    permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk=None):
         """Update status of a specific speaker request."""

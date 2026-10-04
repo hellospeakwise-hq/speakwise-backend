@@ -20,7 +20,7 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 AUTH_USER_MODEL = "users.User"
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -44,25 +44,25 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
-    "rest_framework.authtoken",
     "django_filters",
     "corsheaders",
     "django_tasks",
+    "django_tasks_db",
+    "django_ckeditor_5",
     # "debug_toolbar",
 ]
 
 LOCAL_APPS = [
     # locally installed apps
+    "base",
     "events",
-    "speakers",
-    "attendees",
+    "profiles",
     "talks",
     "teams",
     "users",
     "feedbacks",
-    "organizations",
     "speakerrequests",
-    "cfps",
+    "blogs",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -152,9 +152,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 MEDIA_URL = "/media/"
-STATIC_ROOT = os.path.join(BASE_DIR.parent, "staticfiles")
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+# Upload guards: reject oversized payloads before they reach views or storage.
+# Per-field extension/size validators live in base/validators.py.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_OF_FIELDS = 1000
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -162,17 +168,42 @@ STATIC_ROOT = os.path.join(BASE_DIR.parent, "staticfiles")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    # YOUR SETTINGS
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+    "DEFAULT_PAGINATION_CLASS": "base.pagination.StandardResultsSetPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning",
+    "DEFAULT_VERSION": "1.0",
+    "ALLOWED_VERSIONS": ["1.0"],
+    "EXCEPTION_HANDLER": "base.exception_handler.api_exception_handler",
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "1000/hour",
+        "login": "10/minute",
+        "otp_verify": "10/minute",
+        "otp_resend": "5/minute",
+        "password_reset": "3/hour",
+        "oauth_token": "10/minute",
+    },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -187,32 +218,61 @@ SPECTACULAR_SETTINGS = {
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 SITE_NAME = "SpeakWise"
 
-# django-q configuration
-Q_CLUSTER = {
-    "name": "myproject",
-    "workers": 8,
-    "recycle": 500,
-    "timeout": 60,
-    "compress": True,
-    "cpu_affinity": 1,
-    "save_limit": 250,
-    "queue_limit": 500,
-    "label": "Django Q",
-    "redis": {
-        "host": "127.0.0.1",
-        "port": 6379,
-        "db": 0,
+# OTP verification
+OTP_CODE_LENGTH = 6
+OTP_EXPIRY_MINUTES = 10
+OTP_RESEND_COOLDOWN_MINUTES = 2
+OTP_MAX_ATTEMPTS = 3
+
+# OAuth: lifetime of the one-time code a callback hands the frontend before it
+# is exchanged (via POST) for real tokens. Kept very short because the code is
+# carried in a redirect URL.
+OAUTH_EXCHANGE_CODE_EXPIRY_SECONDS = 120
+
+# Feedback
+# Minimum interval between feedback submissions from the same IP for the same
+# presentation, used to dampen re-submission spam on the public rate endpoint.
+FEEDBACK_IP_COOLDOWN_MINUTES = 60
+
+# django-ckeditor-5 settings
+CKEDITOR_5_CONFIGS = {
+    "default": {
+        "toolbar": [
+            "heading",
+            "|",
+            "bold",
+            "italic",
+            "link",
+            "bulletedList",
+            "numberedList",
+            "blockQuote",
+            "imageUpload",
+            "insertTable",
+            "mediaEmbed",
+            "|",
+            "undo",
+            "redo",
+        ],
+        "height": 300,
     },
 }
+# File uploads through the CKEditor are restricted to staff, matching the
+# behaviour of the previous ckeditor_uploader integration.
+CKEDITOR_5_FILE_UPLOAD_PERMISSION = "staff"
 
-# simple jwt settings
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": False,
-    "UPDATE_LAST_LOGIN": False,
+# Cache — shared across workers via Postgres so throttles and the login
+# lockout behave correctly with multiple processes. No Redis service required.
+# Requires the `django_cache` table (see entrypoint.sh `createcachetable`).
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+    }
 }
 
-TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
+TASKS = {
+    "default": {
+        "BACKEND": "django_tasks_db.DatabaseBackend",
+        "QUEUES": ["default"],
+    }
+}

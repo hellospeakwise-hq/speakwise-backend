@@ -1,0 +1,45 @@
+spec:
+  name: speakwise-backend
+  region: fra
+  services:
+    - name: web
+      dockerfile_path: Dockerfile
+      source_dir: .
+      http_port: 8000
+      health_check:
+        http_path: /health/
+        initial_delay_seconds: 20
+        period_seconds: 30
+        timeout_seconds: 5
+        success_threshold: 1
+        failure_threshold: 3
+      envs:
+        - key: DJANGO_SETTINGS_MODULE
+          value: speakwise.settings.production
+        - key: DEBUG
+          value: "False"
+        - key: PORT
+          value: "8000"
+        - key: SECRET_KEY
+          type: SECRET
+        - key: DATABASE_URL
+          type: SECRET
+        - key: ALLOWED_HOSTS
+          value: apis.speak-wise.live,speak-wise.live,www.speak-wise.live
+        - key: CSRF_TRUSTED_ORIGINS
+          value: https://apis.speak-wise.live,https://speak-wise.live,https://www.speak-wise.live
+        - key: FRONTEND_URL
+          value: https://speak-wise.live
+        - key: AWS_STORAGE_BUCKET_NAME
+          type: SECRET
+        - key: AWS_S3_ENDPOINT_URL
+          type: SECRET
+        - key: AWS_ACCESS_KEY_ID
+          type: SECRET
+        - key: AWS_SECRET_ACCESS_KEY
+          type: SECRET
+  databases:
+    - name: speakwise-pg
+      engine: PG
+      version: "15"
+      production: true

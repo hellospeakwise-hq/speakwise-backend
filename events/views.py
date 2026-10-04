@@ -1,96 +1,112 @@
 """Events views."""
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework import permissions, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.permissions import IsOrganizationAdminOrOrganizer
-from events.models import Event, Tag
-from events.serializers import EventSerializer, TagSerializer
-from events.utils import create_event_payload
-from organizations.models import OrganizationMembership
-
-
-class TagListView(APIView):
-    """List and create event tags."""
-
-    def get_permissions(self):
-        """GET is public; POST requires organizer/admin."""
-        if self.request.method == "GET":
-            return [AllowAny()]
-        return [IsOrganizationAdminOrOrganizer()]
-
-    @extend_schema(tags=["Tags"], responses={200: TagSerializer(many=True)})
-    def get(self, request, *args, **kwargs):
-        """List all tags."""
-        tags = Tag.objects.all().order_by("name")
-        serializer = TagSerializer(tags, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @extend_schema(tags=["Tags"], request=TagSerializer, responses={201: TagSerializer})
-    def post(self, request, *args, **kwargs):
-        """Create a new tag."""
-        serializer = TagSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+from base.pagination import paginate_api_view
+from base.permissions import IsSubmitterOrSuperUser
+from events.filters import EventFilter
+from events.models import Event
+from events.serializers import (
+    CFPMarketSerializer,
+    EventSerializer,
+    EventSubmitSerializer,
+)
 
 
 class EventListView(APIView):
-    """event list view."""
+    """Public event listing and community event submission."""
 
     def get_permissions(self):
-        """Get permissions."""
-        if self.request.method in ["GET"]:
+        """GET is public; POST requires an authenticated user."""
+        if self.request.method in permissions.SAFE_METHODS:
             return [AllowAny()]
-        return [IsOrganizationAdminOrOrganizer()]
+        return [IsAuthenticated()]
+
+    @staticmethod
+    def _create_serializer(request):
+        """Return the serializer used to create an event for this user."""
+        if request.user.is_superuser:
+            return EventSerializer(data=request.data.copy())
+        return EventSubmitSerializer(data=request.data)
+
+    @staticmethod
+    def _create_save_kwargs(request):
+        """Return extra fields applied when saving a submitted event."""
+        extra = {"submitted_by": request.user}
+        if not request.user.is_superuser:
+            extra["is_active"] = False
+        return extra
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer(many=True)})
     def get(self, request, *args, **kwargs):
-        """List events."""
-        events = Event.objects.all()
-        if request.user.is_authenticated:
-            try:
-                membership = OrganizationMembership.objects.get(user=request.user)
-                events = events.filter(organizer=membership.organization)
-            except OrganizationMembership.DoesNotExist:
-                events = events.filter(is_active=True)
-        else:
-            events = events.filter(is_active=True)
-
-        serializer = EventSerializer(events, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        """List published events with broad filtering support (paginated)."""
+        queryset = (
+            Event.objects.filter(is_active=True)
+            .select_related("submitted_by")
+            .order_by("-created_at")
+        )
+        filtered_queryset = EventFilter(request.GET, queryset=queryset).qs
+        return paginate_api_view(request, filtered_queryset, EventSerializer)
 
     @extend_schema(
-        tags=["Events"], request=EventSerializer, responses={201: EventSerializer}
+        tags=["Events"],
+        request=EventSubmitSerializer,
+        responses={201: EventSerializer},
     )
     def post(self, request, *args, **kwargs):
-        """Create event."""
-        payload = create_event_payload(request)
-        serializer = EventSerializer(data=payload)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        """Submit an event. Regular users create a listing pending approval."""
+        serializer = self._create_serializer(request)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        event = serializer.save(**self._create_save_kwargs(request))
+        return Response(EventSerializer(event).data, status=status.HTTP_201_CREATED)
 
 
-class EventDetailView(APIView):
-    """get event detail view."""
+class PublicEventListView(EventListView):
+    """Public event catalog view with broad filtering support."""
 
-    def get_permissions(self):
-        """Get permissions."""
-        if self.request.method in ["GET"]:
-            return [AllowAny()]
-        return [IsOrganizationAdminOrOrganizer()]
+
+class PublicEventDetailView(APIView):
+    """Public event detail route for active events only."""
+
+    permission_classes = [AllowAny]
 
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
-        """Retrieve event detail."""
-        event = get_object_or_404(Event, slug=slug)
+        """Retrieve a public event by slug."""
+        event = get_object_or_404(Event, slug=slug, is_active=True)
+        serializer = EventSerializer(event)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class EventDetailView(APIView):
+    """Compatibility detail view combining public read + private mutation access."""
+
+    def get_permissions(self):
+        """GET is public; mutations require submitter or superuser."""
+        if self.request.method in permissions.SAFE_METHODS:
+            return [AllowAny()]
+        return [IsAuthenticated(), IsSubmitterOrSuperUser()]
+
+    @extend_schema(tags=["Events"], responses={200: EventSerializer})
+    def get(self, request, slug, *args, **kwargs):
+        """Retrieve a published event, or one the requester may see."""
+        if request.user.is_authenticated:
+            if request.user.is_superuser:
+                event = get_object_or_404(Event, slug=slug)
+            else:
+                event = get_object_or_404(
+                    Event,
+                    Q(slug=slug) & (Q(is_active=True) | Q(submitted_by=request.user)),
+                )
+        else:
+            event = get_object_or_404(Event, slug=slug, is_active=True)
         serializer = EventSerializer(event)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -101,9 +117,14 @@ class EventDetailView(APIView):
         """Update event detail."""
         event = get_object_or_404(Event, slug=slug)
         self.check_object_permissions(request, event)
-        serializer = EventSerializer(event, data=request.data, partial=True)
+        data = (
+            request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+        )
+        if not request.user.is_superuser:
+            data.pop("is_active", None)
+        serializer = EventSerializer(event, data=data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            event = serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -114,3 +135,85 @@ class EventDetailView(APIView):
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PrivateEventDetailView(APIView):
+    """Private event management for submitters and admins."""
+
+    permission_classes = [IsAuthenticated, IsSubmitterOrSuperUser]
+
+    def _get_event(self, slug):
+        """Return the target event if the requester can manage it."""
+        event = get_object_or_404(Event, slug=slug)
+        if (
+            not self.request.user.is_superuser
+            and event.submitted_by != self.request.user
+        ):
+            raise permissions.PermissionDenied("You do not have access to this event.")
+        return event
+
+    @extend_schema(tags=["Events"], responses={200: EventSerializer})
+    def get(self, request, slug, *args, **kwargs):
+        """Retrieve a pending or active event that the user manages."""
+        event = self._get_event(slug)
+        serializer = EventSerializer(event)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Events"], request=EventSerializer, responses={200: EventSerializer}
+    )
+    def patch(self, request, slug, *args, **kwargs):
+        """Update a managed event, while preventing self-approval."""
+        event = self._get_event(slug)
+        data = (
+            request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+        )
+        if not request.user.is_superuser:
+            data.pop("is_active", None)
+        serializer = EventSerializer(event, data=data, partial=True)
+        if serializer.is_valid():
+            event = serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(tags=["Events"], responses={204: None})
+    def delete(self, request, slug, *args, **kwargs):
+        """Delete a managed event."""
+        event = self._get_event(slug)
+        event.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CFPMarketListView(APIView):
+    """Public list of events with a currently open CFP."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(tags=["CFP Market"], responses={200: CFPMarketSerializer(many=True)})
+    def get(self, request, *args, **kwargs):
+        """Return events whose CFP is currently open for the CFP Market (paginated)."""
+        events = (
+            Event.objects.with_open_cfp()
+            .select_related("submitted_by")
+            .order_by("-created_at")
+        )
+        return paginate_api_view(request, events, CFPMarketSerializer)
+
+
+class PrivateEventListView(APIView):
+    """Return the current user's submitted events."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return all events submitted by the authenticated user (paginated)."""
+        events = (
+            Event.objects.filter(submitted_by=request.user)
+            .select_related("submitted_by")
+            .order_by("-created_at")
+        )
+        return paginate_api_view(request, events, EventSerializer)
+
+
+class MyEventsListView(PrivateEventListView):
+    """Backward-compatible alias for the current-user events route."""

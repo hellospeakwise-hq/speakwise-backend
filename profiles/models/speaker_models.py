@@ -1,0 +1,309 @@
+"""speakers models."""
+
+import secrets
+import uuid
+from itertools import count
+
+from django.db import models
+from django.db.models import Exists, OuterRef
+from django.db.models.functions import Lower
+from django.utils.text import slugify
+
+from base.models import SocialLinks, TimeStampedModel
+from base.validators import validate_image_extension, validate_image_size
+from users.models import User
+
+# Speakers file upload directory
+SPEAKERS_UPLOAD_DIR = "speakers/avatars/"
+
+
+class SpeakerSkillTag(TimeStampedModel):
+    """speaker skill tag."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(
+        max_length=255, null=True, help_text="name of skill. Eg. Software Engineer"
+    )  # Consider making this non-nullable if a skill must have a name.
+    description = models.TextField(
+        blank=True, null=True, help_text="A brief description of the skill"
+    )
+    duration = models.PositiveIntegerField(null=True, help_text="years of experience")
+    speaker = models.ForeignKey(
+        "profiles.SpeakerProfile",
+        on_delete=models.CASCADE,
+        related_name="skill_tags",
+        null=True,
+    )
+
+    def __str__(self):
+        """String representation of the speaker skill."""
+        return self.name
+
+
+def normalize_skill_names(skill_names):
+    """Return unique, stripped, lowercased skill names, dropping empties."""
+    normalized = []
+    seen = set()
+    for name in skill_names:
+        if not name:
+            continue
+        value = name.strip().lower()
+        if value and value not in seen:
+            seen.add(value)
+            normalized.append(value)
+    return normalized
+
+
+class SpeakerProfileQuerySet(models.QuerySet):
+    """QuerySet for speaker profiles with skill-matching helpers."""
+
+    def matching_skill_names(self, skill_names):
+        """Return speakers whose skill tags overlap the given names.
+
+        Matching is case-insensitive. Speakers with no overlapping skills are
+        excluded. An empty skill list matches nobody.
+        """
+        normalized = normalize_skill_names(skill_names)
+        if not normalized:
+            return self.none()
+        matching_tags = (
+            SpeakerSkillTag.objects.filter(speaker_id=OuterRef("pk"))
+            .annotate(name_lower=Lower("name"))
+            .filter(name_lower__in=normalized)
+        )
+        return self.filter(Exists(matching_tags)).select_related("user_account")
+
+
+class SpeakerProfileManager(models.Manager):
+    """Manager for SpeakerProfile."""
+
+    def get_queryset(self):
+        """Use the custom QuerySet."""
+        return SpeakerProfileQuerySet(self.model, using=self._db)
+
+    def matching_skill_names(self, skill_names):
+        """Proxy to QuerySet.matching_skill_names."""
+        return self.get_queryset().matching_skill_names(skill_names)
+
+
+class SpeakerExperiences(TimeStampedModel):
+    """speaker experience model.
+    This model holds speaker's presentation or speaking experiences.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event_name = models.CharField(
+        max_length=255, null=True, help_text="Name of the event"
+    )
+    event_date = models.DateField(help_text="Date of the event")
+    topic = models.CharField(max_length=255, null=True, help_text="Topic presented")
+    description = models.TextField(
+        blank=True, null=True, help_text="A brief description of the experience"
+    )
+    presentation_link = models.URLField(
+        blank=True, null=True, help_text="Link to slides of the presentation or talk"
+    )
+    video_recording_link = models.URLField(
+        blank=True, null=True, help_text="Link to the video recording of the talk"
+    )
+    speaker = models.ForeignKey(
+        "profiles.SpeakerProfile",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="experiences",
+    )
+    # Optional link used only when the event is listed on this platform; feedback
+    # gating prefers the linked event's start time when present.
+    event = models.ForeignKey(
+        "events.Event",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="speaker_experiences",
+        help_text="The platform event this experience represents, if listed.",
+    )
+    feedback_slug = models.SlugField(
+        max_length=16,
+        unique=True,
+        blank=True,
+        help_text="Opaque token used in the public feedback (QR) URL.",
+    )
+    feedback_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether the speaker accepts feedback for this experience.",
+    )
+
+    def _generate_feedback_slug(self) -> str:
+        """Return a unique opaque feedback token, retrying on collision."""
+        while True:
+            candidate = secrets.token_urlsafe(6)
+            if not SpeakerExperiences.objects.filter(feedback_slug=candidate).exists():
+                return candidate
+
+    def save(self, *args, **kwargs):
+        """Set a feedback token when empty and keep it stable across updates."""
+        if not self.feedback_slug:
+            self.feedback_slug = self._generate_feedback_slug()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        """String representation of the speaker experience."""
+        return f"{self.event_name} - {self.topic}"
+
+
+class SpeakerProfile(TimeStampedModel):
+    """speakers model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    objects = SpeakerProfileManager()
+    user_account = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="speakers_profile_user",
+    )
+    events_spoken = models.ManyToManyField(
+        "events.Event",
+        blank=True,
+        related_name="speakers",
+    )
+    organization = models.CharField(max_length=255, blank=True)
+    short_bio = models.CharField(max_length=255, blank=True)
+    long_bio = models.TextField(blank=True, null=True)
+    country = models.CharField(max_length=255, blank=True)
+    avatar = models.ImageField(
+        upload_to=SPEAKERS_UPLOAD_DIR,
+        blank=True,
+        validators=[validate_image_extension, validate_image_size],
+    )
+    slug = models.SlugField(unique=True)
+
+    def __str__(self):
+        """String representation of the speaker profile."""
+        return self.user_account.username
+
+    def _base_slug(self) -> str:
+        """Build a base slug from available user info with sensible fallbacks."""
+        first = (self.user_account.first_name or "").strip()
+        last = (self.user_account.last_name or "").strip()
+        name = f"{first} {last}".strip()
+        if s := slugify(name):
+            return s
+        if s := slugify(self.user_account.username):
+            return s
+        return str(self.user_account.id)
+
+    def _generate_unique_slug(self) -> str:
+        """Generate a unique slug, appending numeric suffix when needed."""
+        base = self._base_slug()
+        candidate = base
+        for i in count(2):
+            exists = (
+                SpeakerProfile.objects.filter(slug=candidate)
+                .exclude(pk=self.pk)
+                .exists()
+            )
+            if not exists:
+                return candidate
+            candidate = f"{base}-{i}"
+        return "default-slug"
+
+    def save(self, *args, **kwargs):
+        """Set slug once when empty and keep it stable across updates."""
+        if not self.slug:
+            self.slug = self._generate_unique_slug()
+        super().save(*args, **kwargs)
+
+    @property
+    def skill_tag(self):
+        """Compatibility alias: access reverse FK manager as `skill_tag`.
+        Tests expect `speaker_profile.skill_tag` to behave like a related manager.
+        """
+        return self.skill_tags
+
+    @property
+    def followers_count(self) -> int:
+        """Return the number of users following this speaker."""
+        return self.followers.count()
+
+
+def get_speaker_profile(user):
+    """Return the user's speaker profile, or None when they have none.
+
+    Accesses the one-to-one reverse relation, which raises
+    ``SpeakerProfile.DoesNotExist`` for users without a speaker profile.
+    """
+    try:
+        return user.speakers_profile_user
+    except SpeakerProfile.DoesNotExist:
+        return None
+
+
+class SpeakerSocialLinks(SocialLinks):
+    """speaker social link model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    speaker = models.ForeignKey(
+        SpeakerProfile, on_delete=models.CASCADE, related_name="social_links"
+    )
+
+    class Meta:
+        """meta options."""
+
+        unique_together = ("speaker", "name")
+
+    def __str__(self):
+        """String rep of speakwise social."""
+        return self.name
+
+
+class SpeakerFollow(TimeStampedModel):
+    """A user following a speaker profile."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="following_speakers",
+        help_text="The user who is following the speaker.",
+    )
+    speaker = models.ForeignKey(
+        SpeakerProfile,
+        on_delete=models.CASCADE,
+        related_name="followers",
+        help_text="The speaker profile being followed.",
+    )
+
+    class Meta:
+        """meta options."""
+
+        unique_together = ("follower", "speaker")
+
+    def __str__(self):
+        """String representation showing who follows whom."""
+        return f"{self.follower.username} follows {self.speaker}"
+
+
+class Notification(TimeStampedModel):
+    """An in-app notification for a user."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+        help_text="The user who receives this notification.",
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False, db_index=True)
+
+    class Meta:
+        """meta options."""
+
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        """String representation showing title and recipient."""
+        username = self.user.username if self.user else "deleted user"
+        return f"{self.message[:50]} -> {username}"

@@ -75,6 +75,8 @@ celerybeat.pid
 .env.development.local
 .env.test.local
 .env.production.local
+.env.staging
+.env.staging.local
 .env.sh
 # sqlite databases
 *.sqlite3
@@ -89,3 +91,4 @@ todo.md
 test_attendance.csv
 data.json
 datadump.json
+IMPLEMENTATION_PLAN.md

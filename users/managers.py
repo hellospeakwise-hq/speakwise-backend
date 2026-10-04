@@ -9,16 +9,18 @@ class UserManager(BaseUserManager):
     use_in_migrations = True
 
     def _create_user(self, email, password, **extra_fields):
-        """Create and save a User with the given email and password."""
-        from speakers.models import SpeakerProfile
+        """Create and save a User with the given email and password.
 
+        The user is created without any profile. A user must later choose to
+        create either a speaker profile or an organization profile — a user is
+        allowed to have one and only one profile.
+        """
         if not email:
             raise ValueError("The given email must be set")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
-        SpeakerProfile.objects.create(user_account=user)
         return user
 
     def create(self, email, password=None, **extra_fields):
@@ -26,6 +28,14 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         return self._create_user(email, password, **extra_fields)
+
+    def create_user(self, email, password=None, **extra_fields):
+        """Create and save a regular User (``BaseUserManager``-compatible alias).
+
+        Django conventions and third-party packages expect ``create_user`` to
+        exist; it behaves exactly like :meth:`create`.
+        """
+        return self.create(email, password=password, **extra_fields)
 
     def create_superuser(self, email, password, **extra_fields):
         """Create and save a SuperUser with the given email and password."""

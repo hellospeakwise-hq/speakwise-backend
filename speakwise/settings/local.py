@@ -1,5 +1,8 @@
 """Development settings for SpeakWise project."""
 
+import sys
+import warnings
+
 from speakwise.settings.base import *  # Import base settings  # noqa: E402,F403,F401
 from speakwise.settings.base import BASE_DIR  # noqa: E402
 
@@ -18,23 +21,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://speak-wise.live",
 ]
 
-# Or for development, you can allow all origins (less secure):
-CORS_ALLOW_ALL_ORIGINS = True
-
 CORS_ALLOW_CREDENTIALS = True
-
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-
 
 CORS_ALLOW_HEADERS = [
     "accept",
@@ -61,6 +48,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
+        "CONN_MAX_AGE": 600,
     }
 }
 
@@ -87,27 +75,63 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 SERVER_EMAIL = os.environ.get("SERVER_EMAIL")
 
 
-# Cache
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+# Cache and tasks inherit the Postgres-backed defaults from base.py.
+# Do not override them here: local must mirror production behaviour.
+
+# Detect if running tests
+TESTING = "test" in sys.argv or "pytest" in sys.argv
+
+if TESTING:
+    # Tasks run inline so `.enqueue()` executes synchronously and
+    # task-triggered emails fire inside tests. The DB backend would only
+    # queue them for a worker that never runs under `manage.py test`.
+    TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
+    # Isolated in-process cache: no `django_cache` table needed, no
+    # cross-test leakage through Postgres.
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
     }
-}
+    # Ignore UserWarning from whitenoise regarding staticfiles directory during tests
+    warnings.filterwarnings("ignore", message="No directory at")
 
 # Logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
+if TESTING:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+            },
         },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-}
+        "root": {
+            "handlers": ["console"],
+            "level": "ERROR",
+        },
+        "loggers": {
+            "django.request": {
+                "handlers": ["console"],
+                "level": "ERROR",
+                "propagate": False,
+            },
+        },
+    }
+else:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+            },
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+    }
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

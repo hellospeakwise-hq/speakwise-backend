@@ -42,36 +42,52 @@ jobs:
               # Navigate to application directory
               cd ${{ secrets.DO_APP_PATH }}
 
+              # install uv
+              pip install uv
+
               # Pull latest changes
               git pull origin main
 
-              # Activate virtual environment
-              source venv/bin/activate
-
               # Install/update dependencies
-              pip install -r requirements/production.txt
+              uv sync
 
               # Create production environment file from GitHub secrets
               echo "⚙️ Setting up production environment variables..."
               echo "# Production Environment Variables (Generated from GitHub Secrets)" > .env
-              echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
+              echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+              echo "DJANGO_SETTINGS_MODULE=speakwise.settings.production" >> .env
+              echo "DEBUG=False" >> .env
+              echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
               echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
               echo "DB_USER=${{ secrets.DB_USER }}" >> .env
               echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
               echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
               echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-              echo "DJANGO_ALLOWED_HOSTS=${{ secrets.DJANGO_ALLOWED_HOSTS }}" >> .env
+              echo "DB_SSLMODE=require" >> .env
+              echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}" >> .env
+              echo "CSRF_TRUSTED_ORIGINS=${{ secrets.CSRF_TRUSTED_ORIGINS }}" >> .env
+              echo "CORS_ALLOWED_ORIGINS_EXTRA=${{ secrets.CORS_ALLOWED_ORIGINS_EXTRA }}" >> .env
+              echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> .env
               echo "STATIC_ROOT=${{ secrets.STATIC_ROOT  }}" >> .env
               echo "MEDIA_ROOT=${{ secrets.MEDIA_ROOT }}" >> .env
-              echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}" >> .env
+              echo "MAILGUN_API_KEY=${{ secrets.MAILGUN_API_KEY }}" >> .env
+              echo "MAILGUN_SENDER_DOMAIN=${{ secrets.MAILGUN_SENDER_DOMAIN }}" >> .env
+              echo "DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL }}" >> .env
+              echo "SERVER_EMAIL=${{ secrets.SERVER_EMAIL }}" >> .env
+              echo "GITHUB_CLIENT_ID=${{ secrets.GITHUB_CLIENT_ID }}" >> .env
+              echo "GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}" >> .env
+              echo "GITHUB_REDIRECT_URI=${{ secrets.GITHUB_REDIRECT_URI }}" >> .env
+              echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+              echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+              echo "GOOGLE_REDIRECT_URI=${{ secrets.GOOGLE_REDIRECT_URI }}" >> .env
 
               # Set proper permissions for .env file
               chmod 600 .env
               chown www-data:www-data .env
 
               # Run Django management commands
-              python manage.py collectstatic --noinput --settings=speakwise.settings.prod
-              python manage.py migrate --settings=speakwise.settings.prod
+              uv run python manage.py collectstatic --noinput --settings=speakwise.settings.production
+              uv run python manage.py migrate --settings=speakwise.settings.production
 
               # Restart application services
               sudo systemctl restart gunicorn

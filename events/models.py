@@ -2,71 +2,124 @@
 
 import uuid
 
+from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
 from base.models import TimeStampedModel
+from base.validators import validate_image_extension, validate_image_size
+from events.utils import normalize_event_website
 
 EVENT_IMAGE_UPLOAD = "event_images/"
 
 
-class Tag(TimeStampedModel):
-    """A model for event tags in the SpeakWise application."""
+class EventQuerySet(models.QuerySet):
+    """QuerySet for published, pending, duplicate, and CFP event lookups."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, unique=True)
-    color = models.CharField(max_length=20, default="#007bff")
+    def find_duplicate(self, title, website, exclude_id=None):
+        """Return an event with the same title and official website, if any."""
+        qs = self.filter(title__iexact=title.strip())
+        if exclude_id is not None:
+            qs = qs.exclude(pk=exclude_id)
+        normalized = normalize_event_website(website)
+        for event in qs.only("id", "website", "title"):
+            if normalize_event_website(event.website or "") == normalized:
+                return event
+        return None
 
-    def __str__(self):
-        """Return a string representation of the model."""
-        return self.name
+    def with_open_cfp(self):
+        """Return active events whose CFP is currently open.
+
+        Open requires the manual cfp_open flag, and must fall within the
+        optional open_date / deadline window.
+        """
+        now = timezone.now()
+        return self.filter(
+            is_active=True,
+            cfp_open=True,
+        ).filter(
+            Q(cfp_open_date__isnull=True) | Q(cfp_open_date__lte=now),
+            Q(cfp_deadline__isnull=True) | Q(cfp_deadline__gte=now),
+        )
+
+    def with_expired_cfp(self):
+        """Return events still marked open whose CFP deadline has passed.
+
+        Intended for the periodic job that closes expired CFPs; the manual
+        cfp_open flag is the only guard, so events that have not been saved
+        since their deadline passed are still caught here.
+        """
+        return self.filter(
+            cfp_open=True,
+            cfp_deadline__isnull=False,
+            cfp_deadline__lt=timezone.now(),
+        )
+
+
+class EventManager(models.Manager.from_queryset(EventQuerySet)):
+    """Manager for Event with listing and CFP queryset helpers."""
 
 
 class Event(TimeStampedModel):
     """A model for events in the SpeakWise application."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255, unique=True)
+    title = models.CharField(max_length=255, unique=True, help_text="Event title")
     event_nickname = models.CharField(max_length=255, blank=True, default="")
     event_image = models.ImageField(
-        "image", upload_to=EVENT_IMAGE_UPLOAD, null=True, blank=True
-    )
-    short_description = models.CharField(
-        max_length=255,
+        "image",
+        upload_to=EVENT_IMAGE_UPLOAD,
+        null=True,
         blank=True,
-        default="",
-        help_text="Brief description for event cards",
+        validators=[validate_image_extension, validate_image_size],
     )
     description = models.TextField(
         blank=True, default="", help_text="Detailed description for event page"
     )
-    website = models.URLField(max_length=255, blank=True, null=True)
-    location = models.ForeignKey(
-        "Location",
+    website = models.URLField(
+        max_length=255,
+        help_text=(
+            "Official event website or a public page about the event "
+            "(for example a LinkedIn post)."
+        ),
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="event_location",
+        blank=True,
+        related_name="submitted_events",
+        help_text=(
+            "The user who submitted this event for listing. Null for listings "
+            "created before attribution existed, and if the submitter account "
+            "is later deleted."
+        ),
     )
     start_date_time = models.DateTimeField(default=timezone.now, null=True)
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
-    is_active = models.BooleanField(default=False)
-    tags = models.ManyToManyField(Tag, related_name="events", blank=True)
-    slug = models.SlugField(max_length=255, unique=True, null=True)
+    is_active = models.BooleanField(default=False, db_index=True)
+    slug = models.SlugField(max_length=255, null=True, db_index=True)
+    location = models.CharField(max_length=150, null=True, blank=True)
+    country = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Country where the event takes place.",
+        db_index=True,
+    )
 
     # CFP configuration
-    accepts_cfp = models.BooleanField(
-        default=False,
-        help_text="Does this event accept Call for Papers submissions?",
-    )
     cfp_open = models.BooleanField(
         default=False,
         help_text="Is the CFP currently open for submissions?",
     )
-    cfp_description = models.TextField(
+    cfp_link = models.URLField(
+        max_length=255,
         blank=True,
         default="",
-        help_text="What the organizers are looking for — shown to speakers on the CFP page.",
+        help_text="External URL for the event's CFP page.",
     )
     cfp_open_date = models.DateTimeField(
         null=True,
@@ -84,67 +137,42 @@ class Event(TimeStampedModel):
         help_text="When speakers will be notified of the outcome.",
     )
 
-    # Add organizer relationship
-    organizer = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="events",
-        help_text="The organizer who created this event",
-    )
+    objects = EventManager()
+
+    class Meta:
+        """Meta options for the Event model."""
+
+        verbose_name = "Event"
+        verbose_name_plural = "Events"
 
     def get_absolute_url(self):
         """Return the URL to access a particular event instance."""
         return f"/events/{self.slug}/"
 
+    @property
+    def is_cfp_currently_open(self) -> bool:
+        """Whether this event's CFP is open right now.
+
+        Requires the manual cfp_open flag, and must fall within the
+        optional open_date / deadline window.
+        """
+        if not self.cfp_open:
+            return False
+        now = timezone.now()
+        if self.cfp_open_date and now < self.cfp_open_date:
+            return False
+        return not (self.cfp_deadline and now > self.cfp_deadline)
+
     def save(self, *args, **kwargs):
-        """Create slug before saving the event."""
+        """Create slug and mark expired CFPs closed before saving."""
         if not self.slug:
             self.slug = slugify(self.title)
+        # Persist closed status when the deadline has passed.
+        if self.cfp_open and self.cfp_deadline and timezone.now() > self.cfp_deadline:
+            self.cfp_open = False
         return super().save(*args, **kwargs)
 
     def __str__(self):
         """Return a string representation of the model."""
-        return self.title
-
-
-class Location(TimeStampedModel):
-    """location models for events."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    venue = models.CharField(max_length=255)
-    address = models.CharField(max_length=255, blank=True)
-    city = models.CharField(max_length=255, blank=True)
-    state = models.CharField(max_length=255, blank=True)
-    postal_code = models.CharField(max_length=255, blank=True)
-    latitude = models.DecimalField(null=True, max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(null=True, max_digits=9, decimal_places=6)
-    description = models.TextField(null=True)
-    country = models.ForeignKey(
-        "Country",
-        on_delete=models.CASCADE,
-        null=True,
-        related_name="location_country",
-    )
-
-    def __str__(self):
-        """Return a string representation of the model."""
-        return self.venue
-
-
-class Country(TimeStampedModel):
-    """A model for countries in the SpeakWise application."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, null=True, unique=True)
-    code = models.CharField(max_length=255, null=True, unique=True)
-
-    class Meta:
-        """Meta options for the Country model."""
-
-        verbose_name_plural = "Countries"
-
-    def __str__(self):
-        """Return a string representation of the model."""
-        return self.name
+        username = self.submitted_by.username if self.submitted_by else "Unknown"
+        return f"{self.title} {username}"

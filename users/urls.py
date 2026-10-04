@@ -2,14 +2,25 @@
 
 from django.urls import path
 
-from users import oauth_views, views
+from users.views import auth_views, oauth_views
 
 app_name = "users"
 
 urlpatterns = [
-    path("users/auth/register/", views.UserCreateView.as_view(), name="register"),
-    path("users/auth/login/", views.UserLoginView.as_view(), name="login"),
-    path("users/auth/logout/", views.UserLogoutView.as_view(), name="logout"),
+    path("users/auth/register/", auth_views.UserCreateView.as_view(), name="register"),
+    path(
+        "users/auth/verify-otp/", auth_views.VerifyOtpView.as_view(), name="verify-otp"
+    ),
+    path(
+        "users/auth/resend-otp/", auth_views.ResendOtpView.as_view(), name="resend-otp"
+    ),
+    path("users/auth/login/", auth_views.UserLoginView.as_view(), name="login"),
+    path("users/auth/logout/", auth_views.UserLogoutView.as_view(), name="logout"),
+    path(
+        "users/auth/oauth/token/",
+        oauth_views.OAuthTokenExchangeView.as_view(),
+        name="oauth-token-exchange",
+    ),
     path("users/auth/github-login/", oauth_views.github_login, name="github-login"),
     path(
         "users/auth/github-callback/",
@@ -24,18 +35,18 @@ urlpatterns = [
     ),
     path(
         "users/auth/password-reset/",
-        views.PasswordResetRequestView.as_view(),
+        auth_views.PasswordResetRequestView.as_view(),
         name="password_reset_request",
     ),
     path(
         "users/auth/password-reset/confirm",
-        views.PasswordResetConfirmView.as_view(),
+        auth_views.PasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
     ),
     path(
         "users/me/",
-        views.RetrieveUpdateAuthenticatedUserView.as_view(),
+        auth_views.RetrieveUpdateAuthenticatedUserView.as_view(),
         name="retrieve_update_authenticated_user",
     ),
-    path("users/", views.UsersListView.as_view(), name="user-list"),
+    path("users/", auth_views.UsersListView.as_view(), name="user-list"),
 ]

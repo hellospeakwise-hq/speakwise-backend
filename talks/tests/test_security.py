@@ -5,7 +5,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from speakers.models import SpeakerProfile
+from profiles.models import SpeakerProfile
 from talks.models import Talks
 
 User = get_user_model()

@@ -1,50 +1,53 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim-bullseye AS builder
+# Production image for DigitalOcean (App Platform / Droplet) and Railway.
+# Same Dockerfile is used on both platforms for build parity.
+FROM python:3.14-slim AS builder
 
-# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Set work directory
 WORKDIR /app
 
-# Install Python dependencies
-COPY requirements/ /app/requirements/
-RUN pip install uv \
-    && uv pip install --system -r requirements/production.txt
+# Install dependencies into /app/.venv (locked via uv.lock).
+COPY pyproject.toml uv.lock ./
+RUN pip install --no-cache-dir uv \
+    && uv sync --frozen --no-install-project
 
-# Final stage
-FROM python:3.12-slim-bullseye
+# Final stage: slim runtime, non-root user, no build tools.
+FROM python:3.14-slim
 
-# Create a non-root user
 RUN addgroup --system django && \
     adduser --system --group django
 
-# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8000 \
+    PATH="/app/.venv/bin:$PATH" \
+    DJANGO_SETTINGS_MODULE="speakwise.settings.production"
 
-# Set work directory
 WORKDIR /app
 
-# Copy installed python packages from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
+COPY --from=builder /app/.venv /app/.venv
 
-# Copy project files
+# Copy project files (respects .dockerignore: excludes .env, .git, media).
 COPY . .
 
-# Set ownership
+# Collect static files at build time so WhiteNoise can serve them without
+# requiring a writable disk or database at runtime.
+RUN SECRET_KEY=build-only-dummy-key DJANGO_SETTINGS_MODULE=speakwise.settings.production \
+    python manage.py collectstatic --noinput --clear || \
+    SECRET_KEY=build-only-dummy-key DJANGO_SETTINGS_MODULE=speakwise.settings.production \
+    python manage.py collectstatic --noinput
+
 RUN chown -R django:django /app
 
-# Entrypoint script
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 USER django
 
-# Expose port
 EXPOSE 8000
 
-# Command to run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import os,urllib.request;urllib.request.urlopen(f\"http://localhost:{os.getenv('PORT','8000')}/health/\")"
+
+# Production WSGI server. Never use manage.py runserver in production.
+CMD ["gunicorn", "speakwise.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]

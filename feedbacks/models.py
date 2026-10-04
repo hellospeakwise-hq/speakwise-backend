@@ -7,9 +7,17 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from base.models import TimeStampedModel
-from speakers.models import SpeakerProfile
 
 RATING_VALIDATORS = [MinValueValidator(1), MaxValueValidator(10)]
+
+RATING_FIELDS = (
+    "overall_rating",
+    "engagement",
+    "clarity",
+    "content_depth",
+    "speaker_knowledge",
+    "practical_relevance",
+)
 
 
 class Feedback(TimeStampedModel):
@@ -17,15 +25,18 @@ class Feedback(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     speaker = models.ForeignKey(
-        SpeakerProfile,
-        on_delete=models.DO_NOTHING,
+        "profiles.SpeakerProfile",
+        on_delete=models.SET_NULL,
         null=True,
         related_name="speaker_feedback",
     )
-    event = models.ForeignKey(
-        "events.Event",
-        on_delete=models.DO_NOTHING,
-        related_name="event_feedback",
+    experience = models.ForeignKey(
+        "profiles.SpeakerExperiences",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feedback",
+        help_text="The presentation the feedback was given for.",
     )
     overall_rating = models.IntegerField(
         validators=RATING_VALIDATORS,
@@ -52,8 +63,19 @@ class Feedback(TimeStampedModel):
         error_messages={"error": "value should be an integer of value 1-10"},
     )
     comments = models.TextField(max_length=2000, blank=True, null=True)
+    name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Optional public name of the person giving feedback.",
+    )
     is_anonymous = models.BooleanField(default=False)
-    is_attendee = models.BooleanField(default=False)
+    submitter_ip_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Salted hash of the submitter's IP used for rate limiting.",
+    )
 
     class Meta:
         """Meta options for Feedback model."""
@@ -63,34 +85,11 @@ class Feedback(TimeStampedModel):
         verbose_name_plural = "Feedbacks"
         ordering = ["-created_at"]
 
+    def save(self, *args, **kwargs):
+        """Derive anonymity from the name field before saving."""
+        self.is_anonymous = not bool(self.name.strip())
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         """Return string representation."""
         return f"Feedback for {self.speaker} with overall rating {self.overall_rating}"
-
-
-class SpeakerFeedbackSettings(TimeStampedModel):
-    """Per-event feedback toggle controlled by the speaker."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    speaker = models.ForeignKey(
-        SpeakerProfile,
-        on_delete=models.CASCADE,
-        related_name="feedback_settings",
-    )
-    event = models.ForeignKey(
-        "events.Event",
-        on_delete=models.CASCADE,
-        related_name="speaker_feedback_settings",
-    )
-    feedback_enabled = models.BooleanField(default=True)
-
-    class Meta:
-        """Meta options for SpeakerFeedbackSettings."""
-
-        db_table = "speaker_feedback_settings"
-        unique_together = ("speaker", "event")
-
-    def __str__(self):
-        """Return string representation."""
-        state = "enabled" if self.feedback_enabled else "disabled"
-        return f"Feedback {state} for {self.speaker} at {self.event}"

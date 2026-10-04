@@ -3,12 +3,33 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+
+
+def api_not_found(request, exception=None):
+    """Return JSON for unknown routes instead of Django's HTML 404 page."""
+    return JsonResponse(
+        {"detail": "Not found.", "code": "not_found"},
+        status=404,
+    )
+
+
+def api_server_error(request):
+    """Return JSON for unhandled errors instead of Django's HTML 500 page."""
+    return JsonResponse(
+        {"detail": "Internal server error.", "code": "server_error"},
+        status=500,
+    )
+
+
+handler404 = api_not_found
+handler500 = api_server_error
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -20,16 +41,20 @@ urlpatterns = [
     ),
     path("api/docs/redoc/", SpectacularRedocView.as_view(), name="redoc"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    path("api/", include("speakers.urls", namespace="speakers")),
-    path("api/", include("attendees.urls", namespace="attendees")),
+    path("api/", include("profiles.urls.organization_urls", namespace="organization")),
+    path(
+        "api/",
+        include("profiles.urls.speaker_urls", namespace="speakers"),
+    ),
     path("api/", include("talks.urls", namespace="talks")),
     path("api/", include("users.urls", namespace="users")),
     path("api/", include("teams.urls", namespace="teams")),
     path("api/", include("events.urls", namespace="events")),
     path("api/", include("feedbacks.urls", namespace="feedbacks")),
-    path("api/", include("organizations.urls", namespace="organizations")),
     path("api/", include("speakerrequests.urls", namespace="speakerrequests")),
-    path("api/", include("cfps.urls", namespace="cfp")),
+    path("api/", include("blogs.urls", namespace="blogs")),
+    path("", include("base.urls", namespace="base")),
+    path("ckeditor5/", include("django_ckeditor_5.urls")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

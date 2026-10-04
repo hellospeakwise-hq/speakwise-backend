@@ -13,3 +13,14 @@ DATABASES = {
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
+
+# Tests use an isolated in-process cache: no `django_cache` table needed,
+# no cross-test leakage through Postgres.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
+# Tasks run inline in tests so `.enqueue()` executes synchronously.
+TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}

@@ -8,28 +8,40 @@ from django.utils.crypto import get_random_string
 from django.utils.text import slugify
 
 from base.models import TimeStampedModel
+from base.validators import (
+    validate_presentation_extension,
+    validate_presentation_size,
+)
 from events.models import Event
-from speakers.models import SpeakerProfile
+from profiles.models.speaker_models import SpeakerProfile
 from talks.choices import TalkCategoryChoices
 
 PRESENTATION_FILES_UPLOAD_DIR = "presentation_files"
 
 
-class Session(TimeStampedModel):
+class TalkSession(TimeStampedModel):
     """talk session model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    type = models.CharField(
-        max_length=255, help_text="session type. eg. Keynote, lightning talk. etc"
+    session_type = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="session type. eg. Keynote, lightning talk. etc",
     )
-    duration = models.IntegerField(help_text="session duration in minutes")
+    duration = models.IntegerField(
+        blank=True, null=True, help_text="session duration in minutes"
+    )
     talk = models.ForeignKey(
-        "Talks", on_delete=models.CASCADE, related_name="talk_sessions"
+        "Talks",
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="talk_sessions",
     )
 
     def __str__(self):
         """String rep of speakwise social."""
-        return self.talk.title
+        return str(self.talk.title) if self.talk else ""
 
 
 class Talks(TimeStampedModel):
@@ -44,11 +56,13 @@ class Talks(TimeStampedModel):
     duration = models.IntegerField()
     category = models.CharField(max_length=100, choices=TalkCategoryChoices.choices)
     presentation_files = models.FileField(
-        upload_to=PRESENTATION_FILES_UPLOAD_DIR, null=True
+        upload_to=PRESENTATION_FILES_UPLOAD_DIR,
+        null=True,
+        validators=[validate_presentation_extension, validate_presentation_size],
     )
 
     slug = models.SlugField(unique=True, max_length=255, null=True, blank=True)
-    is_public = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=False, db_index=True)
     is_reviewable = models.BooleanField(default=True)
 
     event = models.ForeignKey(

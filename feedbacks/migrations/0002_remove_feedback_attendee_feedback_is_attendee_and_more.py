@@ -7,14 +7,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("feedbacks", "0001_initial"),
-        ("speakers", "0002_initial"),
+        ("profiles", "0002_initial"),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="feedback",
-            name="attendee",
-        ),
         migrations.AddField(
             model_name="feedback",
             name="is_attendee",
@@ -27,7 +23,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.DO_NOTHING,
                 related_name="speaker_feedback",
-                to="speakers.speakerprofile",
+                to="profiles.speakerprofile",
             ),
         ),
         migrations.AlterField(

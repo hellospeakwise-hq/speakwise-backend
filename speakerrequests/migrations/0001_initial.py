@@ -10,7 +10,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0001_initial"),
-        ("organizations", "0001_initial"),
     ]
 
     operations = [
@@ -46,13 +45,6 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.DO_NOTHING,
                         to="events.event",
-                    ),
-                ),
-                (
-                    "organizer",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.DO_NOTHING,
-                        to="organizations.organization",
                     ),
                 ),
             ],

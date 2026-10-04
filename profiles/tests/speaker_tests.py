@@ -1043,7 +1043,9 @@ class NotificationViewTests(APITestCase):
         res = self.client.get(f"{self.list_url}?is_read=false")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data["results"]), 1)
-        self.assertEqual(res.data["results"][0]["message"], "Please upload your presentation.")
+        self.assertEqual(
+            res.data["results"][0]["message"], "Please upload your presentation."
+        )
 
     def test_list_filter_read(self):
         """GET ?is_read=true returns only read notifications."""

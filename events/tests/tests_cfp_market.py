@@ -73,7 +73,9 @@ class CFPMarketTests(TestCase):
         """Returned cards include the computed open flag."""
         res = self.client.get(self.market_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        open_items = [item for item in res.data["results"] if item["title"] == "Open CFP"]
+        open_items = [
+            item for item in res.data["results"] if item["title"] == "Open CFP"
+        ]
         self.assertEqual(len(open_items), 1)
         self.assertTrue(open_items[0]["is_cfp_currently_open"])
 

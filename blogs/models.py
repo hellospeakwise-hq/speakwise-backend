@@ -9,7 +9,6 @@ from django_ckeditor_5.fields import CKEditor5Field
 from base.models import TimeStampedModel
 from base.validators import validate_image_extension, validate_image_size
 
-
 BLOG_IMAGE_UPLOAD = "blog_images/"
 
 

@@ -622,7 +622,9 @@ class CFPMarketAndStatusTests(TestCase):
 
         response = self.client.get(self.market_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        match = next(item for item in response.data["results"] if item["id"] == str(event.id))
+        match = next(
+            item for item in response.data["results"] if item["id"] == str(event.id)
+        )
         self.assertEqual(match["cfp_link"], "https://conf.example/cfp")
         self.assertTrue(match["is_cfp_currently_open"])
         self.assertEqual(match["title"], "Window CFP")

@@ -8,9 +8,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from base.pagination import paginate_api_view
 from blogs.models import Blog
 from blogs.serializers import BlogSerializer
-from base.pagination import paginate_api_view
 
 
 class BlogListView(APIView):

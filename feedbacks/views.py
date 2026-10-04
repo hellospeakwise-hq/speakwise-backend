@@ -39,9 +39,9 @@ class FeedbackListView(APIView):
     @extend_schema(responses=FeedbackReadSerializer(many=True))
     def get(self, request, *args, **kwargs):
         """List feedback for the authenticated speaker, optionally per-experience (paginated)."""
-        queryset = Feedback.objects.filter(
-            speaker__user_account=request.user
-        ).order_by("-created_at")
+        queryset = Feedback.objects.filter(speaker__user_account=request.user).order_by(
+            "-created_at"
+        )
         feedback_slug = request.query_params.get("experience")
         if feedback_slug:
             experience = resolve_feedback_experience(feedback_slug)

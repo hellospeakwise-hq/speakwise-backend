@@ -40,11 +40,14 @@ CSRF_TRUSTED_ORIGINS = _csv_env(
 # additionally requires sslmode=require on the database connection itself.
 _DATABASE_URL = os.environ.get("DATABASE_URL")
 if _DATABASE_URL:
+    # Railway internal Postgres (railway.internal) does not support SSL.
+    # External managed Postgres (e.g. DigitalOcean) requires ssl_require=True.
+    _ssl_required = "railway.internal" not in _DATABASE_URL
     DATABASES = {
         "default": dj_database_url.parse(
             _DATABASE_URL,
             conn_max_age=600,
-            ssl_require=True,
+            ssl_require=_ssl_required,
         )
     }
 else:

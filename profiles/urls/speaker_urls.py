@@ -13,6 +13,11 @@ urlpatterns = [
         speaker_views.SpeakerProfileListCreateView.as_view(),
         name="speakers_list_create",
     ),
+    path(
+        "speakers/me/",
+        speaker_views.CurrentSpeakerProfileView.as_view(),
+        name="speakers_me",
+    ),
     # Experiences (private, per-authenticated user)
     path(
         "speakers/experiences/",

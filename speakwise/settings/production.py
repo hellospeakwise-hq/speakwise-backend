@@ -94,21 +94,50 @@ CORS_ALLOW_CREDENTIALS = True
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.environ.get("MEDIA_ROOT") or os.path.join(BASE_DIR, "media")
 
-_AWS_BUCKET = os.environ.get("AWS_STORAGE_BUCKET_NAME")
-_AWS_ENDPOINT = os.environ.get("AWS_S3_ENDPOINT_URL")
-if _AWS_BUCKET:
+_BUCKET = os.environ.get("R2_BUCKET_NAME") or os.environ.get("AWS_STORAGE_BUCKET_NAME")
+_ENDPOINT = os.environ.get("R2_ENDPOINT_URL") or os.environ.get("AWS_S3_ENDPOINT_URL")
+if _BUCKET:
+    _access_key = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get(
+        "AWS_ACCESS_KEY_ID"
+    )
+    _secret_key = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get(
+        "AWS_SECRET_ACCESS_KEY"
+    )
+    _custom_domain = os.environ.get("R2_PUBLIC_URL") or os.environ.get(
+        "AWS_S3_CUSTOM_DOMAIN"
+    )
+    _region = os.environ.get("R2_REGION_NAME") or os.environ.get(
+        "AWS_S3_REGION_NAME", "auto"
+    )
+
+    # Strip https:// if user pasted full URL in custom domain
+    if _custom_domain and _custom_domain.startswith("https://"):
+        _custom_domain = _custom_domain.replace("https://", "").rstrip("/")
+    elif _custom_domain and _custom_domain.startswith("http://"):
+        _custom_domain = _custom_domain.replace("http://", "").rstrip("/")
+
+    _s3_options = {
+        "bucket_name": _BUCKET,
+        "access_key": _access_key,
+        "secret_key": _secret_key,
+        "region_name": _region,
+        "querystring_auth": False,
+        "file_overwrite": False,
+    }
+    if _ENDPOINT:
+        _s3_options["endpoint_url"] = _ENDPOINT
+
+    if _custom_domain:
+        _s3_options["custom_domain"] = _custom_domain
+
+    _default_acl = os.environ.get("AWS_DEFAULT_ACL")
+    if _default_acl:
+        _s3_options["default_acl"] = _default_acl
+
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "bucket_name": _AWS_BUCKET,
-                "endpoint_url": _AWS_ENDPOINT,
-                "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
-                "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-                "region_name": os.environ.get("AWS_S3_REGION_NAME", "fra1"),
-                "default_acl": "public-read",
-                "querystring_auth": False,
-            },
+            "OPTIONS": _s3_options,
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",

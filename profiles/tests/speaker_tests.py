@@ -91,6 +91,48 @@ class TestSpeakerProfile(TestCase):
         )
 
 
+class CurrentSpeakerProfileViewTests(APITestCase):
+    """Tests for the authenticated speaker's own profile endpoint."""
+
+    def setUp(self):
+        """Create an authenticated speaker with a profile."""
+        self.user = get_user_model().objects.create(
+            username="current_speaker",
+            email="current_speaker@example.com",
+            is_email_verified=True,
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.user,
+            organization="Current Org",
+        )
+        self.url = reverse("speakers:speakers_me")
+        self.client.force_authenticate(self.user)
+
+    def test_get_returns_current_speaker_profile(self):
+        """GET returns the profile attached to the authenticated user."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(self.profile.id))
+        self.assertEqual(response.data["organization"], "Current Org")
+
+    def test_patch_updates_current_speaker_profile(self):
+        """PATCH updates profile fields without a public slug lookup."""
+        response = self.client.patch(
+            self.url,
+            {"organization": "Updated Org"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.organization, "Updated Org")
+
+    def test_missing_speaker_profile_returns_404(self):
+        """Users without speaker profiles receive a clear not-found response."""
+        self.profile.delete()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
 class TestSpeakerExperiences(TestCase):
     """test speaker experiences models, views and serializers."""
 

@@ -77,6 +77,44 @@ class SpeakerProfileListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+class CurrentSpeakerProfileView(APIView):
+    """Retrieve or update the authenticated user's speaker profile."""
+
+    def get_permissions(self):
+        """Require authentication to read and verified email to update."""
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsEmailVerified()]
+
+    def get_profile(self, user):
+        """Return the current user's profile or raise a standard 404."""
+        profile = SpeakerProfile.objects.filter(user_account=user).first()
+        if profile is None:
+            raise Http404("Speaker profile not found for this user.")
+        return profile
+
+    @extend_schema(responses=SpeakerProfileSerializer)
+    def get(self, request):
+        """Return the current user's speaker profile."""
+        profile = self.get_profile(request.user)
+        serializer = SpeakerProfileSerializer(profile, context={"request": request})
+        return Response(serializer.data)
+
+    @extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
+    def patch(self, request):
+        """Update the current user's speaker profile."""
+        profile = self.get_profile(request.user)
+        serializer = SpeakerProfileSerializer(
+            profile,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
 @extend_schema(
     request=SpeakerProfileSerializer, responses=SpeakerProfileDetailSerializer
 )

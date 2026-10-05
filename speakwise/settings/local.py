@@ -60,32 +60,29 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# Email backend for development
-# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Email backend for development — OTP codes print directly to the terminal
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "noreply@speakwise.local"
+
+# Mailgun (production only — do not enable locally)
+# ANYMAIL = {
+#     "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY"),
+#     "MAILGUN_SENDER_DOMAIN": os.environ.get("MAILGUN_SENDER_DOMAIN"),
+# }
+# EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+# DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
+# SERVER_EMAIL = os.environ.get("SERVER_EMAIL")
 
 
-# Email settings
-ANYMAIL = {
-    "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY"),
-    "MAILGUN_SENDER_DOMAIN": os.environ.get("MAILGUN_SENDER_DOMAIN"),
-}
-
-EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
-SERVER_EMAIL = os.environ.get("SERVER_EMAIL")
-
-
-# Cache and tasks inherit the Postgres-backed defaults from base.py.
-# Do not override them here: local must mirror production behaviour.
+# Tasks: always run synchronously in local dev so .enqueue() fires immediately
+# and OTP/welcome emails appear in the terminal without a separate worker.
+# Production uses the DB-backed queue (set in base.py).
+TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
 
 # Detect if running tests
 TESTING = "test" in sys.argv or "pytest" in sys.argv
 
 if TESTING:
-    # Tasks run inline so `.enqueue()` executes synchronously and
-    # task-triggered emails fire inside tests. The DB backend would only
-    # queue them for a worker that never runs under `manage.py test`.
-    TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
     # Isolated in-process cache: no `django_cache` table needed, no
     # cross-test leakage through Postgres.
     CACHES = {

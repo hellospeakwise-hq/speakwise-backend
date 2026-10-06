@@ -14,7 +14,10 @@ from profiles.models.speaker_models import (
     SpeakerSocialLinks,
     normalize_skill_names,
 )
-from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
+from profiles.serializers.speaker_serializers import (
+    SpeakerProfileDetailSerializer,
+    SpeakerProfileSerializer,
+)
 
 
 class TestSpeakerProfile(TestCase):
@@ -63,6 +66,7 @@ class TestSpeakerProfile(TestCase):
         serializer = SpeakerProfileSerializer(instance=self.speaker_profile)
         data = serializer.data
         assert data["user_account"] == self.user.id
+        assert data["username"] == self.user.username
         assert data["organization"] == "Test Org"
         assert data["country"] == "Test Country"
         assert len(data["skill_tags"]) == 1
@@ -70,6 +74,11 @@ class TestSpeakerProfile(TestCase):
         assert len(data["social_links"]) == 1
         assert data["social_links"][0]["name"] == "Twitter"
         assert data["social_links"][0]["link"] == "https://twitter.com/testuser"
+
+    def test_speaker_detail_serializer_includes_username(self):
+        """Public speaker details expose the account username as the handle."""
+        data = SpeakerProfileDetailSerializer(instance=self.speaker_profile).data
+        self.assertEqual(data["username"], self.user.username)
 
     def test_speaker_skill_tag_creation(self):
         """Test speaker skill tag creation."""
@@ -113,6 +122,7 @@ class CurrentSpeakerProfileViewTests(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], str(self.profile.id))
+        self.assertEqual(response.data["username"], self.user.username)
         self.assertEqual(response.data["organization"], "Current Org")
 
     def test_patch_updates_current_speaker_profile(self):

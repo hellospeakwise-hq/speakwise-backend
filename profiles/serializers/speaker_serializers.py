@@ -209,6 +209,7 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     social_links = SpeakerSocialLinksSerializer(many=True, required=False)
     skill_tags = SpeakerSkillTagSerializer(many=True, required=False)
     speaker_name = SerializerMethodField()
+    username = SerializerMethodField()
     experiences = SpeakerExperiencesSerializer(
         many=True, read_only=True, required=False
     )
@@ -258,6 +259,10 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
         last = (obj.user_account.last_name or "").strip()
         full = f"{first} {last}".strip()
         return full if full else obj.user_account.username
+
+    def get_username(self, obj) -> str:
+        """Return the account username used as the public speaker handle."""
+        return obj.user_account.username
 
     def get_followers_count(self, obj) -> int:
         """Return total number of followers for this speaker."""
@@ -331,6 +336,7 @@ class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
             "id",
             "slug",
             "user_account",
+            "username",
             "avatar",
             "speaker_name",
             "organization",

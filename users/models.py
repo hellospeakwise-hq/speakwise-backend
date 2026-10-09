@@ -29,6 +29,7 @@ class User(AbstractUser):
             "users verify via OTP; OAuth users are verified by the provider."
         ),
     )
+    welcome_email_pending = models.BooleanField(default=False, editable=False)
 
     objects = UserManager()
     USERNAME_FIELD = "email"

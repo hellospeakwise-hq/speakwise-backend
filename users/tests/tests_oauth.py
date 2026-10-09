@@ -83,6 +83,7 @@ class OAuthTests(TestCase):
 
         user = User.objects.get(email="test@github.com")
         self.assertEqual(user.username, "githubuser")
+        self.assertFalse(user.welcome_email_pending)
         self.assertFalse(SpeakerProfile.objects.filter(user_account=user).exists())
 
     @patch("users.views.oauth_views.get_github_session")
@@ -295,6 +296,7 @@ class OAuthProfileDataTests(TestCase):
             email="gh_existing@example.com",
             username="ghexisting",
             is_email_verified=False,
+            welcome_email_pending=True,
         )
         mock_github = mock_get_session.return_value
         mock_github.fetch_token.return_value = {"access_token": "token"}
@@ -307,6 +309,7 @@ class OAuthProfileDataTests(TestCase):
         self.assertEqual(exchange.status_code, status.HTTP_200_OK)
         user.refresh_from_db()
         self.assertTrue(user.is_email_verified)
+        self.assertFalse(user.welcome_email_pending)
 
     @patch("users.views.oauth_views.get_github_session")
     def test_github_callback_returns_existing_speaker_profile(self, mock_get_session):

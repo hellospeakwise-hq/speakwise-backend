@@ -19,6 +19,7 @@ class EventFilter(filters.FilterSet):
         field_name="submitted_by__username", lookup_expr="icontains"
     )
     is_active = filters.BooleanFilter()
+    is_free = filters.BooleanFilter()
     cfp_open = filters.BooleanFilter()
     cfp_open_date = filters.DateTimeFilter(field_name="cfp_open_date")
     cfp_deadline = filters.DateTimeFilter(field_name="cfp_deadline")
@@ -37,6 +38,7 @@ class EventFilter(filters.FilterSet):
             "slug",
             "submitted_by",
             "is_active",
+            "is_free",
             "cfp_open",
             "cfp_open_date",
             "cfp_deadline",

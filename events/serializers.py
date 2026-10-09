@@ -15,6 +15,14 @@ def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
         )
 
 
+def validate_event_ticket_status(attrs, *, instance):
+    """Require new event listings to declare free or paid admission."""
+    if instance is None and attrs.get("is_free") is None:
+        raise serializers.ValidationError(
+            {"is_free": "Choose whether this event is free or ticketed."}
+        )
+
+
 class EventSerializer(serializers.ModelSerializer):
     """Serializer for the Event model."""
 
@@ -38,6 +46,7 @@ class EventSerializer(serializers.ModelSerializer):
         validate_event_is_not_duplicate(
             title=title, website=website or "", exclude_id=exclude_id
         )
+        validate_event_ticket_status(attrs, instance=self.instance)
         return attrs
 
     def get_date(self, obj) -> str | None:
@@ -96,6 +105,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             "cfp_link",
             "location",
             "country",
+            "is_free",
             "start_date_time",
             "end_date_time",
         ]
@@ -107,6 +117,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             title=attrs.get("title", ""),
             website=attrs.get("website", ""),
         )
+        validate_event_ticket_status(attrs, instance=self.instance)
         return attrs
 
     def create(self, validated_data):

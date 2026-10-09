@@ -54,6 +54,7 @@ class EventAPITestCase(TestCase):
             "title": "New Test Event",
             "description": "This is another test event.",
             "website": "https://newevent.com",
+            "is_free": True,
         }
         self.user.is_superuser = True
         self.user.save()
@@ -61,6 +62,7 @@ class EventAPITestCase(TestCase):
         response = self.client.post(url, new_event_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], new_event_data["title"])
+        self.assertTrue(response.data["is_free"])
 
     def test_update_event_unauthorized(self):
         """Test that a regular user cannot update this event."""
@@ -223,6 +225,7 @@ class EventListingTests(TestCase):
             cfp_link="https://devconf.example.com/cfp",
             is_active=True,
             cfp_open=True,
+            is_free=False,
         )
         self.showcase_only = Event.objects.create(
             title="Meetup Night",
@@ -230,6 +233,7 @@ class EventListingTests(TestCase):
             website="https://meetup.example.com",
             is_active=True,
             cfp_open=False,
+            is_free=True,
         )
         self.unpublished = Event.objects.create(
             title="Pending Listing",
@@ -275,6 +279,29 @@ class EventListingTests(TestCase):
         titles = {item["title"] for item in response.data["results"]}
         self.assertIn("Berlin DevConf", titles)
         self.assertNotIn(self.unpublished.title, titles)
+
+    def test_public_listing_filters_free_ticketed_and_unspecified_events(self):
+        """Admission filters include only matching events, excluding unknown status."""
+        Event.objects.create(
+            title="Unspecified Meetup",
+            website="https://unspecified.example.com",
+            is_active=True,
+            is_free=None,
+        )
+
+        free_response = self.client.get(self.list_url, {"is_free": "true"})
+        ticketed_response = self.client.get(self.list_url, {"is_free": "false"})
+
+        self.assertEqual(free_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(ticketed_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            {item["title"] for item in free_response.data["results"]},
+            {self.showcase_only.title},
+        )
+        self.assertEqual(
+            {item["title"] for item in ticketed_response.data["results"]},
+            {self.listed.title},
+        )
 
     def test_listing_includes_basic_information_and_official_website(self):
         """Listed events include basic info and the official website."""
@@ -353,6 +380,7 @@ class EventSubmitTests(TestCase):
             "description": "Talks, workshops, and hallway track.",
             "website": "https://communityconf.example.com",
             "cfp_link": "https://communityconf.example.com/cfp",
+            "is_free": False,
         }
 
     def test_unauthenticated_user_cannot_submit(self):
@@ -372,6 +400,7 @@ class EventSubmitTests(TestCase):
         self.assertEqual(response.data["title"], self.submission_payload["title"])
         self.assertEqual(response.data["website"], self.submission_payload["website"])
         self.assertEqual(response.data["cfp_link"], self.submission_payload["cfp_link"])
+        self.assertFalse(response.data["is_free"])
         self.assertFalse(response.data["is_active"])
         self.assertEqual(str(response.data["submitted_by"]), str(self.user.id))
 
@@ -380,6 +409,21 @@ class EventSubmitTests(TestCase):
         self.assertEqual(event.submitted_by, self.user)
         self.assertEqual(event.website, self.submission_payload["website"])
         self.assertEqual(event.cfp_link, self.submission_payload["cfp_link"])
+        self.assertFalse(event.is_free)
+
+    def test_new_event_requires_admission_status(self):
+        """New submissions must explicitly choose free or ticketed admission."""
+        self.client.force_authenticate(user=self.user)
+        payload = {**self.submission_payload}
+        payload.pop("is_free")
+
+        response = self.client.post(self.submit_url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["is_free"][0],
+            "Choose whether this event is free or ticketed.",
+        )
 
     def test_submit_without_website_is_rejected(self):
         """Official event URL is required on community submissions."""
@@ -524,11 +568,13 @@ class EventSubmitTests(TestCase):
                 "title": "Staff Conf",
                 "website": "https://staffconf.example.com",
                 "is_active": True,
+                "is_free": True,
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data["is_active"])
+        self.assertTrue(response.data["is_free"])
         self.assertEqual(str(response.data["submitted_by"]), str(self.admin_user.id))
 
 

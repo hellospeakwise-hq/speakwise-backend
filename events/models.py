@@ -109,6 +109,15 @@ class Event(TimeStampedModel):
         help_text="Country where the event takes place.",
         db_index=True,
     )
+    is_free = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Whether attendees can attend without paying. Null means the "
+            "ticket status has not been specified."
+        ),
+    )
 
     # CFP configuration
     cfp_open = models.BooleanField(

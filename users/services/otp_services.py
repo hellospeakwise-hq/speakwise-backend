@@ -70,11 +70,12 @@ def issue_otp(user) -> str:
     return code
 
 
-def verify_otp_by_email(email: str, code: str) -> User:
+def verify_otp_by_email(email: str, code: str) -> tuple[User, bool]:
     """Verify ``code`` for the user with ``email`` and mark them verified.
 
     Raises ``ValidationError`` on unknown email, an already-verified account,
-    an unknown/expired/locked OTP, or an incorrect code.
+    an unknown/expired/locked OTP, or an incorrect code. The returned boolean
+    indicates whether the user is awaiting their first manual-signup welcome.
     """
     user = _get_verifiable_user(email)
 
@@ -104,9 +105,17 @@ def verify_otp_by_email(email: str, code: str) -> User:
 
     otp.is_used = True
     otp.save(update_fields=["is_used"])
+    should_send_welcome_email = (
+        User.objects.filter(
+            pk=user.pk,
+            welcome_email_pending=True,
+        ).update(welcome_email_pending=False)
+        == 1
+    )
     user.is_email_verified = True
+    user.welcome_email_pending = False
     user.save(update_fields=["is_email_verified"])
-    return user
+    return user, should_send_welcome_email
 
 
 def resend_otp_by_email(email: str) -> tuple[User, str]:

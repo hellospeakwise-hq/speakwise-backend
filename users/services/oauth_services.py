@@ -53,7 +53,8 @@ def get_or_create_oauth_user(*, email, username) -> tuple[User, bool]:
     if user is not None:
         if not user.is_email_verified:
             user.is_email_verified = True
-            user.save(update_fields=["is_email_verified"])
+            user.welcome_email_pending = False
+            user.save(update_fields=["is_email_verified", "welcome_email_pending"])
         return user, False
 
     if not email:

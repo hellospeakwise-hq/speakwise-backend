@@ -50,14 +50,11 @@ class UserCreateView(APIView):
         """Create a new user and issue an email verification OTP."""
         serializer = UserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        user = serializer.save(welcome_email_pending=True)
 
         send_otp_email(user, issue_otp(user))
 
         data = build_auth_payload(user)
-
-        # send welcome email task
-        send_welcome_email_task.enqueue(str(user.id))
         return Response(data, status=status.HTTP_201_CREATED)
 
 
@@ -71,12 +68,14 @@ class VerifyOtpView(APIView):
     serializer_class = VerifyOtpSerializer
 
     def post(self, request):
-        """Verify the submitted OTP and mark the user's email as verified."""
+        """Verify the email and send the welcome email after manual signup."""
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        verify_otp_by_email(
+        user, should_send_welcome_email = verify_otp_by_email(
             serializer.validated_data["email"], serializer.validated_data["otp"]
         )
+        if should_send_welcome_email:
+            send_welcome_email_task.enqueue(str(user.id))
         return Response(
             {"detail": "Email verified successfully."}, status=status.HTTP_200_OK
         )

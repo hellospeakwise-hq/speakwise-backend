@@ -28,6 +28,8 @@ class OtpFlowTestBase(TestCase):
         self.client = APIClient()
         settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
         settings.DEFAULT_FROM_EMAIL = "no-reply@speakwise.test"
+        mail.get_connection()
+        mail.outbox.clear()
         self.register_url = reverse("users:register")
         self.verify_url = reverse("users:verify-otp")
         self.resend_url = reverse("users:resend-otp")
@@ -48,6 +50,10 @@ class OtpFlowTestBase(TestCase):
         matching = [m for m in mail.outbox if "verification code" in m.subject]
         self.assertTrue(matching, "No OTP email was sent")
         return matching[-1]
+
+    def _welcome_emails(self):
+        """Return welcome emails delivered during the current test."""
+        return [m for m in mail.outbox if m.subject == "Welcome to SpeakWise!"]
 
     def _code_from_email(self) -> str:
         """Extract the 6-digit code from the OTP email body."""
@@ -76,6 +82,8 @@ class RegistrationOtpTests(OtpFlowTestBase):
 
         user = User.objects.get(email="reg@example.com")
         self.assertFalse(user.is_email_verified)
+        self.assertTrue(user.welcome_email_pending)
+        self.assertEqual(self._welcome_emails(), [])
 
         otp = OtpCode.objects.get(user=user)
         self.assertFalse(otp.is_used)
@@ -110,7 +118,9 @@ class VerifyOtpTests(OtpFlowTestBase):
 
         user = User.objects.get(email="reg@example.com")
         self.assertTrue(user.is_email_verified)
+        self.assertFalse(user.welcome_email_pending)
         self.assertTrue(OtpCode.objects.get(user=user).is_used)
+        self.assertEqual(len(self._welcome_emails()), 1)
 
     def test_verify_with_wrong_code_rejects_and_counts_attempts(self):
         """An incorrect code is rejected and increments the attempt counter."""
@@ -124,6 +134,8 @@ class VerifyOtpTests(OtpFlowTestBase):
         self.assertEqual(otp.attempt_count, 1)
         user = User.objects.get(email="reg@example.com")
         self.assertFalse(user.is_email_verified)
+        self.assertTrue(user.welcome_email_pending)
+        self.assertEqual(self._welcome_emails(), [])
 
     def test_verify_invalid_email_returns_generic_error(self):
         """Unknown emails get the same response as a bad code."""
@@ -139,6 +151,25 @@ class VerifyOtpTests(OtpFlowTestBase):
         response = self._verify(otp=code)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already verified", str(response.data))
+        self.assertEqual(len(self._welcome_emails()), 1)
+
+    def test_email_reverification_does_not_send_another_welcome_email(self):
+        """Changing an already verified email does not repeat the welcome."""
+        self._register()
+        self._verify(otp=self._code_from_email())
+        self.assertEqual(len(self._welcome_emails()), 1)
+
+        user = User.objects.get(email="reg@example.com")
+        self.client.force_authenticate(user)
+        profile_url = reverse("users:retrieve_update_authenticated_user")
+        response = self.client.patch(
+            profile_url, {"email": "new@example.com"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self._verify(email="new@example.com", otp=self._code_from_email())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(self._welcome_emails()), 1)
 
     def test_verify_code_is_single_use(self):
         """A consumed code cannot be reused to verify again."""
@@ -238,10 +269,8 @@ class ResendOtpTests(OtpFlowTestBase):
     def test_resend_for_verified_user_returns_generic_response(self):
         """A verified account gets the generic response and no further email."""
         self._register()
+        self._verify(otp=self._code_from_email())
         initial_outbox = len(mail.outbox)
-        self._code_from_email()
-        code = self._code_from_email()
-        self._verify(otp=code)
         response = self.client.post(
             self.resend_url, {"email": "reg@example.com"}, format="json"
         )

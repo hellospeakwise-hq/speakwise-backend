@@ -1,5 +1,6 @@
 """OAuth views."""
 
+import logging
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -25,6 +26,8 @@ from users.services.oauth_services import (
     create_exchange_code,
     get_or_create_oauth_user,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_github_session():
@@ -120,6 +123,7 @@ def github_callback(request):
     except ValidationError as exc:
         return Response(exc.detail, status=400)
     except Exception:
+        logger.exception("GitHub OAuth callback failed")
         return Response(
             {"error": "GitHub authentication failed. Please try again."},
             status=400,
@@ -170,6 +174,7 @@ def google_callback(request):
     except ValidationError as exc:
         return Response(exc.detail, status=400)
     except Exception:
+        logger.exception("Google OAuth callback failed")
         return Response(
             {"error": "Google authentication failed. Please try again."},
             status=400,

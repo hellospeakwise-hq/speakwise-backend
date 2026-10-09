@@ -6,7 +6,7 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.reverse import reverse
@@ -532,3 +532,30 @@ class OrganizationProfileCreateRestrictionTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", res.data)
         self.assertFalse(OrganizationProfile.objects.filter(name="Second Org").exists())
+
+
+@override_settings(ADMIN_NOTIFICATION_EMAILS=["admin@example.com"])
+class OrganizationEmailNotificationTests(TestCase):
+    """Emails sent on organization creation and approval."""
+
+    def test_admin_alerted_on_new_organization(self):
+        """Creating a pending organization emails the admins once."""
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            OrganizationProfile.objects.create(name="Notify Org")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["admin@example.com"])
+        self.assertIn("Notify Org", mail.outbox[0].subject)
+
+    def test_organization_emailed_when_approved(self):
+        """Approving a pending organization sends a congratulations email."""
+        with self.captureOnCommitCallbacks(execute=True):
+            org = OrganizationProfile.objects.create(
+                name="Approve Org", contact_email="org@example.com"
+            )
+        mail.outbox.clear()
+        org.status = OrganizationStatusChoices.ACTIVE
+        org.save()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["org@example.com"])
+        self.assertIn("approved", mail.outbox[0].subject)

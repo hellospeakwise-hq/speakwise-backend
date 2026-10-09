@@ -216,7 +216,15 @@ SPECTACULAR_SETTINGS = {
 }
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 SITE_NAME = "SpeakWise"
+
+# Comma-separated addresses alerted when an organization needs approval.
+ADMIN_NOTIFICATION_EMAILS = [
+    e.strip()
+    for e in os.getenv("ADMIN_NOTIFICATION_EMAILS", "").split(",")
+    if e.strip()
+]
 
 # OTP verification
 OTP_CODE_LENGTH = 6

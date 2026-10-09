@@ -132,7 +132,7 @@ class OAuthTests(TestCase):
             self.github_callback_url, {"code": "code", "state": "test_state"}
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "Email not found from GitHub")
+        self.assertEqual(response.data["detail"], "Email not found from provider.")
 
     @patch("users.views.oauth_views.get_google_session")
     def test_google_login_redirect(self, mock_get_session):

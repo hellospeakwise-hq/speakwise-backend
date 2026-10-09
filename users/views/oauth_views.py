@@ -64,13 +64,24 @@ def github_login(request):
 
 
 def _github_email(github) -> tuple[str, str | None]:
-    """Best-effort email from the GitHub profile, preferring a verified one."""
-    user_info = github.get("https://api.github.com/user").json()
+    """Best-effort email from the GitHub profile, preferring a verified one.
+
+    Raises ValidationError if the GitHub API requests fail.
+    """
+    try:
+        user_info = github.get("https://api.github.com/user").json()
+    except Exception as exc:
+        raise ValidationError({"detail": "Failed to fetch GitHub user info."}) from exc
 
     email = user_info.get("email")
     username = user_info.get("login")
     if not email:
-        emails_res = github.get("https://api.github.com/user/emails").json()
+        try:
+            emails_res = github.get("https://api.github.com/user/emails").json()
+        except Exception as exc:
+            raise ValidationError(
+                {"detail": "Failed to fetch GitHub email addresses."}
+            ) from exc
         primary_emails = [
             e["email"] for e in emails_res if e.get("primary") and e.get("verified")
         ]
@@ -93,21 +104,26 @@ def github_callback(request):
 
     request.session.pop("oauth_state", None)
 
-    github = get_github_session()
-    github.fetch_token(
-        "https://github.com/login/oauth/access_token",
-        client_secret=settings.GITHUB_CLIENT_SECRET,
-        code=code,
-    )
-    email, username = _github_email(github)
-
     try:
-        user, _created = get_or_create_oauth_user(email=email, username=username)
-    except ValidationError:
-        return Response({"error": "Email not found from GitHub"}, status=400)
+        github = get_github_session()
+        github.fetch_token(
+            "https://github.com/login/oauth/access_token",
+            client_secret=settings.GITHUB_CLIENT_SECRET,
+            code=code,
+        )
+        email, username = _github_email(github)
 
-    params = urlencode({"code": create_exchange_code(user)})
-    return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
+        user, _created = get_or_create_oauth_user(email=email, username=username)
+
+        params = urlencode({"code": create_exchange_code(user)})
+        return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
+    except ValidationError as exc:
+        return Response(exc.detail, status=400)
+    except Exception:
+        return Response(
+            {"error": "GitHub authentication failed. Please try again."},
+            status=400,
+        )
 
 
 @api_view(["GET"])
@@ -136,23 +152,28 @@ def google_callback(request):
 
     request.session.pop("oauth_state", None)
 
-    google = get_google_session()
-    google.fetch_token(
-        "https://oauth2.googleapis.com/token",
-        client_secret=settings.GOOGLE_CLIENT_SECRET,
-        code=code,
-    )
-    user_info = google.get("https://www.googleapis.com/oauth2/v1/userinfo").json()
-    email = user_info.get("email")
-    username = user_info.get("name")
-
     try:
-        user, _created = get_or_create_oauth_user(email=email, username=username)
-    except ValidationError:
-        return Response({"error": "Email not found from Google"}, status=400)
+        google = get_google_session()
+        google.fetch_token(
+            "https://oauth2.googleapis.com/token",
+            client_secret=settings.GOOGLE_CLIENT_SECRET,
+            code=code,
+        )
+        user_info = google.get("https://www.googleapis.com/oauth2/v1/userinfo").json()
+        email = user_info.get("email")
+        username = user_info.get("name")
 
-    params = urlencode({"code": create_exchange_code(user)})
-    return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
+        user, _created = get_or_create_oauth_user(email=email, username=username)
+
+        params = urlencode({"code": create_exchange_code(user)})
+        return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
+    except ValidationError as exc:
+        return Response(exc.detail, status=400)
+    except Exception:
+        return Response(
+            {"error": "Google authentication failed. Please try again."},
+            status=400,
+        )
 
 
 @extend_schema(request=OAuthCodeExchangeSerializer, responses=UserSerializer)

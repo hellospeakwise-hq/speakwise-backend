@@ -61,6 +61,21 @@ def submitted_recently_by_ip(experience, submitter_ip_hash: str, now=None) -> bo
     ).exists()
 
 
+def get_client_ip(request) -> str:
+    """Return the originating client IP, looking through the hosting proxy.
+
+    In production the API sits behind a reverse proxy, so ``REMOTE_ADDR`` is
+    the proxy's address (which can change between requests) rather than the
+    attendee's. The proxy-supplied headers carry the real client address.
+    """
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip:
+        return real_ip
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    first_hop = forwarded_for.split(",")[0].strip()
+    return first_hop or request.META.get("REMOTE_ADDR", "")
+
+
 def hash_submitter_ip(ip: str) -> str:
     """Return a salted SHA-256 hash of the submitter's IP address."""
     return hmac.new(

@@ -375,6 +375,7 @@ class NotificationSerializer(ModelSerializer):
             "id",
             "user",
             "message",
+            "link",
             "is_read",
             "created_at",
         ]

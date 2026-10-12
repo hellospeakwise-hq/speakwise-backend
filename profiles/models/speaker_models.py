@@ -296,6 +296,7 @@ class Notification(TimeStampedModel):
         help_text="The user who receives this notification.",
     )
     message = models.TextField()
+    link = models.CharField(max_length=500, blank=True)
     is_read = models.BooleanField(default=False, db_index=True)
 
     class Meta:

@@ -79,9 +79,9 @@ def notify_followers_of_upcoming_event(speaker_ids, event_id):
 def notify_followers_of_public_talk(talk_id):
     """Notify followers when a speaker's talk becomes public."""
     try:
-        talk = Talks.objects.select_related(
-            "speaker", "speaker__user_account"
-        ).get(pk=talk_id)
+        talk = Talks.objects.select_related("speaker", "speaker__user_account").get(
+            pk=talk_id
+        )
     except Talks.DoesNotExist:
         return
     if not talk.is_public:

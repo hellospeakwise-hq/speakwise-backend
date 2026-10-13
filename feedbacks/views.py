@@ -23,6 +23,7 @@ from feedbacks.serializers import (
 )
 from feedbacks.services import (
     build_feedback_qr_payload,
+    get_client_ip,
     hash_submitter_ip,
     is_feedback_open,
     resolve_feedback_experience,
@@ -91,7 +92,7 @@ class FeedbackRateView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        ip = self._client_ip(request)
+        ip = get_client_ip(request)
         ip_hash = hash_submitter_ip(ip) if ip else ""
         if ip_hash and submitted_recently_by_ip(experience, ip_hash):
             raise Throttled(
@@ -106,11 +107,6 @@ class FeedbackRateView(APIView):
         return Response(
             FeedbackSubmittedSerializer(feedback).data, status=status.HTTP_201_CREATED
         )
-
-    @staticmethod
-    def _client_ip(request) -> str:
-        """Return the request's originating IP address, or an empty string."""
-        return request.META.get("REMOTE_ADDR", "")
 
 
 class FeedbackQRCodeView(APIView):

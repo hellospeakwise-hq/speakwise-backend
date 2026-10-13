@@ -240,6 +240,43 @@ class FeedbackRateAPITests(FeedbackTestMixin, APITestCase):
         )
         self.assertEqual(second.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
+    def test_cooldown_uses_forwarded_client_ip_behind_proxy(self):
+        """Proxy address changes must not bypass the cooldown for one attendee."""
+        first = self.client.post(
+            self.rate_url,
+            self.rate_payload(),
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+            headers={"x-forwarded-for": "198.51.100.7, 10.0.0.1"},
+        )
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        second = self.client.post(
+            self.rate_url,
+            self.rate_payload(),
+            format="json",
+            REMOTE_ADDR="10.0.0.2",
+            headers={"x-forwarded-for": "198.51.100.7, 10.0.0.2"},
+        )
+        self.assertEqual(second.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_different_forwarded_clients_are_not_blocked(self):
+        """Attendees sharing a proxy address are told apart by forwarded IP."""
+        self.client.post(
+            self.rate_url,
+            self.rate_payload(),
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+            headers={"x-forwarded-for": "198.51.100.7"},
+        )
+        response = self.client.post(
+            self.rate_url,
+            self.rate_payload(),
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+            headers={"x-forwarded-for": "198.51.100.8"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
     def test_different_ip_can_resubmit(self):
         """A different IP is not blocked by another submitter."""
         self.client.post(

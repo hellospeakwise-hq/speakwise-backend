@@ -1,13 +1,12 @@
 """Management command to remove stale, never-verified accounts."""
 
-import csv
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from users.models import User
-from users.services.auth_services import stale_unverified_users
+from users.services.auth_services import stale_unverified_users, write_users_csv
 
 
 class Command(BaseCommand):
@@ -76,19 +75,5 @@ class Command(BaseCommand):
         stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
         path = Path(f"purged_unverified_users_{stamp}.csv")
         with path.open("w", newline="") as handle:
-            writer = csv.writer(handle)
-            writer.writerow(
-                ["id", "email", "username", "first_name", "last_name", "date_joined"]
-            )
-            for user in queryset:
-                writer.writerow(
-                    [
-                        user.pk,
-                        user.email,
-                        user.username,
-                        user.first_name,
-                        user.last_name,
-                        user.date_joined.isoformat(),
-                    ]
-                )
+            write_users_csv(handle, queryset)
         return path

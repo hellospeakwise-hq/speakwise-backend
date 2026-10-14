@@ -5,6 +5,7 @@ serializers stay thin. The failed-login counter is stored in the Django cache,
 which is Postgres-backed (DatabaseCache) and therefore shared across workers.
 """
 
+import csv
 from datetime import timedelta
 
 from django.contrib.auth import authenticate
@@ -119,3 +120,22 @@ def stale_unverified_users(older_than_days: int):
         submitted_events__isnull=True,
         date_joined__lt=cutoff,
     ).distinct()
+
+
+def write_users_csv(handle, queryset) -> None:
+    """Write the given users as CSV rows to an open text file handle."""
+    writer = csv.writer(handle)
+    writer.writerow(
+        ["id", "email", "username", "first_name", "last_name", "date_joined"]
+    )
+    for user in queryset:
+        writer.writerow(
+            [
+                user.pk,
+                user.email,
+                user.username,
+                user.first_name,
+                user.last_name,
+                user.date_joined.isoformat(),
+            ]
+        )

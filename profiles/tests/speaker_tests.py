@@ -1273,6 +1273,62 @@ class SpeakerProfileCreateRestrictionTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+class SpeakerSocialLinksUpdateTests(APITestCase):
+    """PATCH /speakers/me/ keeps social links in sync with the submitted list."""
+
+    def setUp(self):
+        """Create a verified speaker with one existing link."""
+        self.user = get_user_model().objects.create(
+            username="linker", email="linker@mail.com", is_email_verified=True
+        )
+        self.speaker = SpeakerProfile.objects.create(user_account=self.user)
+        SpeakerSocialLinks.objects.create(
+            speaker=self.speaker, name="GitHub", link="https://github.com/old"
+        )
+        self.client.force_authenticate(self.user)
+        self.url = reverse("speakers:speakers_me")
+
+    def _patch(self, links):
+        """PATCH the speaker's social links."""
+        return self.client.patch(self.url, {"social_links": links}, format="json")
+
+    def test_existing_link_is_updated_not_duplicated(self):
+        """Resubmitting a platform updates its URL instead of failing."""
+        response = self._patch([{"name": "GitHub", "link": "https://github.com/new"}])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        link = self.speaker.social_links.get(name="GitHub")
+        self.assertEqual(link.link, "https://github.com/new")
+        self.assertEqual(self.speaker.social_links.count(), 1)
+
+    def test_new_links_are_added(self):
+        """New platforms are created alongside existing ones."""
+        self._patch(
+            [
+                {"name": "GitHub", "link": "https://github.com/old"},
+                {"name": "LinkedIn", "link": "https://linkedin.com/in/x"},
+            ]
+        )
+        names = set(self.speaker.social_links.values_list("name", flat=True))
+        self.assertEqual(names, {"GitHub", "LinkedIn"})
+
+    def test_links_missing_from_the_list_are_removed(self):
+        """Omitting a platform from the submitted list deletes it."""
+        self._patch([{"name": "LinkedIn", "link": "https://linkedin.com/in/x"}])
+        names = set(self.speaker.social_links.values_list("name", flat=True))
+        self.assertEqual(names, {"LinkedIn"})
+
+    def test_empty_list_clears_all_links(self):
+        """An empty list removes every link."""
+        self._patch([])
+        self.assertEqual(self.speaker.social_links.count(), 0)
+
+    def test_patch_without_social_links_leaves_them_untouched(self):
+        """Updating other fields never touches the links."""
+        response = self.client.patch(self.url, {"short_bio": "Hi"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.speaker.social_links.count(), 1)
+
+
 class FollowResponseSerializerTests(TestCase):
     """Unit tests for the follow response serializers' output shape."""
 

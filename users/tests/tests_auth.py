@@ -500,8 +500,8 @@ class TestRegistrationBotProtection(TestCase):
         self.assertEqual(statuses[5], status.HTTP_429_TOO_MANY_REQUESTS)
 
 
-class TestPurgeUnverifiedUsers(TestCase):
-    """purge_unverified_users only removes stale, never-used signups."""
+class PurgeFixtureMixin:
+    """Builds a mix of stale, recent, verified and protected accounts."""
 
     def _user(self, name, days_old, **fields):
         """Create a user that joined ``days_old`` days ago."""
@@ -520,6 +520,10 @@ class TestPurgeUnverifiedUsers(TestCase):
         self.staff = self._user("staff", 30, is_staff=True)
         self.organizer = self._user("organizer", 30)
         OrganizationProfile.objects.create(owner=self.organizer, name="Org")
+
+
+class TestPurgeUnverifiedUsers(PurgeFixtureMixin, TestCase):
+    """purge_unverified_users only removes stale, never-used signups."""
 
     def test_dry_run_deletes_nothing(self):
         """Without --delete no account is removed."""
@@ -548,3 +552,53 @@ class TestPurgeUnverifiedUsers(TestCase):
             path.return_value.open = mock.mock_open()
             call_command("purge_unverified_users", "--delete")
         self.assertEqual(User.objects.count(), 6)
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+)
+class TestPurgeUnverifiedAdminView(PurgeFixtureMixin, TestCase):
+    """The admin purge page previews first and only deletes on confirm."""
+
+    def setUp(self):
+        """Add a superuser and a plain staff user on top of the base accounts."""
+        super().setUp()
+        self.superuser = User.objects.create_superuser(
+            username="root", email="root@example.com", password="pass12345"
+        )
+        self.url = reverse("admin:users_user_purge_unverified")
+
+    def test_preview_lists_stale_accounts_without_deleting(self):
+        """GET shows the matching accounts and removes nothing."""
+        self.client.force_login(self.superuser)
+        response = self.client.get(self.url)
+        self.assertContains(response, "stale@example.com")
+        self.assertNotContains(response, "recent@example.com")
+        self.assertTrue(User.objects.filter(pk=self.stale.pk).exists())
+
+    def test_confirm_deletes_and_returns_csv_backup(self):
+        """POST with confirm deletes stale accounts and downloads a CSV."""
+        self.client.force_login(self.superuser)
+        response = self.client.post(self.url, {"days": 30, "confirm": "yes"})
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn("stale@example.com", response.content.decode())
+        self.assertFalse(User.objects.filter(pk=self.stale.pk).exists())
+        self.assertTrue(User.objects.filter(pk=self.organizer.pk).exists())
+        self.assertTrue(User.objects.filter(pk=self.recent.pk).exists())
+
+    def test_post_without_confirm_does_not_delete(self):
+        """A POST lacking the confirm flag only re-renders the preview."""
+        self.client.force_login(self.superuser)
+        self.client.post(self.url, {"days": 30})
+        self.assertTrue(User.objects.filter(pk=self.stale.pk).exists())
+
+    def test_non_superuser_staff_cannot_purge(self):
+        """Staff who are not superusers are redirected and nothing is deleted."""
+        self.client.force_login(self.staff)
+        self.client.post(self.url, {"days": 30, "confirm": "yes"})
+        self.assertTrue(User.objects.filter(pk=self.stale.pk).exists())

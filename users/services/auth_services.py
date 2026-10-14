@@ -5,9 +5,12 @@ serializers stay thin. The failed-login counter is stored in the Django cache,
 which is Postgres-backed (DatabaseCache) and therefore shared across workers.
 """
 
+from datetime import timedelta
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.cache import cache
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -98,3 +101,21 @@ def reset_email_verification(user: User) -> None:
     user.is_email_verified = False
     user.save(update_fields=["is_email_verified"])
     send_otp_email(user, issue_otp(user))
+
+
+def stale_unverified_users(older_than_days: int):
+    """Return never-verified, never-logged-in accounts older than the cutoff.
+
+    Staff, superusers and anyone who owns an organization or submitted an
+    event are excluded, so accounts with real data are never removed.
+    """
+    cutoff = timezone.now() - timedelta(days=older_than_days)
+    return User.objects.filter(
+        is_email_verified=False,
+        last_login__isnull=True,
+        is_staff=False,
+        is_superuser=False,
+        organization_owner__isnull=True,
+        submitted_events__isnull=True,
+        date_joined__lt=cutoff,
+    ).distinct()

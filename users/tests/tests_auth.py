@@ -1,11 +1,16 @@
 """users tests."""
 
+from datetime import timedelta
+from unittest import mock
+
 from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core import mail
 from django.core.cache import cache
-from django.test import TestCase
+from django.core.management import CommandError, call_command
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -437,3 +442,111 @@ class RetrieveUpdateAuthenticatedUserViewTest(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, "Speaker")
         self.assertEqual(self.user.last_name, "One")
+
+
+class TestRegistrationBotProtection(TestCase):
+    """Registration is throttled and gated behind a Turnstile check."""
+
+    def setUp(self):
+        """Set up the registration endpoint."""
+        cache.clear()
+        self.client = APIClient()
+        self.url = reverse("users:register")
+
+    def _payload(self, n=1, **extra):
+        """Return a valid registration payload."""
+        return {
+            "email": f"bot{n}@example.com",
+            "username": f"bot{n}",
+            "password": "StrongPass123!",
+            **extra,
+        }
+
+    @override_settings(TURNSTILE_SECRET_KEY="secret")
+    def test_missing_turnstile_token_is_rejected(self):
+        """With Turnstile configured, a request without a token is refused."""
+        response = self.client.post(self.url, self._payload(), format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email="bot1@example.com").exists())
+
+    @override_settings(TURNSTILE_SECRET_KEY="secret")
+    @mock.patch("users.services.turnstile_services.requests.post")
+    def test_invalid_turnstile_token_is_rejected(self, post):
+        """A token Cloudflare rejects does not create an account."""
+        post.return_value.json.return_value = {"success": False}
+        response = self.client.post(
+            self.url, self._payload(turnstile_token="bad"), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email="bot1@example.com").exists())
+
+    @override_settings(TURNSTILE_SECRET_KEY="secret")
+    @mock.patch("users.services.turnstile_services.requests.post")
+    def test_valid_turnstile_token_registers(self, post):
+        """A token Cloudflare accepts lets registration proceed."""
+        post.return_value.json.return_value = {"success": True}
+        response = self.client.post(
+            self.url, self._payload(turnstile_token="good"), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_registration_is_throttled_per_ip(self):
+        """The sixth signup within the hour from one IP is throttled."""
+        statuses = [
+            self.client.post(self.url, self._payload(n), format="json").status_code
+            for n in range(6)
+        ]
+        self.assertEqual(statuses[:5], [status.HTTP_201_CREATED] * 5)
+        self.assertEqual(statuses[5], status.HTTP_429_TOO_MANY_REQUESTS)
+
+
+class TestPurgeUnverifiedUsers(TestCase):
+    """purge_unverified_users only removes stale, never-used signups."""
+
+    def _user(self, name, days_old, **fields):
+        """Create a user that joined ``days_old`` days ago."""
+        user = User.objects.create(username=name, email=f"{name}@example.com", **fields)
+        User.objects.filter(pk=user.pk).update(
+            date_joined=timezone.now() - timedelta(days=days_old)
+        )
+        return user
+
+    def setUp(self):
+        """Create a mix of accounts."""
+        self.stale = self._user("stale", 30)
+        self.recent = self._user("recent", 1)
+        self.verified = self._user("verified", 30, is_email_verified=True)
+        self.logged_in = self._user("loggedin", 30, last_login=timezone.now())
+        self.staff = self._user("staff", 30, is_staff=True)
+        self.organizer = self._user("organizer", 30)
+        OrganizationProfile.objects.create(owner=self.organizer, name="Org")
+
+    def test_dry_run_deletes_nothing(self):
+        """Without --delete no account is removed."""
+        call_command("purge_unverified_users")
+        self.assertEqual(User.objects.count(), 6)
+
+    def test_delete_removes_only_stale_unverified(self):
+        """With --delete only the stale, unverified, never-used account goes."""
+        with mock.patch(
+            "users.management.commands.purge_unverified_users.Path"
+        ) as path:
+            path.return_value.open = mock.mock_open()
+            call_command("purge_unverified_users", "--delete", "--yes")
+        remaining = set(User.objects.values_list("username", flat=True))
+        self.assertEqual(
+            remaining, {"recent", "verified", "loggedin", "staff", "organizer"}
+        )
+
+    def test_delete_aborts_without_confirmation(self):
+        """Answering anything but 'yes' leaves every account in place."""
+        with (
+            mock.patch(
+                "users.management.commands.purge_unverified_users.Path"
+            ) as path,
+            mock.patch("builtins.input", return_value="no"),
+            self.assertRaises(CommandError),
+        ):
+            path.return_value.open = mock.mock_open()
+            call_command("purge_unverified_users", "--delete")
+        self.assertEqual(User.objects.count(), 6)

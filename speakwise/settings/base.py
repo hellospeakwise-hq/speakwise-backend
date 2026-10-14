@@ -190,6 +190,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
+        "register": "5/hour",
         "login": "10/minute",
         "otp_verify": "10/minute",
         "otp_resend": "5/minute",
@@ -216,6 +217,10 @@ SPECTACULAR_SETTINGS = {
 }
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Cloudflare Turnstile secret for bot protection on signup. When unset,
+# the CAPTCHA check is skipped (local development and tests).
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 SITE_NAME = "SpeakWise"
 

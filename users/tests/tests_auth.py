@@ -541,9 +541,7 @@ class TestPurgeUnverifiedUsers(TestCase):
     def test_delete_aborts_without_confirmation(self):
         """Answering anything but 'yes' leaves every account in place."""
         with (
-            mock.patch(
-                "users.management.commands.purge_unverified_users.Path"
-            ) as path,
+            mock.patch("users.management.commands.purge_unverified_users.Path") as path,
             mock.patch("builtins.input", return_value="no"),
             self.assertRaises(CommandError),
         ):

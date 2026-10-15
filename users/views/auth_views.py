@@ -32,6 +32,7 @@ from users.services.otp_services import (
     send_otp_email,
     verify_otp_by_email,
 )
+from users.services.turnstile_services import verify_turnstile_token
 from users.tasks import send_password_reset_email_task, send_welcome_email_task
 
 GENERIC_PASSWORD_RESET_MESSAGE = "Password reset email sent successfully."
@@ -44,10 +45,18 @@ class UserCreateView(APIView):
     """User create view."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
 
     @extend_schema(request=UserSerializer, responses={201: UserSerializer})
     def post(self, request):
         """Create a new user and issue an email verification OTP."""
+        if not verify_turnstile_token(
+            request.data.get("turnstile_token"), request.META.get("REMOTE_ADDR")
+        ):
+            raise ValidationError(
+                {"detail": "Bot check failed. Please refresh and try again."}
+            )
         serializer = UserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save(welcome_email_pending=True)

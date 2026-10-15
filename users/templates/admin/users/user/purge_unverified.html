@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+    <a href="{% url 'admin:users_user_changelist' %}">Users</a> &rsaquo;
+    Purge unverified users
+  </div>
+{% endblock %}
+{% block content %}
+  <p>
+    Accounts that never verified their email and never logged in. Staff,
+    superusers, organization owners and event submitters are never included.
+  </p>
+
+  <form method="get" style="margin-bottom: 20px;">
+    <label for="days">Created more than</label>
+    <input type="number" id="days" name="days" value="{{ days }}" min="1" style="width: 80px;">
+    <label for="days">days ago</label>
+    <input type="submit" value="Preview">
+  </form>
+
+  <p><strong>{{ count }}</strong> account{{ count|pluralize }} would be deleted.</p>
+
+  {% if count %}
+    <table>
+      <thead>
+        <tr><th>Email</th><th>Username</th><th>Joined</th></tr>
+      </thead>
+      <tbody>
+        {% for user in preview %}
+          <tr>
+            <td>{{ user.email }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.date_joined }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if count > 50 %}<p>Showing the first 50.</p>{% endif %}
+
+    <form method="post" style="margin-top: 20px;">
+      {% csrf_token %}
+      <input type="hidden" name="days" value="{{ days }}">
+      <input type="hidden" name="confirm" value="yes">
+      <p>Deletion is permanent. A CSV backup downloads when you confirm.</p>
+      <input type="submit" value="Permanently delete {{ count }} account{{ count|pluralize }}" class="default" style="background: #ba2121;">
+    </form>
+  {% endif %}
+{% endblock %}

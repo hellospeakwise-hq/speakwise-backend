@@ -293,23 +293,36 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         """Update speaker profile objects."""
-        social_data = validated_data.pop("social_links", [])
+        social_data = validated_data.pop("social_links", None)
 
         instance = super().update(instance, validated_data)
         # NOTE: skill_tags nested updates are handled automatically by
         # WritableNestedModelSerializer via update_or_create_reverse_relations().
         # No manual loop needed here.
 
-        for item in social_data:
-            link_id = item.get("id")
-            if link_id:
-                SpeakerSocialLinks.objects.filter(id=link_id, speaker=instance).update(
-                    **{k: v for k, v in item.items() if k != "id"}
-                )
-            else:
-                SpeakerSocialLinks.objects.create(speaker=instance, **item)
+        if social_data is not None:
+            self._sync_social_links(instance, social_data)
 
         return instance
+
+    @staticmethod
+    def _sync_social_links(instance, social_data):
+        """Make the speaker's social links match the submitted list.
+
+        Links are keyed by platform name: submitted names are created or
+        updated, and any existing link not in the list is removed. This lets a
+        speaker edit and delete links from one save.
+        """
+        links = {
+            item["name"].strip(): item["link"].strip()
+            for item in social_data
+            if item.get("name") and item.get("link")
+        }
+        instance.social_links.exclude(name__in=links).delete()
+        for name, link in links.items():
+            SpeakerSocialLinks.objects.update_or_create(
+                speaker=instance, name=name, defaults={"link": link}
+            )
 
 
 class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):

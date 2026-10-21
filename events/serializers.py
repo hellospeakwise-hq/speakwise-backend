@@ -3,6 +3,47 @@
 from rest_framework import serializers
 
 from events.models import Event
+from events.services.event_import.exceptions import EventImportError
+from events.services.event_import.images import download_import_image
+
+
+class EventImageImportMixin(serializers.Serializer):
+    """Accept a signed token for an image discovered by event import.
+
+    A user-uploaded image always wins; the token is only resolved when no file
+    was submitted. Resolution happens before the event row is created so a
+    failed download never leaves a half-created event behind.
+    """
+
+    event_image_token = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=4096,
+        help_text=(
+            "Signed token returned by the event import preview when a page "
+            "image was found. Ignored when event_image is uploaded."
+        ),
+    )
+
+    def create(self, validated_data):
+        """Attach the imported image, then create the event."""
+        token = (validated_data.pop("event_image_token", "") or "").strip()
+        if token and not validated_data.get("event_image"):
+            request = self.context.get("request")
+            if request is None:
+                raise serializers.ValidationError(
+                    {"event_image_token": "No request context is available."}
+                )
+            try:
+                validated_data["event_image"] = download_import_image(
+                    token, request.user.pk
+                )
+            except EventImportError as exc:
+                raise serializers.ValidationError(
+                    {"event_image_token": str(exc)}
+                ) from exc
+        return super().create(validated_data)
 
 
 def validate_event_is_not_duplicate(title, *, website, exclude_id=None):
@@ -23,7 +64,7 @@ def validate_event_ticket_status(attrs, *, instance):
         )
 
 
-class EventSerializer(serializers.ModelSerializer):
+class EventSerializer(EventImageImportMixin, serializers.ModelSerializer):
     """Serializer for the Event model."""
 
     date = serializers.SerializerMethodField()
@@ -80,7 +121,7 @@ class EventSerializer(serializers.ModelSerializer):
         }
 
 
-class EventSubmitSerializer(serializers.ModelSerializer):
+class EventSubmitSerializer(EventImageImportMixin, serializers.ModelSerializer):
     """Serializer for community event submissions to the public listing.
 
     Captures showcase fields only. Internal CFP submission settings are not
@@ -96,6 +137,7 @@ class EventSubmitSerializer(serializers.ModelSerializer):
             "title",
             "event_nickname",
             "event_image",
+            "event_image_token",
             "description",
             "website",
             "cfp_open",
@@ -147,3 +189,50 @@ class CFPMarketSerializer(serializers.ModelSerializer):
             "cfp_open_date",
             "is_cfp_currently_open",
         ]
+
+
+class EventImportRequestSerializer(serializers.Serializer):
+    """Request shape for POST /api/events/import/preview/."""
+
+    url = serializers.URLField(
+        max_length=2048,
+        help_text="Public event page URL (for example an Eventbrite or Luma page).",
+    )
+
+
+class EventImportDraftSerializer(serializers.Serializer):
+    """Read shape for a draft event extracted from an external page.
+
+    Field names match EventSubmitSerializer so the review form can prefill the
+    existing submission form without translation.
+    """
+
+    title = serializers.CharField(allow_null=True)
+    description = serializers.CharField(allow_null=True)
+    website = serializers.CharField(allow_null=True)
+    start_date_time = serializers.DateTimeField(allow_null=True)
+    end_date_time = serializers.DateTimeField(allow_null=True)
+    location = serializers.CharField(allow_null=True)
+    country = serializers.CharField(allow_null=True)
+    is_free = serializers.BooleanField(allow_null=True)
+    event_image_url = serializers.CharField(allow_null=True)
+
+
+class EventImportWarningSerializer(serializers.Serializer):
+    """A stable, machine-readable warning about an import preview."""
+
+    code = serializers.CharField()
+    message = serializers.CharField()
+
+
+class EventImportPreviewSerializer(serializers.Serializer):
+    """Read shape for POST /api/events/import/preview/ responses."""
+
+    source_url = serializers.URLField()
+    platform = serializers.CharField()
+    fetched_at = serializers.DateTimeField()
+    draft = EventImportDraftSerializer()
+    # field_sources = serializers.DictField(child=serializers.CharField())
+    missing_fields = serializers.ListField(child=serializers.CharField())
+    warnings = EventImportWarningSerializer(many=True)
+    event_image_token = serializers.CharField(allow_null=True)

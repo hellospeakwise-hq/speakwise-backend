@@ -10,6 +10,11 @@ urlpatterns = [
     path("events/", views.EventListView.as_view(), name="event-list-create"),
     path("events/me/", views.PrivateEventListView.as_view(), name="events-me"),
     path(
+        "events/import/preview/",
+        views.EventImportPreviewView.as_view(),
+        name="event-import-preview",
+    ),
+    path(
         "events/cfp-market/",
         views.CFPMarketListView.as_view(),
         name="cfp-market",

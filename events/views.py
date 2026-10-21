@@ -2,10 +2,12 @@
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from base.pagination import paginate_api_view
@@ -14,8 +16,16 @@ from events.filters import EventFilter
 from events.models import Event
 from events.serializers import (
     CFPMarketSerializer,
+    EventImportPreviewSerializer,
+    EventImportRequestSerializer,
     EventSerializer,
     EventSubmitSerializer,
+)
+from events.services.event_import import build_event_import_preview
+from events.services.event_import.exceptions import (
+    EventFetchError,
+    EventImportUnavailable,
+    UnsafeImportURL,
 )
 
 
@@ -31,9 +41,10 @@ class EventListView(APIView):
     @staticmethod
     def _create_serializer(request):
         """Return the serializer used to create an event for this user."""
+        context = {"request": request}
         if request.user.is_superuser:
-            return EventSerializer(data=request.data.copy())
-        return EventSubmitSerializer(data=request.data)
+            return EventSerializer(data=request.data.copy(), context=context)
+        return EventSubmitSerializer(data=request.data, context=context)
 
     @staticmethod
     def _create_save_kwargs(request):
@@ -217,3 +228,40 @@ class PrivateEventListView(APIView):
 
 class MyEventsListView(PrivateEventListView):
     """Backward-compatible alias for the current-user events route."""
+
+
+class EventImportPreviewView(APIView):
+    """Preview event details extracted from a public event page.
+
+    The endpoint never creates or publishes an event. It returns a draft that
+    the frontend can put into the existing submission form for review.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "event_import"
+
+    @extend_schema(
+        tags=["Events"],
+        request=EventImportRequestSerializer,
+        responses={
+            200: EventImportPreviewSerializer,
+            400: OpenApiResponse(description="The URL is invalid or not public."),
+            502: OpenApiResponse(description="The event page could not be fetched."),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """Fetch the page and return a normalised, unpersisted event draft."""
+        serializer = EventImportRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            preview = build_event_import_preview(
+                serializer.validated_data["url"], request.user.pk
+            )
+        except UnsafeImportURL as exc:
+            raise ValidationError({"url": str(exc)}) from exc
+        except EventFetchError as exc:
+            raise EventImportUnavailable(str(exc)) from exc
+        return Response(
+            EventImportPreviewSerializer(preview).data, status=status.HTTP_200_OK
+        )

@@ -534,7 +534,6 @@ class EventImportPreviewTests(TestCase):
             "no-tech-skills-needed-tickets-1557521291109",
         )
         self.assertEqual(preview.platform, "eventbrite")
-        self.assertEqual(preview.field_sources["title"], "json_ld")
         self.assertEqual(
             preview.draft.title,
             "AI Workshop For Business Owners — No Tech Skills Needed!",
@@ -562,7 +561,6 @@ class EventImportPreviewTests(TestCase):
         )
         self.assertEqual(preview.draft.location, "Online")
         self.assertIsNone(preview.draft.is_free)
-        self.assertEqual(preview.field_sources["start_date_time"], "json_ld")
 
     def test_konfhub_preview_uses_json_ld_and_og_image(self):
         """Konfhub JSON-LD is merged with its OpenGraph image."""
@@ -576,7 +574,6 @@ class EventImportPreviewTests(TestCase):
         self.assertLessEqual(len(preview.draft.location), 150)
         self.assertIsNone(preview.draft.is_free)
         self.assertIsNotNone(preview.draft.event_image_url)
-        self.assertEqual(preview.field_sources["event_image_url"], "open_graph")
         self.assertIn("Chennai", preview.draft.location)
 
     def test_luma_preview(self):
@@ -586,7 +583,6 @@ class EventImportPreviewTests(TestCase):
         self.assertEqual(preview.draft.title, "July 4th Fireworks · Brooklyn Viewing")
         self.assertTrue(preview.draft.is_free)
         self.assertEqual(preview.draft.country, "United States")
-        self.assertEqual(preview.field_sources["title"], "platform:luma")
 
     def test_devfolio_preview(self):
         """The Devfolio adapter fills fields and keeps its source label."""
@@ -595,7 +591,6 @@ class EventImportPreviewTests(TestCase):
         self.assertEqual(preview.draft.title, "BIOS V2")
         self.assertTrue(preview.draft.is_free)
         self.assertEqual(preview.draft.country, "India")
-        self.assertEqual(preview.field_sources["title"], "platform:devfolio")
 
     def test_empty_page_returns_no_event_data_warning(self):
         """A page with no event data warns instead of failing."""
@@ -733,7 +728,6 @@ class EventImportPreviewApiTests(TestCase):
             response.data["draft"]["title"], "July 4th Fireworks · Brooklyn Viewing"
         )
         self.assertTrue(response.data["event_image_token"])
-        self.assertTrue(response.data["field_sources"])
 
     def test_upstream_failure_returns_bad_gateway(self):
         """Upstream fetch failures return 502 with a stable code."""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import typing
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -11,8 +12,10 @@ from events.services.event_import.extract.base import (
     ImageCandidate,
     next_data,
 )
-from events.services.event_import.extract.platform import text
 from events.services.event_import.normalizers import compose_location, markdown_to_text
+
+if typing.TYPE_CHECKING:
+    pass
 
 SOURCE = "platform:devfolio"
 
@@ -35,28 +38,28 @@ class DevfolioAdapter:
             return Extraction(source=SOURCE)
 
         fields: dict[str, Any] = {}
-        title = text(hackathon.get("name"))
+        title = _text(hackathon.get("name"))
         if title:
             fields["title"] = title
 
-        description = markdown_to_text(text(hackathon.get("desc")))
+        description = markdown_to_text(_text(hackathon.get("desc")))
         if description:
             fields["description"] = description
 
-        start = text(hackathon.get("starts_at"))
+        start = _text(hackathon.get("starts_at"))
         if start:
             fields["start_date_time"] = start
-        end = text(hackathon.get("ends_at"))
+        end = _text(hackathon.get("ends_at"))
         if end:
             fields["end_date_time"] = end
 
         location = compose_location(
-            text(hackathon.get("location")) or text(hackathon.get("city")),
+            _text(hackathon.get("location")) or _text(hackathon.get("city")),
             None,
         )
         if location:
             fields["location"] = location
-        country = text(hackathon.get("country"))
+        country = _text(hackathon.get("country"))
         if country:
             fields["country"] = country
 
@@ -64,7 +67,7 @@ class DevfolioAdapter:
         if is_free is not None:
             fields["is_free"] = is_free
 
-        image = text(hackathon.get("cover_img"))
+        image = _text(hackathon.get("cover_img"))
         if image:
             fields["event_image_candidates"] = [
                 ImageCandidate(url=image, source=SOURCE)
@@ -72,7 +75,7 @@ class DevfolioAdapter:
 
         settings = hackathon.get("settings")
         if isinstance(settings, dict):
-            website = text(settings.get("site"))
+            website = _text(settings.get("site"))
             if website:
                 fields["website"] = website
 
@@ -87,4 +90,12 @@ def _devfolio_is_free(hackathon: dict) -> bool | None:
     paid = settings.get("paid")
     if isinstance(paid, bool):
         return not paid
+    return None
+
+
+def _text(value: object) -> str | None:
+    """Return a trimmed string for scalar values."""
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
     return None

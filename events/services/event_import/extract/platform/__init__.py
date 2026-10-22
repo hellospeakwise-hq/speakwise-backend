@@ -37,11 +37,3 @@ def detect_platform(url: str) -> str:
         ):
             return name
     return "generic"
-
-
-def text(value: object) -> str | None:
-    """Return a trimmed string for scalar values."""
-    if isinstance(value, str):
-        text = value.strip()
-        return text or None
-    return None

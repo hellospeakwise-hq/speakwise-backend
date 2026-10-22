@@ -196,6 +196,7 @@ REST_FRAMEWORK = {
         "otp_resend": "5/minute",
         "password_reset": "3/hour",
         "oauth_token": "10/minute",
+        "event_import": "30/hour",
     },
 }
 
@@ -217,6 +218,18 @@ SPECTACULAR_SETTINGS = {
 }
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Event import: pages are fetched only when an authenticated user submits a
+# URL, and every hop is checked by events.services.event_import.fetcher.
+EVENT_IMPORT_USER_AGENT = os.getenv(
+    "EVENT_IMPORT_USER_AGENT",
+    "SpeakWiseEventImporter/1.0 (+https://speak-wise.live)",
+)
+EVENT_IMPORT_REQUEST_TIMEOUT = float(os.getenv("EVENT_IMPORT_REQUEST_TIMEOUT", "10"))
+EVENT_IMPORT_MAX_HTML_BYTES = 2 * 1024 * 1024
+EVENT_IMPORT_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+EVENT_IMPORT_MAX_REDIRECTS = 3
+EVENT_IMPORT_IMAGE_TOKEN_MAX_AGE = 30 * 60
 
 # Cloudflare Turnstile secret for bot protection on signup. When unset,
 # the CAPTCHA check is skipped (local development and tests).

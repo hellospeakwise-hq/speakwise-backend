@@ -10,8 +10,6 @@ from events.services.event_import.extract.platform.luma import LumaAdapter
 
 ADAPTERS = (LumaAdapter(), DevfolioAdapter())
 
-# Platforms that publish schema.org JSON-LD and therefore need no adapter,
-# but are still labelled in the preview response.
 PLATFORM_HOST_SUFFIXES = (
     ("eventbrite", ("eventbrite.com",)),
     ("meetup", ("meetup.com",)),
@@ -39,3 +37,11 @@ def detect_platform(url: str) -> str:
         ):
             return name
     return "generic"
+
+
+def text(value: object) -> str | None:
+    """Return a trimmed string for scalar values."""
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    return None

@@ -11,7 +11,6 @@ from __future__ import annotations
 import ipaddress
 import socket
 import time
-from dataclasses import dataclass
 from urllib.parse import urljoin, urlsplit
 
 import requests
@@ -23,6 +22,7 @@ from events.services.event_import.exceptions import (
     UnsafeImportURL,
     UnsupportedContentType,
 )
+from events.services.event_import.schemas import FetchedDocument
 
 HTML_CONTENT_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 IMAGE_CONTENT_TYPES = frozenset({"image/jpeg", "image/jpg", "image/png", "image/webp"})
@@ -37,15 +37,6 @@ BLOCKED_HOST_SUFFIXES = (
 )
 
 REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
-
-
-@dataclass(frozen=True)
-class FetchedDocument:
-    """A successfully fetched and size-checked external document."""
-
-    url: str
-    content: bytes
-    content_type: str
 
 
 def _timeout_seconds() -> float:

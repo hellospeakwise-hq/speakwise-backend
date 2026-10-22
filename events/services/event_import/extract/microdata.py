@@ -10,7 +10,7 @@ from events.services.event_import.extract.base import (
     ExtractionContext,
     ImageCandidate,
 )
-from events.services.event_import.normalize import (
+from events.services.event_import.normalizers import (
     compose_location,
     normalize_country,
 )

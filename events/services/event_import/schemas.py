@@ -52,3 +52,12 @@ class EventImportPreview:
     missing_fields: list[str] = field(default_factory=list)
     warnings: list[dict[str, str]] = field(default_factory=list)
     event_image_token: str | None = None
+
+
+@dataclass(frozen=True)
+class FetchedDocument:
+    """A successfully fetched and size-checked external document."""
+
+    url: str
+    content: bytes
+    content_type: str

@@ -11,7 +11,8 @@ from events.services.event_import.extract.base import (
     ImageCandidate,
     next_data,
 )
-from events.services.event_import.normalize import (
+from events.services.event_import.extract.platform import text
+from events.services.event_import.normalizers import (
     compose_location,
     rich_text_to_plain_text,
 )
@@ -45,7 +46,7 @@ class LumaAdapter:
         )
         fields: dict[str, Any] = {}
 
-        title = _text(event.get("name")) or _text(data.get("name"))
+        title = text(event.get("name")) or text(data.get("name"))
         if title:
             fields["title"] = title
 
@@ -53,10 +54,10 @@ class LumaAdapter:
         if description:
             fields["description"] = description
 
-        start = _text(event.get("start_at")) or _text(data.get("start_at"))
+        start = text(event.get("start_at")) or text(data.get("start_at"))
         if start:
             fields["start_date_time"] = start
-        end = _text(event.get("end_at"))
+        end = text(event.get("end_at"))
         if end:
             fields["end_date_time"] = end
 
@@ -74,7 +75,7 @@ class LumaAdapter:
         if candidates:
             fields["event_image_candidates"] = candidates
 
-        website = _text(calendar.get("website"))
+        website = text(calendar.get("website"))
         if website:
             fields["website"] = website
 
@@ -83,15 +84,15 @@ class LumaAdapter:
 
 def _location_fields(event: dict) -> tuple[str | None, str | None]:
     """Return (location, country) from Luma's geo address payload."""
-    if _text(event.get("location_type")) == "online":
+    if text(event.get("location_type")) == "online":
         return "Online", None
 
     geo = event.get("geo_address_info")
     if not isinstance(geo, dict):
         return None, None
-    venue = _text(geo.get("address")) or _text(geo.get("full_address"))
-    city = _text(geo.get("city"))
-    return compose_location(venue, city), _text(geo.get("country"))
+    venue = text(geo.get("address")) or text(geo.get("full_address"))
+    city = text(geo.get("city"))
+    return compose_location(venue, city), text(geo.get("country"))
 
 
 def _luma_is_free(data: dict) -> bool | None:
@@ -107,23 +108,15 @@ def _image_candidates(event: dict, calendar: dict, data: dict) -> list[ImageCand
     """Return Luma cover and social image candidates in display order."""
     candidates: list[ImageCandidate] = []
     urls = [
-        _text(event.get("cover_url")),
-        _text(event.get("social_image_url")),
-        _text(calendar.get("cover_image_url")),
+        text(event.get("cover_url")),
+        text(event.get("social_image_url")),
+        text(calendar.get("cover_image_url")),
     ]
     social_image = data.get("social_image")
     if isinstance(social_image, dict):
-        urls.append(_text(social_image.get("cdn_url")))
+        urls.append(text(social_image.get("cdn_url")))
 
     for url in urls:
         if url:
             candidates.append(ImageCandidate(url=url, source=SOURCE))
     return candidates
-
-
-def _text(value: object) -> str | None:
-    """Return a trimmed string for scalar values."""
-    if isinstance(value, str):
-        text = value.strip()
-        return text or None
-    return None

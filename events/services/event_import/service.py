@@ -18,7 +18,7 @@ from events.services.event_import.extract.base import (
 from events.services.event_import.extract.platform import detect_platform
 from events.services.event_import.fetcher import fetch_html
 from events.services.event_import.images import select_image_candidate, sign_image_token
-from events.services.event_import.normalize import (
+from events.services.event_import.normalizers import (
     absolute_url,
     normalize_country,
     parse_datetime_value,
@@ -26,7 +26,7 @@ from events.services.event_import.normalize import (
     strip_tracking_params,
     truncate,
 )
-from events.services.event_import.schema import (
+from events.services.event_import.schemas import (
     CANONICAL_IMPORT_FIELDS,
     DESCRIPTION_MAX_LENGTH,
     LOCATION_MAX_LENGTH,

@@ -15,7 +15,7 @@ from events.services.event_import.extract.base import (
     ImageCandidate,
     warning,
 )
-from events.services.event_import.normalize import (
+from events.services.event_import.normalizers import (
     absolute_url,
     compose_location,
     normalize_country,

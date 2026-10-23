@@ -210,9 +210,9 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     skill_tags = SpeakerSkillTagSerializer(many=True, required=False)
     speaker_name = SerializerMethodField()
     username = SerializerMethodField()
-    experiences = SpeakerExperiencesSerializer(
-        many=True, read_only=True, required=False
-    )
+    # experiences = SpeakerExperiencesSerializer(
+    #     many=True, read_only=True, required=False
+    # )
     followers_count = SerializerMethodField()
     following_count = SerializerMethodField()
     is_following = SerializerMethodField()

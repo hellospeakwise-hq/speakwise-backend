@@ -16,6 +16,7 @@ from base.permissions import IsEmailVerified
 from users.filters import UserFilter
 from users.models import User
 from users.serializers import (
+    LoginProfilesSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -170,6 +171,7 @@ class UserLoginView(APIView):
         except ValidationError as exc:
             raise ValidationError({"detail": exc.detail}) from exc
         data = build_auth_payload(user)
+        data["profile"] = LoginProfilesSerializer(user).data
         return Response(data, status=status.HTTP_200_OK)
 
 

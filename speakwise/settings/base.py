@@ -63,6 +63,7 @@ LOCAL_APPS = [
     "feedbacks",
     "speakerrequests",
     "blogs",
+    "badges",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -302,3 +303,12 @@ TASKS = {
         "QUEUES": ["default"],
     }
 }
+
+# Web3 Soulbound Badges on Base Sepolia
+BASE_SEPOLIA_RPC_URL = os.getenv("BASE_SEPOLIA_RPC_URL", "https://sepolia.base.org")
+BASE_CHAIN_ID = int(os.getenv("BASE_CHAIN_ID", "84532"))
+SPEAKWISE_BADGES_CONTRACT_ADDRESS = os.getenv(
+    "SPEAKWISE_BADGES_CONTRACT_ADDRESS",
+    "0xDe534A43A2f1731bc86E776BAae4178be32B1DFE",
+)
+BASE_RELAYER_PRIVATE_KEY = os.getenv("BASE_RELAYER_PRIVATE_KEY", "")

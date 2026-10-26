@@ -1,19 +1,25 @@
 """Services for evaluating and managing speaker badges."""
 
 import logging
+
 from django.db.models import Avg
+
 from badges.models import BadgeDefinition, BadgeStatusChoices, SpeakerBadge
-from profiles.models.speaker_models import Notification, SpeakerExperiences, SpeakerProfile
 from feedbacks.models import Feedback
-from speakerrequests.models import SpeakerRequest
+from profiles.models.speaker_models import (
+    Notification,
+    SpeakerExperiences,
+    SpeakerProfile,
+)
 from speakerrequests.choices import RequestStatusChoices
+from speakerrequests.models import SpeakerRequest
 
 logger = logging.getLogger(__name__)
 
 
 def evaluate_speaker_badges(speaker: SpeakerProfile) -> list[SpeakerBadge]:
-    """
-    Evaluates all badge criteria for a given speaker profile.
+    """Evaluate all badge criteria for a given speaker profile.
+
     Unlocks badges to 'eligible' status if criteria are satisfied.
     Does NOT downgrade 'claimed' badges.
     """
@@ -60,7 +66,9 @@ def evaluate_speaker_badges(speaker: SpeakerProfile) -> list[SpeakerBadge]:
             is_eligible = feedbacks_count >= badge.metric_threshold
         elif badge.metric_type == "rating_avg":
             # Rating requirement needs at least 3 feedbacks
-            is_eligible = (feedbacks_count >= 3) and (avg_rating >= float(badge.metric_threshold))
+            is_eligible = (feedbacks_count >= 3) and (
+                avg_rating >= float(badge.metric_threshold)
+            )
 
         if is_eligible and speaker_badge.status == BadgeStatusChoices.LOCKED:
             speaker_badge.status = BadgeStatusChoices.ELIGIBLE
@@ -75,7 +83,8 @@ def evaluate_speaker_badges(speaker: SpeakerProfile) -> list[SpeakerBadge]:
                     link=f"/speakers/{speaker.slug}?tab=badges",
                 )
             except Exception as e:
-                logger.warning(f"Could not create notification for badge {badge.name}: {e}")
+                logger.warning(
+                    f"Could not create notification for badge {badge.name}: {e}"
+                )
 
     return unlocked_badges
-

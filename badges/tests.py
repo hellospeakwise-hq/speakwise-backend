@@ -6,7 +6,12 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from badges.models import BadgeDefinition, BadgeStatusChoices, BadgeTierChoices, SpeakerBadge
+from badges.models import (
+    BadgeDefinition,
+    BadgeStatusChoices,
+    BadgeTierChoices,
+    SpeakerBadge,
+)
 from badges.services import evaluate_speaker_badges
 from profiles.models.speaker_models import SpeakerExperiences, SpeakerProfile
 
@@ -14,7 +19,10 @@ User = get_user_model()
 
 
 class BadgesEngineTestCase(TestCase):
+    """Test suite for badges evaluation and claiming workflow."""
+
     def setUp(self):
+        """Set up test user, speaker profile, and badge definitions."""
         self.client = APIClient()
 
         # Create user & speaker
@@ -53,7 +61,9 @@ class BadgesEngineTestCase(TestCase):
     def test_evaluate_badges_unlocked_on_first_talk(self):
         """Speaker with 0 talks has badges locked; with 1 talk, Genesis Speaker unlocks."""
         evaluate_speaker_badges(self.speaker)
-        badge1 = SpeakerBadge.objects.get(speaker=self.speaker, badge=self.badge_genesis)
+        badge1 = SpeakerBadge.objects.get(
+            speaker=self.speaker, badge=self.badge_genesis
+        )
         self.assertEqual(badge1.status, BadgeStatusChoices.LOCKED)
 
         # Add 1 talk experience
@@ -69,7 +79,9 @@ class BadgesEngineTestCase(TestCase):
         self.assertEqual(badge1.status, BadgeStatusChoices.ELIGIBLE)
 
         # Road warrior requires 3 talks, so remains locked
-        badge4 = SpeakerBadge.objects.get(speaker=self.speaker, badge=self.badge_road_warrior)
+        badge4 = SpeakerBadge.objects.get(
+            speaker=self.speaker, badge=self.badge_road_warrior
+        )
         self.assertEqual(badge4.status, BadgeStatusChoices.LOCKED)
 
     def test_speaker_badges_api_view(self):

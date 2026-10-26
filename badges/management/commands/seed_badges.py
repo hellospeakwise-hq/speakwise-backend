@@ -1,8 +1,8 @@
 """Management command to seed initial Web3 Badge definitions."""
 
 from django.core.management.base import BaseCommand
-from badges.models import BadgeDefinition, BadgeTierChoices
 
+from badges.models import BadgeDefinition, BadgeTierChoices
 
 BADGE_DATA = [
     {
@@ -81,9 +81,12 @@ BADGE_DATA = [
 
 
 class Command(BaseCommand):
+    """Command to seed predefined badge catalog definitions into database."""
+
     help = "Seeds initial Web3 Soulbound badge definitions."
 
     def handle(self, *args, **options):
+        """Seed or update badge definitions."""
         created_count = 0
         updated_count = 0
 
@@ -95,7 +98,9 @@ class Command(BaseCommand):
             )
             if created:
                 created_count += 1
-                self.stdout.write(self.style.SUCCESS(f"Created badge #{token_id}: {badge.name}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"Created badge #{token_id}: {badge.name}")
+                )
             else:
                 updated_count += 1
                 self.stdout.write(f"Updated badge #{token_id}: {badge.name}")

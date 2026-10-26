@@ -1,18 +1,24 @@
 """Models for Web3 Soulbound Badges and Gamification."""
 
 import uuid
+
 from django.db import models
+
 from base.models import TimeStampedModel
 from profiles.models.speaker_models import SpeakerProfile
 
 
 class BadgeTierChoices(models.TextChoices):
+    """Badge tier levels (bronze, silver, gold)."""
+
     BRONZE = "bronze", "Bronze"
     SILVER = "silver", "Silver"
     GOLD = "gold", "Gold"
 
 
 class BadgeStatusChoices(models.TextChoices):
+    """Badge status lifecycle choices."""
+
     LOCKED = "locked", "Locked"
     ELIGIBLE = "eligible", "Eligible to Mint"
     CLAIMED = "claimed", "Claimed On-Chain"
@@ -56,11 +62,14 @@ class BadgeDefinition(TimeStampedModel):
     )
 
     class Meta:
+        """Meta options for BadgeDefinition."""
+
         ordering = ["token_id"]
         verbose_name = "Badge Definition"
         verbose_name_plural = "Badge Definitions"
 
     def __str__(self):
+        """Return string representation of badge definition."""
         return f"[{self.token_id}] {self.name} ({self.tier.title()})"
 
 
@@ -113,10 +122,15 @@ class SpeakerBadge(TimeStampedModel):
     )
 
     class Meta:
+        """Meta options for SpeakerBadge."""
+
         unique_together = ("speaker", "badge")
         ordering = ["badge__token_id"]
         verbose_name = "Speaker Badge"
         verbose_name_plural = "Speaker Badges"
 
     def __str__(self):
-        return f"{self.speaker.user_account.username} - {self.badge.name} ({self.status})"
+        """Return string representation of speaker badge."""
+        return (
+            f"{self.speaker.user_account.username} - {self.badge.name} ({self.status})"
+        )

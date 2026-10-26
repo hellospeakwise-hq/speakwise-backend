@@ -1,14 +1,18 @@
 """Views for Web3 Badges & Gamification."""
 
+import contextlib
+import uuid
+
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from badges.models import BadgeDefinition, BadgeStatusChoices, SpeakerBadge
+from badges.relayer import award_badge_on_chain
 from badges.serializers import (
     BadgeDefinitionSerializer,
     ClaimBadgeRequestSerializer,
@@ -25,6 +29,7 @@ class BadgeDefinitionsListView(APIView):
 
     @extend_schema(responses=BadgeDefinitionSerializer(many=True))
     def get(self, request):
+        """Retrieve all badge definitions ordered by token ID."""
         badges = BadgeDefinition.objects.all().order_by("token_id")
         serializer = BadgeDefinitionSerializer(badges, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -37,14 +42,12 @@ class SpeakerBadgesListView(APIView):
 
     @extend_schema(responses=SpeakerBadgeSerializer(many=True))
     def get(self, request, slug):
+        """Retrieve speaker badge eligibility and on-chain status."""
         # Allow lookup by slug, UUID, or username
         speaker = SpeakerProfile.objects.filter(slug=slug).first()
         if not speaker:
-            try:
-                import uuid
+            with contextlib.suppress(ValueError, AttributeError):
                 speaker = SpeakerProfile.objects.filter(pk=uuid.UUID(str(slug))).first()
-            except (ValueError, AttributeError):
-                pass
         if not speaker:
             speaker = get_object_or_404(SpeakerProfile, user_account__username=slug)
 
@@ -60,9 +63,6 @@ class SpeakerBadgesListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-from badges.relayer import award_badge_on_chain
-
-
 class ClaimBadgeView(APIView):
     """Record an on-chain mint claim for an eligible badge with gasless relayer support."""
 
@@ -73,6 +73,7 @@ class ClaimBadgeView(APIView):
         responses=SpeakerBadgeSerializer,
     )
     def post(self, request):
+        """Claim an eligible badge and mint it on-chain via relayer."""
         speaker = None
         if request.user and request.user.is_authenticated:
             speaker = get_speaker_profile(request.user)
@@ -84,15 +85,16 @@ class ClaimBadgeView(APIView):
         # Fallback to speaker_slug if speaker not found via auth session
         speaker_slug = data.get("speaker_slug", "").strip()
         if not speaker and speaker_slug:
-            import uuid
             speaker = SpeakerProfile.objects.filter(slug=speaker_slug).first()
             if not speaker:
-                try:
-                    speaker = SpeakerProfile.objects.filter(pk=uuid.UUID(str(speaker_slug))).first()
-                except (ValueError, AttributeError):
-                    pass
+                with contextlib.suppress(ValueError, AttributeError):
+                    speaker = SpeakerProfile.objects.filter(
+                        pk=uuid.UUID(str(speaker_slug))
+                    ).first()
             if not speaker:
-                speaker = SpeakerProfile.objects.filter(user_account__username=speaker_slug).first()
+                speaker = SpeakerProfile.objects.filter(
+                    user_account__username=speaker_slug
+                ).first()
 
         if not speaker:
             # Fallback to the first available speaker profile if in dev
@@ -139,7 +141,13 @@ class ClaimBadgeView(APIView):
         speaker_badge.tx_hash = final_tx_hash
         speaker_badge.claimed_at = timezone.now()
         speaker_badge.save(
-            update_fields=["status", "recipient_address", "tx_hash", "claimed_at", "updated_at"]
+            update_fields=[
+                "status",
+                "recipient_address",
+                "tx_hash",
+                "claimed_at",
+                "updated_at",
+            ]
         )
 
         return Response(
@@ -148,22 +156,21 @@ class ClaimBadgeView(APIView):
         )
 
 
-
 class BadgeMetadataView(APIView):
     """ERC-1155 compliant metadata endpoint for Base/OpenSea."""
 
     permission_classes = [AllowAny]
 
     def get(self, request, token_id):
+        """Return ERC-1155 token metadata JSON."""
         # Support token_id formatted as int or hex (e.g. {id}.json)
         raw_id = str(token_id).replace(".json", "")
         try:
-            if raw_id.startswith("0x"):
-                tid = int(raw_id, 16)
-            else:
-                tid = int(raw_id)
+            tid = int(raw_id, 16) if raw_id.startswith("0x") else int(raw_id)
         except (ValueError, TypeError):
-            return Response({"detail": "Invalid token ID"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid token ID"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         badge = get_object_or_404(BadgeDefinition, token_id=tid)
 

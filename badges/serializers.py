@@ -1,6 +1,7 @@
 """Serializers for Web3 Soulbound Badges."""
 
 from rest_framework import serializers
+
 from badges.models import BadgeDefinition, SpeakerBadge
 
 
@@ -8,6 +9,8 @@ class BadgeDefinitionSerializer(serializers.ModelSerializer):
     """Serializer for badge definitions."""
 
     class Meta:
+        """Meta options for BadgeDefinitionSerializer."""
+
         model = BadgeDefinition
         fields = [
             "token_id",
@@ -30,6 +33,8 @@ class SpeakerBadgeSerializer(serializers.ModelSerializer):
     basescan_url = serializers.SerializerMethodField()
 
     class Meta:
+        """Meta options for SpeakerBadgeSerializer."""
+
         model = SpeakerBadge
         fields = [
             "id",
@@ -44,6 +49,7 @@ class SpeakerBadgeSerializer(serializers.ModelSerializer):
         ]
 
     def get_basescan_url(self, obj) -> str | None:
+        """Return BaseScan block explorer transaction URL."""
         if obj.tx_hash:
             return f"https://sepolia.basescan.org/tx/{obj.tx_hash}"
         return None
@@ -74,4 +80,3 @@ class ClaimBadgeRequestSerializer(serializers.Serializer):
         default="",
         help_text="Optional speaker slug or ID if unauthenticated session.",
     )
-

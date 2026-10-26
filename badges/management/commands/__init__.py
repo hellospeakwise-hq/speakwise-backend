@@ -1,2 +1,1 @@
-
-# __init__.py
+"""Badges management commands subpackage."""

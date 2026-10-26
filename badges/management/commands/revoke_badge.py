@@ -1,14 +1,18 @@
 """Management command to revoke or reset a speaker's badge."""
 
 from django.core.management.base import BaseCommand
+
 from badges.models import BadgeDefinition, BadgeStatusChoices, SpeakerBadge
 from profiles.models.speaker_models import SpeakerProfile
 
 
 class Command(BaseCommand):
+    """Command to revoke or reset speaker badges for re-testing."""
+
     help = "Revoke or reset a speaker badge back to eligible or locked state."
 
     def add_arguments(self, parser):
+        """Configure command line arguments."""
         parser.add_argument(
             "--speaker",
             type=str,
@@ -30,13 +34,16 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        """Execute command logic to update badge status."""
         speaker_ident = options["speaker"]
         token_id = options["token_id"]
         target_status = options["status"]
 
         speaker = (
             SpeakerProfile.objects.filter(slug=speaker_ident).first()
-            or SpeakerProfile.objects.filter(user_account__username=speaker_ident).first()
+            or SpeakerProfile.objects.filter(
+                user_account__username=speaker_ident
+            ).first()
         )
 
         if not speaker:
@@ -45,19 +52,31 @@ class Command(BaseCommand):
 
         badge_def = BadgeDefinition.objects.filter(token_id=token_id).first()
         if not badge_def:
-            self.stderr.write(self.style.ERROR(f"Badge definition with token_id {token_id} not found."))
+            self.stderr.write(
+                self.style.ERROR(
+                    f"Badge definition with token_id {token_id} not found."
+                )
+            )
             return
 
-        speaker_badge = SpeakerBadge.objects.filter(speaker=speaker, badge=badge_def).first()
+        speaker_badge = SpeakerBadge.objects.filter(
+            speaker=speaker, badge=badge_def
+        ).first()
         if not speaker_badge:
-            self.stderr.write(self.style.ERROR(f"No badge record found for {speaker} and badge #{token_id}."))
+            self.stderr.write(
+                self.style.ERROR(
+                    f"No badge record found for {speaker} and badge #{token_id}."
+                )
+            )
             return
 
         old_status = speaker_badge.status
         old_tx = speaker_badge.tx_hash
 
         speaker_badge.status = (
-            BadgeStatusChoices.ELIGIBLE if target_status == "eligible" else BadgeStatusChoices.LOCKED
+            BadgeStatusChoices.ELIGIBLE
+            if target_status == "eligible"
+            else BadgeStatusChoices.LOCKED
         )
         speaker_badge.tx_hash = None
         speaker_badge.recipient_address = None

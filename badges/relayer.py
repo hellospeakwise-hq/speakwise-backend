@@ -44,8 +44,8 @@ def award_badge_on_chain(recipient_address: str, token_id: int) -> dict:
     contract_addr = getattr(
         settings,
         "SPEAKWISE_BADGES_CONTRACT_ADDRESS",
-        "0xDe534A43A2f1731bc86E776BAae4178be32B1DFE",
-    )
+        "",
+    ).strip()
     relayer_key = getattr(settings, "BASE_RELAYER_PRIVATE_KEY", "").strip()
 
     # Locate contracts directory and mint script
@@ -104,9 +104,7 @@ def award_badge_on_chain(recipient_address: str, token_id: int) -> dict:
                             f"[RELAYER-LIVE] Speaker already holds token {token_id} on-chain"
                         )
                         return {
-                            "tx_hash": generate_simulated_tx_hash(
-                                clean_recipient, token_id
-                            ),
+                            "tx_hash": data.get("txHash") or None,
                             "simulated": False,
                             "network": "base-sepolia",
                         }

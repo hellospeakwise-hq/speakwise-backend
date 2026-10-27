@@ -2,7 +2,8 @@
 
 from django.contrib import admin
 
-from badges.models import BadgeDefinition, BadgeStatusChoices, SpeakerBadge
+from badges.choices import BadgeStatusChoices
+from badges.models import BadgeDefinition, SpeakerBadge
 
 
 @admin.register(BadgeDefinition)

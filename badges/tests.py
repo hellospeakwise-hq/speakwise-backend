@@ -6,12 +6,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from badges.models import (
-    BadgeDefinition,
-    BadgeStatusChoices,
-    BadgeTierChoices,
-    SpeakerBadge,
-)
+from badges.choices import BadgeStatusChoices, BadgeTierChoices
+from badges.models import BadgeDefinition, SpeakerBadge
 from badges.services import evaluate_speaker_badges
 from profiles.models.speaker_models import SpeakerExperiences, SpeakerProfile
 

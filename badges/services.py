@@ -4,7 +4,8 @@ import logging
 
 from django.db.models import Avg
 
-from badges.models import BadgeDefinition, BadgeStatusChoices, SpeakerBadge
+from badges.choices import BadgeStatusChoices
+from badges.models import BadgeDefinition, SpeakerBadge
 from feedbacks.models import Feedback
 from profiles.models.speaker_models import (
     Notification,

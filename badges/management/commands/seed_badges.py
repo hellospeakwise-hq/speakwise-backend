@@ -2,7 +2,8 @@
 
 from django.core.management.base import BaseCommand
 
-from badges.models import BadgeDefinition, BadgeTierChoices
+from badges.choices import BadgeTierChoices
+from badges.models import BadgeDefinition
 
 BADGE_DATA = [
     {

@@ -2,7 +2,8 @@
 
 from django.core.management.base import BaseCommand
 
-from badges.models import BadgeDefinition, BadgeStatusChoices, SpeakerBadge
+from badges.choices import BadgeStatusChoices
+from badges.models import BadgeDefinition, SpeakerBadge
 from profiles.models.speaker_models import SpeakerProfile
 
 

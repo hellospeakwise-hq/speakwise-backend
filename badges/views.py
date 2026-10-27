@@ -7,11 +7,12 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from badges.models import BadgeDefinition, BadgeStatusChoices, SpeakerBadge
+from badges.choices import BadgeStatusChoices
+from badges.models import BadgeDefinition, SpeakerBadge
 from badges.relayer import award_badge_on_chain
 from badges.serializers import (
     BadgeDefinitionSerializer,
@@ -66,7 +67,7 @@ class SpeakerBadgesListView(APIView):
 class ClaimBadgeView(APIView):
     """Record an on-chain mint claim for an eligible badge with gasless relayer support."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         request=ClaimBadgeRequestSerializer,
@@ -74,37 +75,17 @@ class ClaimBadgeView(APIView):
     )
     def post(self, request):
         """Claim an eligible badge and mint it on-chain via relayer."""
-        speaker = None
-        if request.user and request.user.is_authenticated:
-            speaker = get_speaker_profile(request.user)
+        speaker = get_speaker_profile(request.user)
+
+        if not speaker:
+            return Response(
+                {"detail": "You must have an active speaker profile to claim badges."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         serializer = ClaimBadgeRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
-        # Fallback to speaker_slug if speaker not found via auth session
-        speaker_slug = data.get("speaker_slug", "").strip()
-        if not speaker and speaker_slug:
-            speaker = SpeakerProfile.objects.filter(slug=speaker_slug).first()
-            if not speaker:
-                with contextlib.suppress(ValueError, AttributeError):
-                    speaker = SpeakerProfile.objects.filter(
-                        pk=uuid.UUID(str(speaker_slug))
-                    ).first()
-            if not speaker:
-                speaker = SpeakerProfile.objects.filter(
-                    user_account__username=speaker_slug
-                ).first()
-
-        if not speaker:
-            # Fallback to the first available speaker profile if in dev
-            speaker = SpeakerProfile.objects.first()
-
-        if not speaker:
-            return Response(
-                {"detail": "Speaker profile could not be found."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         token_id = data["token_id"]
         recipient_address = data["recipient_address"]

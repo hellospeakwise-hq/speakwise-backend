@@ -4,24 +4,13 @@ import uuid
 
 from django.db import models
 
+from badges.choices import (
+    BadgeMetricTypeChoices,
+    BadgeStatusChoices,
+    BadgeTierChoices,
+)
 from base.models import TimeStampedModel
 from profiles.models.speaker_models import SpeakerProfile
-
-
-class BadgeTierChoices(models.TextChoices):
-    """Badge tier levels (bronze, silver, gold)."""
-
-    BRONZE = "bronze", "Bronze"
-    SILVER = "silver", "Silver"
-    GOLD = "gold", "Gold"
-
-
-class BadgeStatusChoices(models.TextChoices):
-    """Badge status lifecycle choices."""
-
-    LOCKED = "locked", "Locked"
-    ELIGIBLE = "eligible", "Eligible to Mint"
-    CLAIMED = "claimed", "Claimed On-Chain"
 
 
 class BadgeDefinition(TimeStampedModel):
@@ -46,13 +35,8 @@ class BadgeDefinition(TimeStampedModel):
     # Evaluation metric fields
     metric_type = models.CharField(
         max_length=50,
-        choices=[
-            ("talks_count", "Talks Count"),
-            ("requests_count", "Speaker Requests Accepted"),
-            ("feedbacks_count", "Feedbacks Received"),
-            ("rating_avg", "Average Feedback Rating"),
-        ],
-        default="talks_count",
+        choices=BadgeMetricTypeChoices.choices,
+        default=BadgeMetricTypeChoices.TALKS_COUNT,
     )
     metric_threshold = models.DecimalField(
         max_digits=5,

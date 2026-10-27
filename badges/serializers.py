@@ -1,5 +1,6 @@
 """Serializers for Web3 Soulbound Badges."""
 
+from django.conf import settings
 from rest_framework import serializers
 
 from badges.models import BadgeDefinition, SpeakerBadge
@@ -50,8 +51,13 @@ class SpeakerBadgeSerializer(serializers.ModelSerializer):
 
     def get_basescan_url(self, obj) -> str | None:
         """Return BaseScan block explorer transaction URL."""
-        if obj.tx_hash:
+        if obj.tx_hash and not str(obj.tx_hash).startswith("sim_"):
             return f"https://sepolia.basescan.org/tx/{obj.tx_hash}"
+        contract_addr = getattr(
+            settings, "SPEAKWISE_BADGES_CONTRACT_ADDRESS", ""
+        ).strip()
+        if contract_addr and obj.recipient_address:
+            return f"https://sepolia.basescan.org/token/{contract_addr}?a={obj.recipient_address}"
         return None
 
 

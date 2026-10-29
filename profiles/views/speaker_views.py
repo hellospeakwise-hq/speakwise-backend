@@ -12,7 +12,6 @@ from rest_framework.permissions import (
     SAFE_METHODS,
     AllowAny,
     IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -33,6 +32,7 @@ from profiles.serializers.speaker_serializers import (
     FollowingListResponseSerializer,
     FollowStatusSerializer,
     NotificationSerializer,
+    SpeakerExperiencePublicSerializer,
     SpeakerExperiencesSerializer,
     SpeakerProfileDetailSerializer,
     SpeakerProfileSerializer,
@@ -195,7 +195,7 @@ class SpeakerExperiencesListCreateView(APIView):
         """Get permissions for the view."""
         if self.request.method in SAFE_METHODS:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsEmailVerified()]
 
     def get(self, request, slug):
         """List all speaker experiences for the authenticated user (paginated).
@@ -204,17 +204,16 @@ class SpeakerExperiencesListCreateView(APIView):
         """
         try:
             speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
-            print(speaker_experiences)
             return paginate_api_view(
-                request, speaker_experiences, SpeakerExperiencesSerializer
+                request, speaker_experiences, SpeakerExperiencePublicSerializer
             )
         except SpeakerExperiences.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-    def post(self, request):
+    def post(self, request, slug):
         """Create a new speaker experience for the authenticated user."""
         serializer = SpeakerExperiencesSerializer(
-            data=request.data, context={"request": request}
+            data=request.data, context={"request": request, "slug": slug}
         )
         if serializer.is_valid():
             serializer.save()
@@ -233,7 +232,11 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     This view allows users to manage a specific speaker experience.
     """
 
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    def get_permissions(self):
+        """Get permissions for the view."""
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsEmailVerified()]
 
     def get_object(self, pk: uuid.UUID, speaker: User):
         """Get speaker experience by primary key and user."""
@@ -245,7 +248,7 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     def get(self, request, pk: uuid.UUID) -> Response:
         """Retrieve a specific speaker experience by ID."""
         speaker_experience = get_object_or_404(SpeakerExperiences, pk=pk)
-        serializer = SpeakerExperiencesSerializer(speaker_experience)
+        serializer = SpeakerExperiencePublicSerializer(speaker_experience)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request, pk: uuid.UUID) -> Response:
@@ -351,7 +354,7 @@ class SpeakerFollowView(APIView):
 
     POST   /speakers/<slug>/follow/  → follow
     DELETE /speakers/<slug>/follow/  → unfollow
-    GET    /speakers/<slug>/follow/  → check if authenticated user follows this speaker
+    GET    /speakers/<slug>/follow/  → check if an authenticated user follows this speaker
     """
 
     permission_classes = [IsAuthenticated]

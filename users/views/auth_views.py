@@ -25,7 +25,11 @@ from users.serializers import (
     UserSerializer,
     VerifyOtpSerializer,
 )
-from users.services.auth_services import build_auth_payload, reset_email_verification
+from users.services.auth_services import (
+    build_auth_payload,
+    clear_failed_logins,
+    reset_email_verification,
+)
 from users.services.otp_services import (
     issue_otp,
     resend_otp_by_email,
@@ -223,6 +227,7 @@ class PasswordResetConfirmView(APIView):
         user = serializer.context["user"]  # User set in serializer's validate
         user.set_password(serializer.validated_data["new_password"])
         user.save()
+        clear_failed_logins(user.email)
         return Response(
             {"detail": "Password reset successfully."}, status=status.HTTP_200_OK
         )

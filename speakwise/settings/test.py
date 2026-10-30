@@ -24,3 +24,6 @@ CACHES = {
 
 # Tasks run inline in tests so `.enqueue()` executes synchronously.
 TASKS = {"default": {"BACKEND": "django_tasks.backends.immediate.ImmediateBackend"}}
+
+# Cloudflare Turnstile disabled in tests
+TURNSTILE_SECRET_KEY = ""

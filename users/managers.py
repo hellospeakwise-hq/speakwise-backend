@@ -46,3 +46,7 @@ class UserManager(BaseUserManager):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
         return self._create_user(email, password, **extra_fields)
+
+    def get_by_natural_key(self, username):
+        """Look up a user case-insensitively by natural key (email)."""
+        return self.get(**{f"{self.model.USERNAME_FIELD}__iexact": username})

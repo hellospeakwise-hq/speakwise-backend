@@ -61,15 +61,16 @@ def authenticate_user(email: str, password: str, request=None) -> AbstractBaseUs
     Returns:
         The authenticated, active user.
     """
-    if is_login_locked(email):
+    clean_email = email.strip().lower()
+    if is_login_locked(clean_email):
         raise ValidationError({"detail": "Unable to log in with provided credentials."})
 
-    user = authenticate(request=request, username=email, password=password)
+    user = authenticate(request=request, username=clean_email, password=password)
     if user is None:
-        record_failed_login(email)
+        record_failed_login(clean_email)
         raise ValidationError({"detail": "Unable to log in with provided credentials."})
 
-    clear_failed_logins(email)
+    clear_failed_logins(clean_email)
     return user
 
 

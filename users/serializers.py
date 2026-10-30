@@ -53,6 +53,10 @@ class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
+    def validate_email(self, value: str) -> str:
+        """Normalize email address to lowercase and trimmed."""
+        return value.strip().lower()
+
     def validate(self, attrs) -> dict:
         """Authenticate the credentials and attach the user to the attrs."""
         user = authenticate_user(

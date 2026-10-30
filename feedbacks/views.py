@@ -14,12 +14,15 @@ from rest_framework.views import APIView
 
 from base.pagination import paginate_api_view
 from base.permissions import IsEmailVerified
+from feedbacks.ai_coach import ask_speakbot
 from feedbacks.models import Feedback
 from feedbacks.serializers import (
     FeedbackExperienceInfoSerializer,
     FeedbackRateSerializer,
     FeedbackReadSerializer,
     FeedbackSubmittedSerializer,
+    SpeakBotQuerySerializer,
+    SpeakBotResponseSerializer,
 )
 from feedbacks.services import (
     build_feedback_qr_payload,
@@ -29,6 +32,7 @@ from feedbacks.services import (
     resolve_feedback_experience,
     submitted_recently_by_ip,
 )
+from profiles.models.speaker_models import SpeakerProfile
 
 
 class FeedbackListView(APIView):
@@ -128,3 +132,55 @@ class FeedbackQRCodeView(APIView):
         buffer = BytesIO()
         image.save(buffer, format="PNG")
         return HttpResponse(buffer.getvalue(), content_type="image/png")
+
+
+class SpeakBotCoachView(APIView):
+    """AI public speaking coach (SpeakBot) for the authenticated speaker.
+
+    Analyzes attendee feedback across talks and produces strategic coaching advice,
+    trends, talk comparisons, and actionable presentation tips.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = SpeakBotQuerySerializer
+
+    @extend_schema(
+        request=SpeakBotQuerySerializer,
+        responses={200: SpeakBotResponseSerializer},
+        summary="Ask SpeakBot AI speaker coach for personalized feedback analysis",
+    )
+    def post(self, request, *args, **kwargs):
+        """Query SpeakBot AI for analysis and coaching recommendations."""
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        speaker = SpeakerProfile.objects.filter(user_account=request.user).first()
+        if not speaker:
+            return Response(
+                {
+                    "reply": "You need a Speaker Profile to use SpeakBot AI coach. Please complete your speaker profile first.",
+                    "provider": "analytics_fallback",
+                    "model": None,
+                    "summary": {
+                        "total_feedbacks": 0,
+                        "talks_analyzed": 0,
+                        "avg_rating": None,
+                        "top_strength": None,
+                        "top_growth_area": None,
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        query = serializer.validated_data.get("query", "")
+        experience_id = serializer.validated_data.get("experience")
+        history = serializer.validated_data.get("history", [])
+
+        result = ask_speakbot(
+            speaker=speaker,
+            query=query,
+            experience_id=experience_id,
+            history=history,
+        )
+
+        return Response(result, status=status.HTTP_200_OK)

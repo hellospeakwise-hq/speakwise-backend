@@ -91,4 +91,5 @@ dependencies = [
     "whitenoise==6.11.0",
     "beautifulsoup4>=4.15.0",
     "pycountry>=26.2.16",
+    "web3>=8.0.0",
 ]

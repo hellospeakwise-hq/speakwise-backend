@@ -1,0 +1,1 @@
+"""Badges management commands package."""

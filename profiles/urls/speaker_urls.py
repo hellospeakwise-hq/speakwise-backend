@@ -20,7 +20,7 @@ urlpatterns = [
     ),
     # Experiences (private, per-authenticated user)
     path(
-        "speakers/experiences/",
+        "speakers/<slug:slug>/experiences/",
         speaker_views.SpeakerExperiencesListCreateView.as_view(),
         name="speakers_experiences_list_create",
     ),
@@ -50,12 +50,6 @@ urlpatterns = [
         "notifications/<uuid:pk>/read/",
         speaker_views.NotificationMarkReadView.as_view(),
         name="notification_mark_read",
-    ),
-    # Public experiences by speaker slug
-    path(
-        "speakers/<slug:slug>/experiences/",
-        speaker_views.PublicSpeakerExperiencesListView.as_view(),
-        name="public_speaker_experiences",
     ),
     # Follow / unfollow a speaker (requires auth) + check follow status
     path(

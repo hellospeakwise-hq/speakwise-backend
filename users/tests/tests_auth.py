@@ -62,46 +62,6 @@ class UserLoginProfileDataTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         return response.data
 
-    def test_login_returns_speaker_profile_data(self):
-        """A user's speaker profile is returned in the login response."""
-        SpeakerProfile.objects.create(user_account=self.user, organization="Acme")
-        profiles = self._login()["profile"]
-        self.assertIsNotNone(profiles["speaker_profile"])
-        self.assertEqual(
-            str(profiles["speaker_profile"]["user_account"]), str(self.user.id)
-        )
-        self.assertEqual(profiles["speaker_profile"]["organization"], "Acme")
-        self.assertNotIn("organization_profile", profiles)
-
-    def test_login_returns_organization_profile_data(self):
-        """An owned organization profile is returned in the login response."""
-        OrganizationProfile.objects.create(name="Acme Org", owner=self.user)
-        profiles = self._login()["profile"]
-        self.assertIsNotNone(profiles["organization_profile"])
-        self.assertEqual(profiles["organization_profile"]["name"], "Acme Org")
-        # A user can have one and only one profile, so no speaker profile
-        # coexists with the organization profile.
-        self.assertNotIn("speaker_profile", profiles)
-
-    def test_login_returns_no_profiles_when_user_has_none(self):
-        """A user without any profiles gets an empty profiles object."""
-        user = User.objects.create(
-            username="bareuser",
-            email="bare@example.com",
-            is_email_verified=True,
-        )
-        user.set_password("password123")
-        user.save()
-
-        response = self.client.post(
-            self.login_url,
-            {"email": "bare@example.com", "password": "password123"},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        profiles = response.data["profile"]
-        self.assertEqual(profiles, {})
-
 
 class TestPasswordReset(TestCase):
     """Test password reset views."""

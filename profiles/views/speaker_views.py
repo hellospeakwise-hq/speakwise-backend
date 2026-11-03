@@ -4,13 +4,14 @@ import uuid
 
 from django.db.models import Count, Q
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import (
+    SAFE_METHODS,
     AllowAny,
     IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,6 +32,7 @@ from profiles.serializers.speaker_serializers import (
     FollowingListResponseSerializer,
     FollowStatusSerializer,
     NotificationSerializer,
+    SpeakerExperiencePublicSerializer,
     SpeakerExperiencesSerializer,
     SpeakerProfileDetailSerializer,
     SpeakerProfileSerializer,
@@ -189,23 +191,29 @@ class SpeakerExperiencesListCreateView(APIView):
     This view allows users to view a list of speaker experiences and create a new one.
     """
 
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        """Get permissions for the view."""
+        if self.request.method in SAFE_METHODS:
+            return [AllowAny()]
+        return [IsEmailVerified()]
 
-    def get(self, request):
-        """List all speaker experiences for the authenticated user (paginated)."""
-        speaker_experiences = (
-            SpeakerExperiences.objects.filter(speaker__user_account=request.user)
-            .select_related("speaker", "event")
-            .order_by("-created_at")
-        )
-        return paginate_api_view(
-            request, speaker_experiences, SpeakerExperiencesSerializer
-        )
+    def get(self, request, slug):
+        """List all speaker experiences for the authenticated user (paginated).
 
-    def post(self, request):
+        User id is passed in the request data.
+        """
+        try:
+            speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
+            return paginate_api_view(
+                request, speaker_experiences, SpeakerExperiencePublicSerializer
+            )
+        except SpeakerExperiences.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request, slug):
         """Create a new speaker experience for the authenticated user."""
         serializer = SpeakerExperiencesSerializer(
-            data=request.data, context={"request": request}
+            data=request.data, context={"request": request, "slug": slug}
         )
         if serializer.is_valid():
             serializer.save()
@@ -224,22 +232,26 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     This view allows users to manage a specific speaker experience.
     """
 
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    def get_permissions(self):
+        """Get permissions for the view."""
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsEmailVerified()]
 
-    def get_object(self, pk: int, speaker: User):
+    def get_object(self, pk: uuid.UUID, speaker: User):
         """Get speaker experience by primary key and user."""
         try:
             return SpeakerExperiences.objects.get(pk=pk, speaker__user_account=speaker)
         except SpeakerExperiences.DoesNotExist as err:
             raise Http404 from err
 
-    def get(self, request, pk: int) -> Response:
+    def get(self, request, pk: uuid.UUID) -> Response:
         """Retrieve a specific speaker experience by ID."""
-        speaker_experience = self.get_object(pk, request.user)
-        serializer = SpeakerExperiencesSerializer(speaker_experience)
-        return Response(serializer.data)
+        speaker_experience = get_object_or_404(SpeakerExperiences, pk=pk)
+        serializer = SpeakerExperiencePublicSerializer(speaker_experience)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def patch(self, request, pk: int) -> Response:
+    def patch(self, request, pk: uuid.UUID) -> Response:
         """Update a specific speaker experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         serializer = SpeakerExperiencesSerializer(
@@ -250,101 +262,8 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk: int) -> Response:
+    def delete(self, request, pk: uuid.UUID) -> Response:
         """Delete a specific speaker experience by ID."""
-        speaker_experience = self.get_object(pk, request.user)
-        speaker_experience.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class PublicSpeakerExperiencesListView(APIView):
-    """Public view to list experiences for a given speaker slug."""
-
-    permission_classes = [AllowAny]
-
-    @extend_schema(
-        responses=SpeakerExperiencesSerializer(many=True),
-        tags=["speaker experiences (public view)"],
-    )
-    def get(self, request, slug: str = None):
-        """List all speaker experiences for the provided speaker slug or UUID (paginated).
-
-        If the slug does not match any speaker, an empty list is returned.
-        """
-        try:
-            val = uuid.UUID(slug)
-            speaker_filter = Q(speaker__id=val) | Q(speaker__slug=slug)
-        except (ValueError, AttributeError):
-            speaker_filter = Q(speaker__slug=slug)
-
-        speaker_experiences = (
-            SpeakerExperiences.objects.filter(speaker_filter)
-            .select_related("speaker", "event")
-            .order_by("-created_at")
-        )
-        return paginate_api_view(
-            request, speaker_experiences, SpeakerExperiencesSerializer
-        )
-
-
-@extend_schema(
-    tags=["speaker experiences (private view)"],
-)
-class PrivateSpeakerExperienceListView(APIView):
-    """View to list all speaker experiences."""
-
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        responses=SpeakerExperiencesSerializer(many=True),
-        request=SpeakerExperiencesSerializer,
-    )
-    def post(self, request):
-        """Create a new speaker experience for the authenticated user."""
-        serializer = SpeakerExperiencesSerializer(
-            data=request.data, context={"request": request}
-        )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@extend_schema(tags=["speaker experiences (private view)"])
-class PrivateSpeakerExperienceRetrieveUpdateDestroyView(APIView):
-    """View to retrieve, update, and delete a speaker experience."""
-
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self, pk: int, speaker: User):
-        """Get speaker experience by primary key and user."""
-        try:
-            return SpeakerExperiences.objects.get(pk=pk, speaker__user_account=speaker)
-        except SpeakerExperiences.DoesNotExist as err:
-            raise Http404 from err
-
-    @extend_schema(responses=SpeakerExperiencesSerializer)
-    def get(self, request, pk: int) -> Response:
-        """Retrieve a specific speaker experience by ID."""
-        speaker_experience = self.get_object(pk, request.user)
-        serializer = SpeakerExperiencesSerializer(speaker_experience)
-        return Response(serializer.data)
-
-    @extend_schema(responses=SpeakerExperiencesSerializer)
-    def patch(self, request, pk: int) -> Response:
-        """Update a speaker experience by ID."""
-        speaker_experience = self.get_object(pk, request.user)
-        serializer = SpeakerExperiencesSerializer(
-            speaker_experience, data=request.data, partial=True
-        )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @extend_schema(responses={200: None})
-    def delete(self, request, pk: int) -> Response:
-        """Delete a speaker's experience by ID."""
         speaker_experience = self.get_object(pk, request.user)
         speaker_experience.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -435,7 +354,7 @@ class SpeakerFollowView(APIView):
 
     POST   /speakers/<slug>/follow/  → follow
     DELETE /speakers/<slug>/follow/  → unfollow
-    GET    /speakers/<slug>/follow/  → check if authenticated user follows this speaker
+    GET    /speakers/<slug>/follow/  → check if an authenticated user follows this speaker
     """
 
     permission_classes = [IsAuthenticated]

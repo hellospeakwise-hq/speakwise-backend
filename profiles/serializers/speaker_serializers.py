@@ -52,7 +52,7 @@ class SpeakerExperiencesSerializer(ModelSerializer):
 
         model = SpeakerExperiences
         exclude = ["created_at", "updated_at"]
-        read_only_fields = ["feedback_slug"]
+        read_only_fields = ["feedback_slug", "speaker"]
 
     def create(self, validated_data) -> SpeakerExperiences:
         """Create speaker experience with validation."""
@@ -65,7 +65,21 @@ class SpeakerExperiencesSerializer(ModelSerializer):
                 {"detail": "Speaker profile not found for this user."}
             )
         validated_data["speaker"] = speaker
+        if speaker.slug != self.context["slug"]:
+            raise ValidationError(
+                {"detail": "Speaker profile not found for this user."}
+            )
         return super().create(validated_data)
+
+
+class SpeakerExperiencePublicSerializer(ModelSerializer):
+    """Serializer for the SpeakerExperiences model."""
+
+    class Meta:
+        """meta options."""
+
+        model = SpeakerExperiences
+        exclude = ["created_at", "updated_at", "speaker", "feedback_slug"]
 
 
 class SpeakerFollowSerializer(ModelSerializer):
@@ -210,9 +224,9 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     skill_tags = SpeakerSkillTagSerializer(many=True, required=False)
     speaker_name = SerializerMethodField()
     username = SerializerMethodField()
-    experiences = SpeakerExperiencesSerializer(
-        many=True, read_only=True, required=False
-    )
+    # experiences = SpeakerExperiencesSerializer(
+    #     many=True, read_only=True, required=False
+    # )
     followers_count = SerializerMethodField()
     following_count = SerializerMethodField()
     is_following = SerializerMethodField()
@@ -359,7 +373,6 @@ class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
             "events_spoken",
             "social_links",
             "skill_tags",
-            "experiences",
             "followers_count",
             "following_count",
             "is_following",

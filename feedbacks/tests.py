@@ -527,3 +527,102 @@ class FeedbackSummaryAPITests(FeedbackTestMixin, APITestCase):
         response = self.client.get(reverse("speakers:speakers_list_create"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotIn("feedback_summary", response.data["results"][0])
+
+
+class SpeakBotCoachTests(FeedbackTestMixin, APITestCase):
+    """Test suite for SpeakBot AI Coach endpoint."""
+
+    def setUp(self):
+        """Set up test fixtures for SpeakBot coach tests."""
+        super().setUp()
+        self.speaker_user = self.create_feedback_user("speaker1", "speaker1@test.com")
+        self.speaker = SpeakerProfile.objects.get(user_account=self.speaker_user)
+        self.url = reverse("feedbacks:speakbot_coach")
+
+        # Create presentations and feedbacks
+        self.exp1 = self.create_presentation(self.speaker_user, "PyCon Togo", today())
+        self.exp1.topic = "Building Scalable APIs"
+        self.exp1.save()
+
+        self.exp2 = self.create_presentation(self.speaker_user, "DjangoCon", today())
+        self.exp2.topic = "Async Django"
+        self.exp2.save()
+
+        Feedback.objects.create(
+            speaker=self.speaker,
+            experience=self.exp1,
+            overall_rating=9,
+            engagement=8,
+            clarity=9,
+            content_depth=10,
+            speaker_knowledge=10,
+            practical_relevance=9,
+            comments="Terrific presentation, loved the code demos!",
+        )
+        Feedback.objects.create(
+            speaker=self.speaker,
+            experience=self.exp2,
+            overall_rating=6,
+            engagement=5,
+            clarity=7,
+            content_depth=6,
+            speaker_knowledge=8,
+            practical_relevance=5,
+            comments="Pacing was a bit rushed towards the end.",
+        )
+
+    def test_unauthenticated_request_denied(self):
+        """Unauthenticated requests are denied."""
+        response = self.client.post(self.url, {"query": "How did I do?"})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_speaker_coaching_query(self):
+        """Speaker can query SpeakBot and receive structured coaching analysis."""
+        self.client.force_authenticate(user=self.speaker_user)
+        response = self.client.post(
+            self.url,
+            {"query": "Which talk did not perform well and why?", "history": []},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertIn("reply", data)
+        self.assertTrue(len(data["reply"]) > 20)
+        self.assertIn("provider", data)
+        self.assertIn("summary", data)
+        summary = data["summary"]
+        self.assertEqual(summary["total_feedbacks"], 2)
+        self.assertEqual(summary["talks_analyzed"], 2)
+        self.assertEqual(summary["avg_rating"], 7.5)
+
+    def test_scoped_coaching_query(self):
+        """Speaker can scope query to a specific experience."""
+        self.client.force_authenticate(user=self.speaker_user)
+        response = self.client.post(
+            self.url,
+            {
+                "query": "Review my PyCon talk",
+                "experience": str(self.exp1.id),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertEqual(data["summary"]["total_feedbacks"], 1)
+        self.assertEqual(data["summary"]["avg_rating"], 9.0)
+
+    def test_scoped_coaching_query_with_slug(self):
+        """Speaker can scope query using a feedback_slug."""
+        self.client.force_authenticate(user=self.speaker_user)
+        response = self.client.post(
+            self.url,
+            {
+                "query": "Review my PyCon talk",
+                "experience": self.exp1.feedback_slug,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertEqual(data["summary"]["total_feedbacks"], 1)
+        self.assertEqual(data["summary"]["avg_rating"], 9.0)

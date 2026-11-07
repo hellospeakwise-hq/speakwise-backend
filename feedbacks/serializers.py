@@ -119,3 +119,51 @@ class FeedbackSubmittedSerializer(serializers.ModelSerializer):
             "comments",
             "created_at",
         ]
+
+
+class SpeakBotQuerySerializer(serializers.Serializer):
+    """Input query for SpeakBot AI Coach."""
+
+    query = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=2000,
+        help_text="Speaker query or question for the AI coach.",
+    )
+    experience = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        default=None,
+        help_text="Optional UUID or feedback_slug to scope coaching to a single talk.",
+    )
+    history = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=list,
+        help_text="Optional list of previous messages [{'role': 'user'|'assistant', 'content': '...'}]",
+    )
+
+
+class SpeakBotSummarySerializer(serializers.Serializer):
+    """Summary metrics included in SpeakBot response."""
+
+    total_feedbacks = serializers.IntegerField()
+    talks_analyzed = serializers.IntegerField()
+    avg_rating = serializers.FloatField(allow_null=True)
+    top_strength = serializers.CharField(allow_null=True)
+    top_growth_area = serializers.CharField(allow_null=True)
+
+
+class SpeakBotResponseSerializer(serializers.Serializer):
+    """Response returned by SpeakBot AI Coach."""
+
+    reply = serializers.CharField(help_text="Markdown formatted coaching advice.")
+    provider = serializers.CharField(
+        help_text="AI provider used (gemini, groq, analytics_fallback)."
+    )
+    model = serializers.CharField(
+        allow_null=True, help_text="Specific model used for generation."
+    )
+    summary = SpeakBotSummarySerializer()

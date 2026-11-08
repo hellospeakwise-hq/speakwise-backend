@@ -2,12 +2,14 @@
 
 import uuid
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core import mail
-from django.db import IntegrityError
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.reverse import reverse
@@ -25,6 +27,7 @@ from profiles.services.organization_services import (
     get_organization_limit,
     get_owned_organizations,
     has_reached_organization_limit,
+    lock_organization_owner,
 )
 
 
@@ -696,6 +699,42 @@ class OrganizationOwnershipLimitTests(APITestCase):
         res = self.client.post(self.list_url, {"name": "My Org"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
+    def test_owner_is_locked_before_the_limit_is_checked(self):
+        """The owner row lock must be taken before counting, or races slip through."""
+        calls = mock.Mock()
+        calls.has_reached.return_value = False
+        with (
+            mock.patch(
+                "profiles.serializers.organization_serializers.lock_organization_owner",
+                calls.lock,
+            ),
+            mock.patch(
+                "profiles.serializers.organization_serializers."
+                "has_reached_organization_limit",
+                calls.has_reached,
+            ),
+        ):
+            res = self.client.post(self.list_url, {"name": "Locked Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            calls.mock_calls,
+            [mock.call.lock(self.user), mock.call.has_reached(self.user)],
+        )
+
+    def test_limit_check_runs_inside_a_transaction(self):
+        """Locking only works inside a transaction, so create must open one."""
+        observed = {}
+
+        def record_atomic_block(user):
+            observed["in_atomic_block"] = connection.in_atomic_block
+
+        with mock.patch(
+            "profiles.serializers.organization_serializers.lock_organization_owner",
+            side_effect=record_atomic_block,
+        ):
+            self.client.post(self.list_url, {"name": "Atomic Org"}, format="json")
+        self.assertTrue(observed["in_atomic_block"])
+
     def test_deleting_an_organization_frees_a_slot(self):
         """After deleting one of their organizations, a user at the cap can create again."""
         self._own(3)
@@ -754,6 +793,15 @@ class OrganizationServiceTests(TestCase):
             created_at=timezone.now() - timedelta(days=1)
         )
         self.assertEqual(list(get_owned_organizations(self.user)), [older, newer])
+
+    def test_lock_organization_owner_selects_only_the_users_row(self):
+        """The lock query targets exactly the given user's row."""
+        with transaction.atomic(), CaptureQueriesContext(connection) as queries:
+            lock_organization_owner(self.user)
+        self.assertEqual(len(queries), 1)
+        sql = queries[0]["sql"]
+        self.assertIn("users_user", sql)
+        self.assertIn(self.user.pk.hex, sql.replace("-", ""))
 
     def test_get_owned_organizations_is_empty_for_user_without_orgs(self):
         """A user who owns nothing gets an empty queryset."""

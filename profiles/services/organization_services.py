@@ -1,6 +1,7 @@
 """Domain services for organization ownership."""
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 
 from profiles.models.organization_models import OrganizationProfile
 
@@ -26,6 +27,18 @@ def get_organization_limit(user) -> int:
     change when the cap starts depending on the user's subscription plan.
     """
     return settings.MAX_ORGANIZATIONS_PER_USER
+
+
+def lock_organization_owner(user):
+    """Lock the user's row until the surrounding transaction ends.
+
+    Concurrent organization creates by the same user would otherwise both pass
+    the limit check before either saves. Taking this lock before counting
+    serialises them, so the second request sees the first one's organization.
+    Must be called inside ``transaction.atomic``. It is a no-op on SQLite.
+    """
+    User = get_user_model()
+    User.objects.select_for_update().only("pk").get(pk=user.pk)
 
 
 def has_reached_organization_limit(user) -> bool:

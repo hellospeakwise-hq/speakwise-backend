@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from base.pagination import paginate_api_view
 from base.permissions import IsEmailVerified
 from profiles.models.organization_models import OrganizationProfile
+from profiles.permissions import IsOrganizationOwnerOrSuperUser
 from profiles.serializers.organization_serializers import OrganizationProfileSerializer
 
 
@@ -51,10 +52,10 @@ class OrganizationProfileDetailView(views.APIView):
     """View to retrieve, update, or delete an organization profile."""
 
     def get_permissions(self):
-        """Return permission based on request."""
+        """Reads are public; changes require the owner or a superuser."""
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.AllowAny()]
-        return [IsEmailVerified()]
+        return [IsEmailVerified(), IsOrganizationOwnerOrSuperUser()]
 
     def get(self, request, pk, *args, **kwargs):
         """Retrieve an organization profile."""
@@ -67,6 +68,7 @@ class OrganizationProfileDetailView(views.APIView):
     def put(self, request, pk, *args, **kwargs):
         """Update an organization profile."""
         organization = get_object_or_404(OrganizationProfile, pk=pk)
+        self.check_object_permissions(request, organization)
         if not organization:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationProfileSerializer(organization, data=request.data)
@@ -78,6 +80,7 @@ class OrganizationProfileDetailView(views.APIView):
     def delete(self, request, pk, *args, **kwargs):
         """Delete an organization profile."""
         organization = get_object_or_404(OrganizationProfile, pk=pk)
+        self.check_object_permissions(request, organization)
         if not organization:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         organization.delete()

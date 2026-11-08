@@ -355,9 +355,22 @@ class OrganizationProfileDetailViewTests(APITestCase):
             password="testpass123",
             is_email_verified=True,
         )
+        self.other_user = get_user_model().objects.create(
+            username="orgdetailother",
+            email="orgdetailother@example.com",
+            password="testpass123",
+            is_email_verified=True,
+        )
+        self.superuser = get_user_model().objects.create_superuser(
+            username="orgdetailadmin",
+            email="orgdetailadmin@example.com",
+            password="testpass123",
+            is_email_verified=True,
+        )
         self.organization = OrganizationProfile.objects.create(
             name="Alpha Org",
             description="Original description",
+            owner=self.user,
         )
         self.detail_url = reverse(
             "organization:organization-detail", kwargs={"pk": self.organization.id}
@@ -459,6 +472,75 @@ class OrganizationProfileDetailViewTests(APITestCase):
         )
         res = self.client.delete(url)
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_non_owner_put_returns_403_and_leaves_organization_unchanged(self):
+        """A verified user who does not own the organization cannot update it."""
+        self.client.force_authenticate(self.other_user)
+        res = self.client.put(self.detail_url, {"name": "Hijacked"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            res.data["detail"],
+            "You do not have permission to modify this organization.",
+        )
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.name, "Alpha Org")
+        self.assertEqual(self.organization.owner, self.user)
+
+    def test_non_owner_delete_returns_403_and_keeps_organization(self):
+        """A verified user who does not own the organization cannot delete it."""
+        self.client.force_authenticate(self.other_user)
+        res = self.client.delete(self.detail_url)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(
+            OrganizationProfile.objects.filter(id=self.organization.id).exists()
+        )
+
+    def test_superuser_can_update_organization_they_do_not_own(self):
+        """Superusers may update any organization; ownership is unchanged."""
+        self.client.force_authenticate(self.superuser)
+        res = self.client.put(self.detail_url, {"name": "Admin Fixed"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.name, "Admin Fixed")
+        self.assertEqual(self.organization.owner, self.user)
+
+    def test_superuser_can_delete_organization_they_do_not_own(self):
+        """Superusers may delete any organization."""
+        self.client.force_authenticate(self.superuser)
+        res = self.client.delete(self.detail_url)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            OrganizationProfile.objects.filter(id=self.organization.id).exists()
+        )
+
+    def test_ownerless_organization_cannot_be_changed_by_regular_user(self):
+        """An organization with no owner is editable only by superusers."""
+        ownerless = OrganizationProfile.objects.create(name="Ownerless Org")
+        url = reverse("organization:organization-detail", kwargs={"pk": ownerless.id})
+        self.client.force_authenticate(self.user)
+        put_res = self.client.put(url, {"name": "Claimed"}, format="json")
+        delete_res = self.client.delete(url)
+        self.assertEqual(put_res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(delete_res.status_code, status.HTTP_403_FORBIDDEN)
+        ownerless.refresh_from_db()
+        self.assertEqual(ownerless.name, "Ownerless Org")
+
+    def test_unverified_owner_put_returns_403(self):
+        """Owners must still have a verified email address to make changes."""
+        self.user.is_email_verified = False
+        self.user.save(update_fields=["is_email_verified"])
+        self.client.force_authenticate(self.user)
+        res = self.client.put(self.detail_url, {"name": "Unverified"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.name, "Alpha Org")
+
+    def test_non_owner_can_still_retrieve_organization(self):
+        """Reading an organization stays public to non-owners."""
+        self.client.force_authenticate(self.other_user)
+        res = self.client.get(self.detail_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["name"], "Alpha Org")
 
 
 class OrganizationSignalTests(TestCase):

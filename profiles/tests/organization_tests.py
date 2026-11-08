@@ -735,6 +735,19 @@ class OrganizationOwnershipLimitTests(APITestCase):
             self.client.post(self.list_url, {"name": "Atomic Org"}, format="json")
         self.assertTrue(observed["in_atomic_block"])
 
+    def test_user_with_only_rejected_organizations_can_create_another(self):
+        """Rejected organizations never block a user from creating a new one."""
+        for index in range(3):
+            OrganizationProfile.objects.create(
+                name=f"Rejected Org {index}",
+                owner=self.user,
+                status=OrganizationStatusChoices.REJECTED,
+            )
+        res = self.client.post(self.list_url, {"name": "Fresh Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["status"], OrganizationStatusChoices.PENDING)
+        self.assertEqual(OrganizationProfile.objects.filter(owner=self.user).count(), 4)
+
     def test_deleting_an_organization_frees_a_slot(self):
         """After deleting one of their organizations, a user at the cap can create again."""
         self._own(3)
@@ -775,6 +788,51 @@ class OrganizationServiceTests(TestCase):
         """A user owning exactly the cap has reached it."""
         for name in ("One", "Two", "Three"):
             OrganizationProfile.objects.create(name=name, owner=self.user)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def _own_with_statuses(self, *statuses):
+        """Create one organization owned by self.user per given status."""
+        for index, org_status in enumerate(statuses):
+            OrganizationProfile.objects.create(
+                name=f"Status Org {index}", owner=self.user, status=org_status
+            )
+
+    def test_rejected_organizations_do_not_count_toward_the_limit(self):
+        """A user whose organizations were all rejected is not at the cap."""
+        rejected = OrganizationStatusChoices.REJECTED
+        self._own_with_statuses(rejected, rejected, rejected)
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_rejected_organization_frees_its_slot_alongside_counted_ones(self):
+        """Two counted organizations plus a rejected one leave room for one more."""
+        self._own_with_statuses(
+            OrganizationStatusChoices.ACTIVE,
+            OrganizationStatusChoices.PENDING,
+            OrganizationStatusChoices.REJECTED,
+        )
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_pending_organizations_count_toward_the_limit(self):
+        """Pending organizations count, so the approval queue cannot be flooded."""
+        pending = OrganizationStatusChoices.PENDING
+        self._own_with_statuses(pending, pending, pending)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_active_organizations_count_toward_the_limit(self):
+        """Approved organizations count."""
+        active = OrganizationStatusChoices.ACTIVE
+        self._own_with_statuses(active, active, active)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_inactive_organizations_count_toward_the_limit(self):
+        """Approved-then-deactivated organizations still count."""
+        inactive = OrganizationStatusChoices.INACTIVE
+        self._own_with_statuses(inactive, inactive, inactive)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_organizations_with_no_status_count_toward_the_limit(self):
+        """A null status (the field allows it) is not treated as rejected."""
+        self._own_with_statuses(None, None, None)
         self.assertTrue(has_reached_organization_limit(self.user))
 
     def test_has_reached_limit_is_false_for_user_with_no_organizations(self):

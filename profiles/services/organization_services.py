@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
+from profiles.choices import OrganizationStatusChoices
 from profiles.models.organization_models import OrganizationProfile
 
 
@@ -42,6 +43,15 @@ def lock_organization_owner(user):
 
 
 def has_reached_organization_limit(user) -> bool:
-    """Return True when the user already owns as many organizations as allowed."""
-    owned_count = OrganizationProfile.objects.filter(owner=user).count()
-    return owned_count >= get_organization_limit(user)
+    """Return True when the user already owns as many organizations as allowed.
+
+    Rejected organizations do not count, so an admin rejection never leaves a
+    user stuck at the cap. Pending ones do count, to stop users flooding the
+    approval queue, and so do inactive ones (approved, then switched off).
+    """
+    counted_count = (
+        OrganizationProfile.objects.filter(owner=user)
+        .exclude(status=OrganizationStatusChoices.REJECTED)
+        .count()
+    )
+    return counted_count >= get_organization_limit(user)

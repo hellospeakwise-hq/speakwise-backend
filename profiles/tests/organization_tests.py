@@ -376,8 +376,8 @@ class OrganizationProfileDetailViewTests(APITestCase):
             "organization:organization-detail", kwargs={"pk": self.organization.id}
         )
 
-    def test_unauthenticated_get_returns_401(self):
-        """Retrieving an organization requires authentication."""
+    def test_unauthenticated_get_returns_200(self):
+        """Retrieving an organization is public."""
         res = self.client.get(self.detail_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 

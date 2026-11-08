@@ -16,6 +16,7 @@ from rest_framework.test import APIClient
 
 from profiles.models import OrganizationProfile, SpeakerProfile
 from users.models import User
+from users.serializers import LoginProfilesSerializer
 from users.services.auth_services import LOGIN_LOCKOUT_MAX_ATTEMPTS
 
 
@@ -71,17 +72,61 @@ class UserLoginProfileDataTests(TestCase):
             str(profiles["speaker_profile"]["user_account"]), str(self.user.id)
         )
         self.assertEqual(profiles["speaker_profile"]["organization"], "Acme")
+        self.assertNotIn("organization_profiles", profiles)
         self.assertNotIn("organization_profile", profiles)
 
     def test_login_returns_organization_profile_data(self):
-        """An owned organization profile is returned in the login response."""
-        OrganizationProfile.objects.create(name="Acme Org", owner=self.user)
+        """An owned organization is returned in the login response."""
+        organization = OrganizationProfile.objects.create(
+            name="Acme Org", owner=self.user
+        )
         profiles = self._login()["profile"]
-        self.assertIsNotNone(profiles["organization_profile"])
-        self.assertEqual(profiles["organization_profile"]["name"], "Acme Org")
-        # A user can have one and only one profile, so no speaker profile
-        # coexists with the organization profile.
+        self.assertEqual(len(profiles["organization_profiles"]), 1)
+        self.assertEqual(profiles["organization_profiles"][0]["name"], "Acme Org")
+        self.assertEqual(
+            profiles["organization_profiles"][0]["id"], str(organization.id)
+        )
         self.assertNotIn("speaker_profile", profiles)
+
+    def test_login_returns_all_owned_organizations_oldest_first(self):
+        """Every owned organization is listed, ordered by creation time."""
+        newer = OrganizationProfile.objects.create(name="Newer Org", owner=self.user)
+        older = OrganizationProfile.objects.create(name="Older Org", owner=self.user)
+        OrganizationProfile.objects.filter(pk=older.pk).update(
+            created_at=timezone.now() - timedelta(days=2)
+        )
+        OrganizationProfile.objects.filter(pk=newer.pk).update(
+            created_at=timezone.now() - timedelta(days=1)
+        )
+        OrganizationProfile.objects.create(name="Someone Else's Org")
+        profiles = self._login()["profile"]
+        names = [org["name"] for org in profiles["organization_profiles"]]
+        self.assertEqual(names, ["Older Org", "Newer Org"])
+
+    def test_login_keeps_deprecated_single_organization_key(self):
+        """The old organization_profile key still holds the oldest organization."""
+        older = OrganizationProfile.objects.create(name="First Org", owner=self.user)
+        OrganizationProfile.objects.create(name="Second Org", owner=self.user)
+        OrganizationProfile.objects.filter(pk=older.pk).update(
+            created_at=timezone.now() - timedelta(days=1)
+        )
+        profiles = self._login()["profile"]
+        self.assertEqual(profiles["organization_profile"]["name"], "First Org")
+        self.assertEqual(
+            profiles["organization_profile"], profiles["organization_profiles"][0]
+        )
+
+    def test_login_returns_speaker_and_organization_profiles_together(self):
+        """A speaker who owns organizations gets both reported."""
+        SpeakerProfile.objects.create(user_account=self.user, organization="Acme")
+        OrganizationProfile.objects.create(name="Speaker's Org", owner=self.user)
+        profiles = self._login()["profile"]
+        self.assertEqual(profiles["speaker_profile"]["organization"], "Acme")
+        self.assertEqual(
+            [org["name"] for org in profiles["organization_profiles"]],
+            ["Speaker's Org"],
+        )
+        self.assertEqual(profiles["organization_profile"]["name"], "Speaker's Org")
 
     def test_login_returns_no_profiles_when_user_has_none(self):
         """A user without any profiles gets an empty profiles object."""
@@ -101,6 +146,37 @@ class UserLoginProfileDataTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         profiles = response.data["profile"]
         self.assertEqual(profiles, {})
+
+
+class LoginProfilesSerializerTests(TestCase):
+    """Direct tests for LoginProfilesSerializer's organization handling."""
+
+    def setUp(self):
+        """Create two users who each own one organization."""
+        self.alice = User.objects.create(username="alice", email="alice@example.com")
+        self.bob = User.objects.create(username="bob", email="bob@example.com")
+        OrganizationProfile.objects.create(name="Alice Org", owner=self.alice)
+        OrganizationProfile.objects.create(name="Bob Org", owner=self.bob)
+
+    def test_many_users_never_share_organizations(self):
+        """Serializing several users at once keeps each user's orgs separate."""
+        data = LoginProfilesSerializer([self.alice, self.bob], many=True).data
+        self.assertEqual(
+            [org["name"] for org in data[0]["organization_profiles"]], ["Alice Org"]
+        )
+        self.assertEqual(
+            [org["name"] for org in data[1]["organization_profiles"]], ["Bob Org"]
+        )
+        self.assertEqual(data[1]["organization_profile"]["name"], "Bob Org")
+
+    def test_organizations_are_fetched_in_a_single_query(self):
+        """Both organization keys share one query, CFPs included (no N+1)."""
+        for name in ("Alice Org 2", "Alice Org 3"):
+            OrganizationProfile.objects.create(name=name, owner=self.alice)
+        # One query for the speaker profile lookup, one for all organizations.
+        with self.assertNumQueries(2):
+            data = LoginProfilesSerializer(self.alice).data
+        self.assertEqual(len(data["organization_profiles"]), 3)
 
 
 class TestPasswordReset(TestCase):

@@ -14,11 +14,13 @@ class OrganizationProfile(TimeStampedModel):
     """Organization profile model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    owner = models.OneToOneField(
+    # A user may own several organizations, capped by
+    # profiles.services.organization_services.get_organization_limit.
+    owner = models.ForeignKey(
         "users.User",
         on_delete=models.CASCADE,
         null=True,
-        related_name="organization_owner",
+        related_name="owned_organizations",
     )
     name = models.CharField(max_length=255, unique=True, help_text="Organization name")
     description = models.TextField(

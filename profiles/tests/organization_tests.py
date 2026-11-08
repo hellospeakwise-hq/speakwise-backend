@@ -21,6 +21,11 @@ from profiles.serializers.organization_serializers import (
     OrganizationCFPSerializer,
     OrganizationProfileSerializer,
 )
+from profiles.services.organization_services import (
+    get_organization_limit,
+    get_owned_organizations,
+    has_reached_organization_limit,
+)
 
 
 class OrganizationCFPModelTests(TestCase):
@@ -614,8 +619,9 @@ class OrganizationSignalTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
 
-class OrganizationProfileCreateRestrictionTests(APITestCase):
-    """Tests that a user can create one and only one profile."""
+@override_settings(MAX_ORGANIZATIONS_PER_USER=3)
+class OrganizationOwnershipLimitTests(APITestCase):
+    """Tests for who may create organizations and how many they may own."""
 
     def setUp(self):
         """Set up an authenticated client and a user with no profile."""
@@ -627,24 +633,131 @@ class OrganizationProfileCreateRestrictionTests(APITestCase):
             password="testpass123",
             is_email_verified=True,
         )
+        self.other_user = User.objects.create(
+            username="orgrestrictother",
+            email="orgrestrictother@example.com",
+            password="testpass123",
+            is_email_verified=True,
+        )
         self.client.force_authenticate(self.user)
         self.list_url = reverse("organizations:organization-list-create")
 
-    def test_organization_rejected_when_user_has_speaker_profile(self):
-        """A user with a speaker profile cannot create an organization profile."""
-        SpeakerProfile.objects.create(user_account=self.user, organization="Acme")
-        res = self.client.post(self.list_url, {"name": "Bogus Org"}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", res.data)
-        self.assertFalse(OrganizationProfile.objects.filter(name="Bogus Org").exists())
+    def _own(self, count, owner=None):
+        """Create ``count`` organizations owned by ``owner`` (default: self.user)."""
+        owner = owner or self.user
+        for index in range(count):
+            OrganizationProfile.objects.create(
+                name=f"{owner.username} Org {index}", owner=owner
+            )
 
-    def test_second_organization_for_same_owner_is_rejected(self):
-        """A user who already owns an organization cannot create another."""
-        OrganizationProfile.objects.create(name="First Org", owner=self.user)
+    def test_speaker_can_create_organization(self):
+        """A user with a speaker profile can also own an organization."""
+        SpeakerProfile.objects.create(user_account=self.user, organization="Acme")
+        res = self.client.post(self.list_url, {"name": "Speaker Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        organization = OrganizationProfile.objects.get(name="Speaker Org")
+        self.assertEqual(organization.owner, self.user)
+        self.assertEqual(organization.status, OrganizationStatusChoices.PENDING)
+        self.assertTrue(SpeakerProfile.objects.filter(user_account=self.user).exists())
+
+    def test_user_can_create_organizations_up_to_the_limit(self):
+        """A user owning fewer than the limit can create another organization."""
+        self._own(2)
+        res = self.client.post(self.list_url, {"name": "Third Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(OrganizationProfile.objects.filter(owner=self.user).count(), 3)
+
+    def test_organization_beyond_the_limit_is_rejected(self):
+        """Creating an organization past the limit returns 400 and creates nothing."""
+        self._own(3)
+        res = self.client.post(self.list_url, {"name": "Fourth Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            str(res.data["detail"]),
+            "You have reached the maximum number of organizations you can own (3).",
+        )
+        self.assertFalse(OrganizationProfile.objects.filter(name="Fourth Org").exists())
+        self.assertEqual(OrganizationProfile.objects.filter(owner=self.user).count(), 3)
+
+    @override_settings(MAX_ORGANIZATIONS_PER_USER=1)
+    def test_limit_follows_the_configured_setting(self):
+        """The cap comes from MAX_ORGANIZATIONS_PER_USER, not a hardcoded number."""
+        self._own(1)
         res = self.client.post(self.list_url, {"name": "Second Org"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", res.data)
-        self.assertFalse(OrganizationProfile.objects.filter(name="Second Org").exists())
+        self.assertEqual(
+            str(res.data["detail"]),
+            "You have reached the maximum number of organizations you can own (1).",
+        )
+
+    def test_other_users_organizations_do_not_count_toward_the_limit(self):
+        """Only organizations the requester owns count toward their cap."""
+        self._own(3, owner=self.other_user)
+        res = self.client.post(self.list_url, {"name": "My Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+    def test_deleting_an_organization_frees_a_slot(self):
+        """After deleting one of their organizations, a user at the cap can create again."""
+        self._own(3)
+        OrganizationProfile.objects.filter(owner=self.user).first().delete()
+        res = self.client.post(
+            self.list_url, {"name": "Replacement Org"}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+
+@override_settings(MAX_ORGANIZATIONS_PER_USER=3)
+class OrganizationServiceTests(TestCase):
+    """Tests for the organization ownership service functions."""
+
+    def setUp(self):
+        """Create two users."""
+        User = get_user_model()
+        self.user = User.objects.create(
+            username="orgservice", email="orgservice@example.com"
+        )
+        self.other_user = User.objects.create(
+            username="orgserviceother", email="orgserviceother@example.com"
+        )
+
+    def test_get_organization_limit_returns_configured_setting(self):
+        """The limit is read from settings."""
+        self.assertEqual(get_organization_limit(self.user), 3)
+        with self.settings(MAX_ORGANIZATIONS_PER_USER=7):
+            self.assertEqual(get_organization_limit(self.user), 7)
+
+    def test_has_reached_limit_is_false_below_the_cap(self):
+        """A user owning fewer organizations than the cap has not reached it."""
+        OrganizationProfile.objects.create(name="One", owner=self.user)
+        OrganizationProfile.objects.create(name="Two", owner=self.user)
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_has_reached_limit_is_true_at_the_cap(self):
+        """A user owning exactly the cap has reached it."""
+        for name in ("One", "Two", "Three"):
+            OrganizationProfile.objects.create(name=name, owner=self.user)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_has_reached_limit_is_false_for_user_with_no_organizations(self):
+        """A user with no organizations has not reached the cap."""
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_get_owned_organizations_returns_only_users_orgs_oldest_first(self):
+        """Owned organizations are scoped to the user and ordered by creation."""
+        newer = OrganizationProfile.objects.create(name="Newer", owner=self.user)
+        older = OrganizationProfile.objects.create(name="Older", owner=self.user)
+        OrganizationProfile.objects.create(name="Not Mine", owner=self.other_user)
+        OrganizationProfile.objects.filter(pk=older.pk).update(
+            created_at=timezone.now() - timedelta(days=2)
+        )
+        OrganizationProfile.objects.filter(pk=newer.pk).update(
+            created_at=timezone.now() - timedelta(days=1)
+        )
+        self.assertEqual(list(get_owned_organizations(self.user)), [older, newer])
+
+    def test_get_owned_organizations_is_empty_for_user_without_orgs(self):
+        """A user who owns nothing gets an empty queryset."""
+        self.assertFalse(get_owned_organizations(self.user).exists())
 
 
 @override_settings(ADMIN_NOTIFICATION_EMAILS=["admin@example.com"])

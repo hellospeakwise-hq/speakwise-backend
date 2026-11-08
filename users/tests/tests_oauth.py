@@ -330,6 +330,7 @@ class OAuthProfileDataTests(TestCase):
         profiles = exchange.data["profile"]
         self.assertIsNotNone(profiles["speaker_profile"])
         self.assertEqual(profiles["speaker_profile"]["organization"], "Acme")
+        self.assertNotIn("organization_profiles", profiles)
         self.assertNotIn("organization_profile", profiles)
 
     @patch("users.views.oauth_views.get_google_session")
@@ -352,7 +353,9 @@ class OAuthProfileDataTests(TestCase):
         response = self._respond_to_callback(self.google_callback_url)
         exchange = self._exchange(self._exchange_code(response))
         profiles = exchange.data["profile"]
-        self.assertIsNotNone(profiles["organization_profile"])
+        self.assertEqual(
+            [org["name"] for org in profiles["organization_profiles"]], ["Acme Org"]
+        )
         self.assertEqual(profiles["organization_profile"]["name"], "Acme Org")
         self.assertNotIn("speaker_profile", profiles)
 

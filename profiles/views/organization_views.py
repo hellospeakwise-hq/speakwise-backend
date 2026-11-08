@@ -60,8 +60,6 @@ class OrganizationProfileDetailView(views.APIView):
     def get(self, request, pk, *args, **kwargs):
         """Retrieve an organization profile."""
         organization = get_object_or_404(OrganizationProfile, pk=pk)
-        if not organization:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationProfileSerializer(organization)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -69,8 +67,6 @@ class OrganizationProfileDetailView(views.APIView):
         """Update an organization profile."""
         organization = get_object_or_404(OrganizationProfile, pk=pk)
         self.check_object_permissions(request, organization)
-        if not organization:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationProfileSerializer(organization, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -81,7 +77,5 @@ class OrganizationProfileDetailView(views.APIView):
         """Delete an organization profile."""
         organization = get_object_or_404(OrganizationProfile, pk=pk)
         self.check_object_permissions(request, organization)
-        if not organization:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         organization.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

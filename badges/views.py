@@ -19,7 +19,7 @@ from badges.serializers import (
     ClaimBadgeRequestSerializer,
     SpeakerBadgeSerializer,
 )
-from badges.services import evaluate_speaker_badges
+from badges.services import ensure_badge_definitions, evaluate_speaker_badges
 from profiles.models.speaker_models import SpeakerProfile, get_speaker_profile
 
 
@@ -31,6 +31,7 @@ class BadgeDefinitionsListView(APIView):
     @extend_schema(responses=BadgeDefinitionSerializer(many=True))
     def get(self, request):
         """Retrieve all badge definitions ordered by token ID."""
+        ensure_badge_definitions()
         badges = BadgeDefinition.objects.all().order_by("token_id")
         serializer = BadgeDefinitionSerializer(badges, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -91,15 +92,16 @@ class ClaimBadgeView(APIView):
         recipient_address = data["recipient_address"]
         client_tx_hash = data.get("tx_hash", "").strip()
 
+        ensure_badge_definitions()
         badge_def = get_object_or_404(BadgeDefinition, token_id=token_id)
 
         # Ensure latest eligibility status
         evaluate_speaker_badges(speaker)
 
-        speaker_badge = get_object_or_404(
-            SpeakerBadge,
+        speaker_badge, _ = SpeakerBadge.objects.get_or_create(
             speaker=speaker,
             badge=badge_def,
+            defaults={"status": BadgeStatusChoices.LOCKED},
         )
 
         if speaker_badge.status == BadgeStatusChoices.LOCKED:

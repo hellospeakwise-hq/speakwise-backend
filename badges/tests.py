@@ -115,3 +115,26 @@ class BadgesEngineTestCase(TestCase):
         self.assertEqual(response.data["status"], BadgeStatusChoices.CLAIMED)
         self.assertEqual(response.data["tx_hash"], payload["tx_hash"])
         self.assertIn("sepolia.basescan.org", response.data["basescan_url"])
+
+    def test_gasless_claim_badge_flow(self):
+        """Speaker can claim an eligible badge without client tx_hash using gasless relayer."""
+        SpeakerExperiences.objects.create(
+            speaker=self.speaker,
+            topic="Gasless Web3 Badges",
+            event_name="BaseCamp Demo",
+            event_date="2026-06-02",
+        )
+        evaluate_speaker_badges(self.speaker)
+
+        self.client.force_authenticate(user=self.user)
+        claim_url = reverse("badges:claim-badge")
+
+        payload = {
+            "token_id": 1,
+            "recipient_address": "0x1234567890123456789012345678901234567890",
+        }
+        response = self.client.post(claim_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], BadgeStatusChoices.CLAIMED)
+        self.assertTrue(response.data["tx_hash"])
+        self.assertIn("sepolia.basescan.org", response.data["basescan_url"])

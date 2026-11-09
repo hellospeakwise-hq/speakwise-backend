@@ -89,7 +89,7 @@ class BadgesEngineTestCase(TestCase):
         url = reverse("badges:speaker-badges", kwargs={"slug": self.speaker.slug})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data), BadgeDefinition.objects.count())
 
     def test_claim_badge_flow(self):
         """Speaker can claim an eligible badge on-chain with tx_hash."""

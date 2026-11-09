@@ -63,7 +63,11 @@ class EventListView(APIView):
             .order_by("-created_at")
         )
         filtered_queryset = EventFilter(request.GET, queryset=queryset).qs
-        return paginate_api_view(request, filtered_queryset, EventSerializer)
+        response = paginate_api_view(request, filtered_queryset, EventSerializer)
+        response["Cache-Control"] = (
+            "public, max-age=60, s-maxage=180, stale-while-revalidate=300"
+        )
+        return response
 
     @extend_schema(
         tags=["Events"],
@@ -93,7 +97,11 @@ class PublicEventDetailView(APIView):
         """Retrieve a public event by slug."""
         event = get_object_or_404(Event, slug=slug, is_active=True)
         serializer = EventSerializer(event)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        response = Response(serializer.data, status=status.HTTP_200_OK)
+        response["Cache-Control"] = (
+            "public, max-age=120, s-maxage=300, stale-while-revalidate=600"
+        )
+        return response
 
 
 class EventDetailView(APIView):

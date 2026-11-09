@@ -14,6 +14,10 @@ PORT="${PORT:-8000}"
 echo "Running migrations..."
 python manage.py migrate --noinput
 
+# Seed Web3 badge catalog definitions
+echo "Seeding badge definitions..."
+python manage.py seed_badges || true
+
 # Create the Postgres cache table for the DatabaseCache backend.
 # Skipped silently when the table already exists (fresh deploys need it).
 echo "Ensuring cache table exists..."

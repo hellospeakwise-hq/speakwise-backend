@@ -21,3 +21,4 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunPython(reset_simulated_badges, migrations.RunPython.noop),
     ]
+

@@ -158,8 +158,8 @@ def award_badge_on_chain(recipient_address: str, token_id: int) -> dict:
             signed_tx = w3.eth.account.sign_transaction(
                 built_tx, private_key=relayer_key
             )
-            raw_tx = getattr(signed_tx, "raw_transaction", None) or getattr(
-                signed_tx, "rawTransaction"
+            raw_tx = (
+                getattr(signed_tx, "raw_transaction", None) or signed_tx.rawTransaction
             )
 
             # Broadcast raw transaction

@@ -116,6 +116,16 @@ class ClaimBadgeView(APIView):
         final_tx_hash = client_tx_hash
         if not final_tx_hash:
             relayer_res = award_badge_on_chain(recipient_address, token_id)
+            if relayer_res.get("already_held") and speaker_badge.status == BadgeStatusChoices.CLAIMED:
+                return Response(
+                    {"detail": f"You have already claimed the {badge_def.name} badge on Base."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if relayer_res.get("error") == "reverted":
+                return Response(
+                    {"detail": "Mint transaction reverted on Base Sepolia. Please check your wallet and try again."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             final_tx_hash = relayer_res.get("tx_hash", "")
 
         # Update to claimed

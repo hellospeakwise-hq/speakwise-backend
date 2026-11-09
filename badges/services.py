@@ -4,7 +4,7 @@ import logging
 
 from django.db.models import Avg
 
-from badges.choices import BadgeStatusChoices
+from badges.choices import BadgeStatusChoices, BadgeTierChoices
 from badges.models import BadgeDefinition, SpeakerBadge
 from feedbacks.models import Feedback
 from profiles.models.speaker_models import (
@@ -17,6 +17,91 @@ from speakerrequests.models import SpeakerRequest
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_BADGE_DEFINITIONS = [
+    {
+        "token_id": 1,
+        "name": "Genesis Speaker",
+        "slug": "genesis-speaker",
+        "tier": BadgeTierChoices.BRONZE,
+        "icon": "Mic",
+        "emoji": "🎤",
+        "description": "Delivered their very first verified talk experience on SpeakWise.",
+        "criteria": "Add 1 verified speaking experience to your profile",
+        "metric_type": "talks_count",
+        "metric_threshold": 1.0,
+    },
+    {
+        "token_id": 2,
+        "name": "In Demand",
+        "slug": "in-demand",
+        "tier": BadgeTierChoices.SILVER,
+        "icon": "Award",
+        "emoji": "⭐",
+        "description": "Received and officially accepted their first direct event invitation.",
+        "criteria": "Accept 1 direct speaking invitation from an organizer",
+        "metric_type": "requests_count",
+        "metric_threshold": 1.0,
+    },
+    {
+        "token_id": 3,
+        "name": "Crowd Catalyst",
+        "slug": "crowd-catalyst",
+        "tier": BadgeTierChoices.BRONZE,
+        "icon": "Users",
+        "emoji": "🔥",
+        "description": "Gathered active audience engagement with 5+ community feedbacks.",
+        "criteria": "Collect 5 or more audience feedbacks across talks",
+        "metric_type": "feedbacks_count",
+        "metric_threshold": 5.0,
+    },
+    {
+        "token_id": 4,
+        "name": "Road Warrior",
+        "slug": "road-warrior",
+        "tier": BadgeTierChoices.SILVER,
+        "icon": "Globe",
+        "emoji": "🌍",
+        "description": "Demonstrated sustained impact with 3 or more speaking presentations.",
+        "criteria": "Present talks at 3 or more distinct events",
+        "metric_type": "talks_count",
+        "metric_threshold": 3.0,
+    },
+    {
+        "token_id": 5,
+        "name": "Five-Star Orator",
+        "slug": "five-star-orator",
+        "tier": BadgeTierChoices.GOLD,
+        "icon": "Sparkles",
+        "emoji": "✨",
+        "description": "Maintained an exceptional average rating of 4.8+ across at least 3 rated talks.",
+        "criteria": "Achieve 4.8+ average audience rating (min 3 feedbacks)",
+        "metric_type": "rating_avg",
+        "metric_threshold": 4.8,
+    },
+    {
+        "token_id": 6,
+        "name": "Keynote Pioneer",
+        "slug": "keynote-pioneer",
+        "tier": BadgeTierChoices.GOLD,
+        "icon": "Trophy",
+        "emoji": "🏆",
+        "description": "Reached a legendary milestone of 10 verified speaking appearances.",
+        "criteria": "Deliver 10 verified speaking presentations on SpeakWise",
+        "metric_type": "talks_count",
+        "metric_threshold": 10.0,
+    },
+]
+
+
+def ensure_badge_definitions() -> None:
+    """Ensure predefined badge catalog exists in the database."""
+    if BadgeDefinition.objects.count() < len(DEFAULT_BADGE_DEFINITIONS):
+        for item in DEFAULT_BADGE_DEFINITIONS:
+            BadgeDefinition.objects.update_or_create(
+                token_id=item["token_id"],
+                defaults=item,
+            )
+
 
 def evaluate_speaker_badges(speaker: SpeakerProfile) -> list[SpeakerBadge]:
     """Evaluate all badge criteria for a given speaker profile.
@@ -26,6 +111,9 @@ def evaluate_speaker_badges(speaker: SpeakerProfile) -> list[SpeakerBadge]:
     """
     if not speaker:
         return []
+
+    # Ensure catalog is available
+    ensure_badge_definitions()
 
     # 1. Compute speaker metrics
     talks_count = SpeakerExperiences.objects.filter(speaker=speaker).count()

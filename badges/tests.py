@@ -35,23 +35,27 @@ class BadgesEngineTestCase(TestCase):
         )
 
         # Seed badges
-        self.badge_genesis = BadgeDefinition.objects.create(
+        self.badge_genesis, _ = BadgeDefinition.objects.update_or_create(
             token_id=1,
-            name="Genesis Speaker",
-            slug="genesis-speaker",
-            tier=BadgeTierChoices.BRONZE,
-            criteria="Add 1 speaking experience",
-            metric_type="talks_count",
-            metric_threshold=1.0,
+            defaults={
+                "name": "Genesis Speaker",
+                "slug": "genesis-speaker",
+                "tier": BadgeTierChoices.BRONZE,
+                "criteria": "Add 1 speaking experience",
+                "metric_type": "talks_count",
+                "metric_threshold": 1.0,
+            },
         )
-        self.badge_road_warrior = BadgeDefinition.objects.create(
+        self.badge_road_warrior, _ = BadgeDefinition.objects.update_or_create(
             token_id=4,
-            name="Road Warrior",
-            slug="road-warrior",
-            tier=BadgeTierChoices.SILVER,
-            criteria="Deliver 3 speaking experiences",
-            metric_type="talks_count",
-            metric_threshold=3.0,
+            defaults={
+                "name": "Road Warrior",
+                "slug": "road-warrior",
+                "tier": BadgeTierChoices.SILVER,
+                "criteria": "Deliver 3 speaking experiences",
+                "metric_type": "talks_count",
+                "metric_threshold": 3.0,
+            },
         )
 
     def test_evaluate_badges_unlocked_on_first_talk(self):
@@ -85,7 +89,7 @@ class BadgesEngineTestCase(TestCase):
         url = reverse("badges:speaker-badges", kwargs={"slug": self.speaker.slug})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data), BadgeDefinition.objects.count())
 
     def test_claim_badge_flow(self):
         """Speaker can claim an eligible badge on-chain with tx_hash."""

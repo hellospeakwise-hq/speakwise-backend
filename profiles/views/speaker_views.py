@@ -186,9 +186,43 @@ class SpeakerProfileRetrieveUpdateDestroyView(APIView):
     tags=["speaker experiences"],
 )
 class SpeakerExperiencesListCreateView(APIView):
-    """View to list and create speaker experiences.
+    """View to list and create speaker experiences for the authenticated user.
 
     This view allows users to view a list of speaker experiences and create a new one.
+    """
+
+    permission_classes = [IsEmailVerified]
+
+    def get(self, request):
+        """List all speaker experiences for the authenticated user (paginated)."""
+        speaker_experiences = (
+            SpeakerExperiences.objects.filter(speaker__user_account=request.user)
+            .select_related("speaker", "event")
+            .order_by("-created_at")
+        )
+        return paginate_api_view(
+            request, speaker_experiences, SpeakerExperiencesSerializer
+        )
+
+    def post(self, request):
+        """Create a new speaker experience for the authenticated user."""
+        serializer = SpeakerExperiencesSerializer(
+            data=request.data, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(
+    responses=SpeakerExperiencePublicSerializer(many=True),
+    tags=["speaker experiences (public view)"],
+)
+class PublicSpeakerExperiencesListView(APIView):
+    """Public view to list experiences for a given speaker slug or UUID.
+
+    Also supports slug-scoped experience creation for the authenticated owner.
     """
 
     def get_permissions(self):
@@ -197,21 +231,34 @@ class SpeakerExperiencesListCreateView(APIView):
             return [AllowAny()]
         return [IsEmailVerified()]
 
-    def get(self, request, slug):
-        """List all speaker experiences for the authenticated user (paginated).
+    def get(self, request, slug: str = None):
+        """List all speaker experiences for the provided speaker slug or UUID (paginated).
 
-        User id is passed in the request data.
+        If the slug does not match any speaker, an empty list is returned.
         """
         try:
-            speaker_experiences = SpeakerExperiences.objects.filter(speaker__slug=slug)
-            return paginate_api_view(
-                request, speaker_experiences, SpeakerExperiencePublicSerializer
-            )
-        except SpeakerExperiences.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            val = uuid.UUID(slug)
+            speaker_filter = Q(speaker__id=val) | Q(speaker__slug=slug)
+        except (ValueError, AttributeError):
+            speaker_filter = Q(speaker__slug=slug)
 
-    def post(self, request, slug):
+        speaker_experiences = (
+            SpeakerExperiences.objects.filter(speaker_filter)
+            .select_related("speaker", "event")
+            .order_by("-created_at")
+        )
+        return paginate_api_view(
+            request, speaker_experiences, SpeakerExperiencePublicSerializer
+        )
+
+    def post(self, request, slug: str = None):
         """Create a new speaker experience for the authenticated user."""
+        speaker = get_speaker_profile(request.user)
+        if not speaker or speaker.slug != slug:
+            return Response(
+                {"detail": "You cannot create an experience for another speaker."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = SpeakerExperiencesSerializer(
             data=request.data, context={"request": request, "slug": slug}
         )
@@ -248,7 +295,13 @@ class SpeakerExperiencesRetrieveUpdateDestroyView(APIView):
     def get(self, request, pk: uuid.UUID) -> Response:
         """Retrieve a specific speaker experience by ID."""
         speaker_experience = get_object_or_404(SpeakerExperiences, pk=pk)
-        serializer = SpeakerExperiencePublicSerializer(speaker_experience)
+        speaker = (
+            get_speaker_profile(request.user) if request.user.is_authenticated else None
+        )
+        if speaker and speaker_experience.speaker_id == speaker.id:
+            serializer = SpeakerExperiencesSerializer(speaker_experience)
+        else:
+            serializer = SpeakerExperiencePublicSerializer(speaker_experience)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request, pk: uuid.UUID) -> Response:

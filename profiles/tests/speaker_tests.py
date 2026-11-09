@@ -207,6 +207,188 @@ class TestSpeakerExperiences(TestCase):
         assert data["video_recording_link"] == "https://youtube.com/watch?v=expuser123"
 
 
+class PublicSpeakerExperiencesViewTests(APITestCase):
+    """Tests for PublicSpeakerExperiencesListView."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = APIClient()
+        # Create user and speaker profile
+        self.user = get_user_model().objects.create(
+            username="publicuser",
+            email="public@example.com",
+            password="testpass123",
+            is_email_verified=True,
+        )
+        self.profile = SpeakerProfile.objects.create(
+            user_account=self.user,
+            organization="Public Org",
+        )
+        # Create an experience for this profile
+        self.exp = SpeakerExperiences.objects.create(
+            speaker=self.profile,
+            event_name="Public Conf",
+            event_date="2024-06-01",
+            topic="Public Speaking",
+            description="Great talk",
+            presentation_link="https://slides.example.com/pub",
+            video_recording_link="https://video.example.com/pub",
+        )
+        self.url = reverse(
+            "speakers:public_speaker_experiences", kwargs={"slug": self.profile.slug}
+        )
+
+    def test_public_experiences_by_slug(self):
+        """Should return experiences for the given speaker slug."""
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["results"]), 1)
+        self.assertEqual(res.data["results"][0]["event_name"], "Public Conf")
+        self.assertEqual(res.data["results"][0]["topic"], "Public Speaking")
+        # Ensure feedback_slug is stripped in public serializer
+        self.assertNotIn("feedback_slug", res.data["results"][0])
+
+    def test_public_experiences_invalid_slug_returns_empty(self):
+        """Invalid slug should return empty list (200)."""
+        url = reverse(
+            "speakers:public_speaker_experiences", kwargs={"slug": "unknown-slug"}
+        )
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["results"], [])
+
+
+class SpeakerExperiencesAPITests(APITestCase):
+    """Comprehensive tests for Speaker Experiences CRUD and access control."""
+
+    def setUp(self):
+        """Set up test users, profiles, and experiences."""
+        self.client = APIClient()
+        User = get_user_model()
+        self.user1 = User.objects.create(
+            username="speaker1",
+            email="speaker1@example.com",
+            password="testpassword123",
+            is_email_verified=True,
+        )
+        self.user2 = User.objects.create(
+            username="speaker2",
+            email="speaker2@example.com",
+            password="testpassword123",
+            is_email_verified=True,
+        )
+        self.profile1 = SpeakerProfile.objects.create(
+            user_account=self.user1, organization="Speaker 1 Org"
+        )
+        self.profile2 = SpeakerProfile.objects.create(
+            user_account=self.user2, organization="Speaker 2 Org"
+        )
+        self.exp1 = SpeakerExperiences.objects.create(
+            speaker=self.profile1,
+            event_name="Speaker 1 Event",
+            event_date="2025-01-15",
+            topic="Keynote",
+            description="Opening keynote talk.",
+        )
+        self.list_create_url = reverse("speakers:speakers_experiences_list_create")
+
+    def test_authenticated_get_experiences_includes_feedback_slug(self):
+        """Authenticated speaker should get their own experiences including feedback_slug."""
+        self.client.force_authenticate(user=self.user1)
+        res = self.client.get(self.list_create_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["results"]), 1)
+        item = res.data["results"][0]
+        self.assertEqual(item["event_name"], "Speaker 1 Event")
+        self.assertIn("feedback_slug", item)
+        self.assertEqual(item["feedback_slug"], self.exp1.feedback_slug)
+
+    def test_authenticated_post_experience_without_slug(self):
+        """Authenticated speaker can create experience at /speakers/experiences/ without slug."""
+        self.client.force_authenticate(user=self.user1)
+        payload = {
+            "event_name": "New Talk 2025",
+            "event_date": "2025-05-10",
+            "topic": "Scaling Django",
+            "description": "Deep dive into Django scaling.",
+        }
+        res = self.client.post(self.list_create_url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["event_name"], "New Talk 2025")
+        self.assertIn("feedback_slug", res.data)
+
+    def test_post_with_slug_mismatch_returns_403(self):
+        """Posting to another speaker's slug endpoint returns 403."""
+        self.client.force_authenticate(user=self.user1)
+        other_slug_url = reverse(
+            "speakers:public_speaker_experiences", kwargs={"slug": self.profile2.slug}
+        )
+        payload = {
+            "event_name": "Malicious Talk",
+            "event_date": "2025-06-01",
+            "topic": "Exploiting",
+        }
+        res = self.client.post(other_slug_url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_post_with_matching_slug_succeeds(self):
+        """Posting to own slug endpoint succeeds."""
+        self.client.force_authenticate(user=self.user1)
+        own_slug_url = reverse(
+            "speakers:public_speaker_experiences", kwargs={"slug": self.profile1.slug}
+        )
+        payload = {
+            "event_name": "Own Slug Talk",
+            "event_date": "2025-07-01",
+            "topic": "Microservices",
+        }
+        res = self.client.post(own_slug_url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["event_name"], "Own Slug Talk")
+
+    def test_get_single_experience_detail_public(self):
+        """Unauthenticated user can view single experience detail, but feedback_slug is excluded."""
+        detail_url = reverse(
+            "speakers:speakers_experiences_retrieve_update_delete",
+            kwargs={"pk": self.exp1.id},
+        )
+        res = self.client.get(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["event_name"], "Speaker 1 Event")
+        self.assertNotIn("feedback_slug", res.data)
+
+    def test_get_single_experience_detail_owner_has_feedback_slug(self):
+        """Owner retrieving experience detail receives feedback_slug."""
+        self.client.force_authenticate(user=self.user1)
+        detail_url = reverse(
+            "speakers:speakers_experiences_retrieve_update_delete",
+            kwargs={"pk": self.exp1.id},
+        )
+        res = self.client.get(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("feedback_slug", res.data)
+        self.assertEqual(res.data["feedback_slug"], self.exp1.feedback_slug)
+
+    def test_patch_and_delete_experience_by_owner(self):
+        """Owner can update and delete their own experience."""
+        self.client.force_authenticate(user=self.user1)
+        detail_url = reverse(
+            "speakers:speakers_experiences_retrieve_update_delete",
+            kwargs={"pk": self.exp1.id},
+        )
+        # Patch
+        patch_res = self.client.patch(
+            detail_url, {"topic": "Updated Keynote Topic"}, format="json"
+        )
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_res.data["topic"], "Updated Keynote Topic")
+
+        # Delete
+        delete_res = self.client.delete(detail_url)
+        self.assertEqual(delete_res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(SpeakerExperiences.objects.filter(pk=self.exp1.id).exists())
+
+
 class SpeakerSkillTagsViewsTests(APITestCase):
     """Tests for SpeakerSkillTagsListView and SpeakerSkillTagsDetailView."""
 
@@ -886,6 +1068,90 @@ class NotificationModelTests(TestCase):
         self.assertEqual(Notification.objects.count(), 1)
         self.user.delete()
         self.assertEqual(Notification.objects.count(), 0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# sanitize_upload utility tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class SanitizeUploadTests(TestCase):
+    """Unit tests for speakers.utils.sanitize_upload."""
+
+    def _make_file(self, name, content=b"data"):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return SimpleUploadedFile(
+            name, content, content_type="application/octet-stream"
+        )
+
+    def test_strips_path_traversal(self):
+        """Path components are stripped, leaving only the bare filename."""
+        from profiles.utils import sanitize_upload
+
+        file = self._make_file("../../etc/passwd.pdf")
+        sanitize_upload(file)
+        self.assertNotIn("/", file.name)
+        self.assertNotIn("..", file.name)
+        self.assertTrue(file.name.endswith(".pdf"))
+
+    def test_replaces_special_chars_with_underscores(self):
+        """Spaces and special characters in the stem become underscores."""
+        from profiles.utils import sanitize_upload
+
+        file = self._make_file("my talk (v2)!.pdf")
+        sanitize_upload(file)
+        stem = file.name.rsplit(".", 1)[0]
+        for char in (" ", "(", ")", "!"):
+            self.assertNotIn(char, stem)
+
+    def test_collapses_consecutive_underscores(self):
+        """Multiple consecutive underscores are collapsed to one."""
+        from profiles.utils import sanitize_upload
+
+        file = self._make_file("hello   world.pptx")
+        sanitize_upload(file)
+        self.assertNotIn("__", file.name)
+
+    def test_extension_preserved_in_lowercase(self):
+        """File extension is retained and normalised to lowercase."""
+        from profiles.utils import sanitize_upload
+
+        file = self._make_file("Talk.PDF")
+        sanitize_upload(file)
+        self.assertTrue(file.name.endswith(".pdf"))
+
+    def test_uuid_hex_suffix_appended(self):
+        """A 32-char hex UUID suffix is appended to the stem."""
+        from profiles.utils import sanitize_upload
+
+        file = self._make_file("talk.pdf")
+        sanitize_upload(file)
+        stem = file.name.rsplit(".", 1)[0]
+        parts = stem.rsplit("_", 1)
+        self.assertEqual(len(parts), 2)
+        suffix = parts[1]
+        self.assertEqual(len(suffix), 32)
+        self.assertTrue(all(c in "0123456789abcdef" for c in suffix))
+
+    def test_two_uploads_same_name_get_different_results(self):
+        """The same filename sanitized twice produces different output names."""
+        from profiles.utils import sanitize_upload
+
+        file1 = self._make_file("deck.pdf")
+        file2 = self._make_file("deck.pdf")
+        sanitize_upload(file1)
+        sanitize_upload(file2)
+        self.assertNotEqual(file1.name, file2.name)
+
+    def test_file_content_unchanged(self):
+        """Sanitisation does not alter the file content."""
+        from profiles.utils import sanitize_upload
+
+        content = b"slide data"
+        file = self._make_file("deck.pdf", content)
+        sanitize_upload(file)
+        self.assertEqual(file.read(), content)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

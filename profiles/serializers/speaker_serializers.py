@@ -65,7 +65,7 @@ class SpeakerExperiencesSerializer(ModelSerializer):
                 {"detail": "Speaker profile not found for this user."}
             )
         validated_data["speaker"] = speaker
-        if speaker.slug != self.context["slug"]:
+        if self.context.get("slug") and speaker.slug != self.context.get("slug"):
             raise ValidationError(
                 {"detail": "Speaker profile not found for this user."}
             )
@@ -224,9 +224,6 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     skill_tags = SpeakerSkillTagSerializer(many=True, required=False)
     speaker_name = SerializerMethodField()
     username = SerializerMethodField()
-    # experiences = SpeakerExperiencesSerializer(
-    #     many=True, read_only=True, required=False
-    # )
     followers_count = SerializerMethodField()
     following_count = SerializerMethodField()
     is_following = SerializerMethodField()

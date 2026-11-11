@@ -4,17 +4,19 @@ import uuid
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core import mail
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.reverse import reverse
-from rest_framework.test import APIClient, APITestCase
+from rest_framework.test import APIClient, APIRequestFactory, APITestCase
 
 from profiles.choices import OrganizationStatusChoices
 from profiles.models import OrganizationProfile, SpeakerProfile
 from profiles.models.organization_models import OrganizationCFP
+from profiles.permissions import IsOrganizationOwnerOrSuperUser
 from profiles.serializers.organization_serializers import (
     OrganizationCFPSerializer,
     OrganizationProfileSerializer,
@@ -532,6 +534,35 @@ class OrganizationProfileDetailViewTests(APITestCase):
         self.client.force_authenticate(self.user)
         res = self.client.put(self.detail_url, {"name": "Unverified"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            res.data["detail"],
+            "Email verification is required to perform this action.",
+        )
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.name, "Alpha Org")
+
+    def test_unverified_owner_delete_returns_403_and_keeps_organization(self):
+        """Unverified owners cannot delete, and see the email message."""
+        self.user.is_email_verified = False
+        self.user.save(update_fields=["is_email_verified"])
+        self.client.force_authenticate(self.user)
+        res = self.client.delete(self.detail_url)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            res.data["detail"],
+            "Email verification is required to perform this action.",
+        )
+        self.assertTrue(
+            OrganizationProfile.objects.filter(id=self.organization.id).exists()
+        )
+
+    def test_unverified_superuser_put_returns_403(self):
+        """Superusers also need a verified email address to make changes."""
+        self.superuser.is_email_verified = False
+        self.superuser.save(update_fields=["is_email_verified"])
+        self.client.force_authenticate(self.superuser)
+        res = self.client.put(self.detail_url, {"name": "Admin Fixed"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
         self.organization.refresh_from_db()
         self.assertEqual(self.organization.name, "Alpha Org")
 
@@ -641,3 +672,89 @@ class OrganizationEmailNotificationTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["org@example.com"])
         self.assertIn("approved", mail.outbox[0].subject)
+
+
+class IsOrganizationOwnerOrSuperUserTests(TestCase):
+    """Unit tests for the combined email-verified and ownership permission."""
+
+    def setUp(self):
+        """Create an owner, a non-owner, a superuser, and one organization."""
+        user_model = get_user_model()
+        self.owner = user_model.objects.create(
+            username="permowner", email="permowner@example.com", is_email_verified=True
+        )
+        self.other_user = user_model.objects.create(
+            username="permother", email="permother@example.com", is_email_verified=True
+        )
+        self.superuser = user_model.objects.create_superuser(
+            username="permadmin",
+            email="permadmin@example.com",
+            password="testpass123",
+            is_email_verified=True,
+        )
+        self.organization = OrganizationProfile.objects.create(
+            name="Perm Org", owner=self.owner
+        )
+        self.factory = APIRequestFactory()
+
+    def _request_as(self, user):
+        """Build a write request authenticated as the given user."""
+        request = self.factory.put("/")
+        request.user = user
+        return request
+
+    def test_has_permission_allows_verified_user(self):
+        """Verified users pass the view-level check."""
+        permission = IsOrganizationOwnerOrSuperUser()
+        self.assertTrue(permission.has_permission(self._request_as(self.owner), None))
+
+    def test_has_permission_denies_unverified_user_with_email_message(self):
+        """Unverified users fail the view-level check with the email message."""
+        self.owner.is_email_verified = False
+        permission = IsOrganizationOwnerOrSuperUser()
+        self.assertFalse(permission.has_permission(self._request_as(self.owner), None))
+        self.assertEqual(
+            permission.message,
+            "Email verification is required to perform this action.",
+        )
+
+    def test_has_permission_denies_anonymous_user(self):
+        """Anonymous users fail the view-level check."""
+        permission = IsOrganizationOwnerOrSuperUser()
+        request = self._request_as(AnonymousUser())
+        self.assertFalse(permission.has_permission(request, None))
+
+    def test_has_object_permission_allows_owner(self):
+        """The owner passes the object-level check."""
+        permission = IsOrganizationOwnerOrSuperUser()
+        request = self._request_as(self.owner)
+        self.assertTrue(
+            permission.has_object_permission(request, None, self.organization)
+        )
+
+    def test_has_object_permission_allows_superuser(self):
+        """A superuser passes the object-level check for any organization."""
+        permission = IsOrganizationOwnerOrSuperUser()
+        request = self._request_as(self.superuser)
+        self.assertTrue(
+            permission.has_object_permission(request, None, self.organization)
+        )
+
+    def test_has_object_permission_denies_non_owner_with_owner_message(self):
+        """A non-owner fails the object-level check with the ownership message."""
+        permission = IsOrganizationOwnerOrSuperUser()
+        request = self._request_as(self.other_user)
+        self.assertFalse(
+            permission.has_object_permission(request, None, self.organization)
+        )
+        self.assertEqual(
+            permission.message,
+            "You do not have permission to modify this organization.",
+        )
+
+    def test_has_object_permission_denies_regular_user_on_ownerless_organization(self):
+        """Ownerless organizations are closed to every non-superuser."""
+        ownerless = OrganizationProfile.objects.create(name="Perm Ownerless")
+        permission = IsOrganizationOwnerOrSuperUser()
+        request = self._request_as(self.owner)
+        self.assertFalse(permission.has_object_permission(request, None, ownerless))

@@ -55,7 +55,7 @@ class OrganizationProfileDetailView(views.APIView):
         """Reads are public; changes require the owner or a superuser."""
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.AllowAny()]
-        return [IsEmailVerified(), IsOrganizationOwnerOrSuperUser()]
+        return [IsOrganizationOwnerOrSuperUser()]
 
     def get(self, request, pk, *args, **kwargs):
         """Retrieve an organization profile."""

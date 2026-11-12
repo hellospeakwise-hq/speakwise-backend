@@ -1,10 +1,15 @@
 """Organization serializers for user profiles."""
 
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from profiles.models.organization_models import OrganizationCFP, OrganizationProfile
-from profiles.models.speaker_models import SpeakerProfile
+from profiles.services.organization_services import (
+    get_organization_limit,
+    has_reached_organization_limit,
+    lock_organization_owner,
+)
 
 
 class OrganizationCFPSerializer(serializers.ModelSerializer):
@@ -40,13 +45,14 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["owner", "status", "admin_notes", "id"]
 
+    @transaction.atomic
     def create(self, validated_data):
-        """Create the organization profile owned by the requesting user.
+        """Create an organization profile owned by the requesting user.
 
-        A user is allowed to have one and only one profile: they cannot create an
-        organization profile when they already have a speaker profile, nor can
-        they own more than one organization. The owner is always the requesting
-        user — it can never be supplied by the client.
+        Speakers may own organizations too. A user can own up to their
+        organization limit (see ``get_organization_limit``); the owner row is
+        locked first so concurrent requests cannot exceed it. The owner is
+        always the requesting user — it can never be supplied by the client.
         """
         request = self.context.get("request")
         if not (request and request.user.is_authenticated):
@@ -55,16 +61,14 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
             )
 
         user = request.user
-        if SpeakerProfile.objects.filter(user_account=user).exists():
+        lock_organization_owner(user)
+        if has_reached_organization_limit(user):
+            limit = get_organization_limit(user)
             raise ValidationError(
                 {
-                    "detail": "User already has a speaker profile; a user can "
-                    "have only one profile."
+                    "detail": "You have reached the maximum number of "
+                    f"organizations you can own ({limit})."
                 }
-            )
-        if OrganizationProfile.objects.filter(owner=user).exists():
-            raise ValidationError(
-                {"detail": "Organization profile already exists for this user."}
             )
 
         validated_data["owner"] = user

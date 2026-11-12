@@ -1392,13 +1392,17 @@ class SpeakerProfileCreateRestrictionTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", res.data)
 
-    def test_speaker_profile_rejected_when_user_has_organization(self):
-        """A user who owns an organization profile cannot create a speaker profile."""
-        OrganizationProfile.objects.create(name="Restrict Org", owner=self.user)
+    def test_organization_owner_can_create_speaker_profile(self):
+        """Owning organizations does not stop a user from becoming a speaker."""
+        organization = OrganizationProfile.objects.create(
+            name="Owner Org", owner=self.user
+        )
         res = self.client.post(self.profiles_url, {"short_bio": "Hi"}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", res.data)
-        self.assertFalse(SpeakerProfile.objects.filter(user_account=self.user).exists())
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        profile = SpeakerProfile.objects.get(user_account=self.user)
+        self.assertEqual(profile.short_bio, "Hi")
+        organization.refresh_from_db()
+        self.assertEqual(organization.owner, self.user)
 
     def test_unauthenticated_create_is_rejected(self):
         """Creating a speaker profile requires authentication."""

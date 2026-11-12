@@ -4,11 +4,13 @@ from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.validators import RegexValidator
+from drf_spectacular.utils import extend_schema_field
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
 from profiles.serializers.organization_serializers import OrganizationProfileSerializer
 from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
+from profiles.services.organization_services import get_owned_organizations
 from users.models import User
 from users.services.auth_services import authenticate_user
 
@@ -143,22 +145,47 @@ class OAuthCodeExchangeSerializer(serializers.Serializer):
 class LoginProfilesSerializer(serializers.Serializer):
     """Detect and serialize a user's speaker and organization profiles.
 
-    Returns the profile data attached to the user so login flows can report
-    which profile exists. A user can hold one and only one profile, so each
-    field is either the profile object or ``None``.
+    A user can hold one speaker profile and own several organizations, in any
+    combination. ``organization_profiles`` lists every owned organization,
+    oldest first.
     """
 
     speaker_profile = SpeakerProfileSerializer(
         source="speakers_profile_user", read_only=True, allow_null=True
     )
-    organization_profile = OrganizationProfileSerializer(
-        source="organization_owner", read_only=True, allow_null=True
-    )
+    organization_profiles = serializers.SerializerMethodField()
+    # Deprecated: kept so frontends reading the old single-organization key keep
+    # working while they move to organization_profiles. Remove in a follow-up.
+    organization_profile = serializers.SerializerMethodField()
+
+    def _serialized_organizations(self, instance) -> list:
+        """Serialize the user's organizations once and reuse it for both keys.
+
+        Cached per user so a ``many=True`` parent, which reuses one child
+        serializer for every user, never mixes users' organizations.
+        """
+        cache = self.__dict__.setdefault("_organizations_by_user", {})
+        if instance.pk not in cache:
+            cache[instance.pk] = OrganizationProfileSerializer(
+                get_owned_organizations(instance), many=True
+            ).data
+        return cache[instance.pk]
+
+    @extend_schema_field(OrganizationProfileSerializer(many=True))
+    def get_organization_profiles(self, instance) -> list:
+        """Return every organization the user owns, or None when they own none."""
+        return self._serialized_organizations(instance) or None
+
+    @extend_schema_field(OrganizationProfileSerializer(allow_null=True))
+    def get_organization_profile(self, instance):
+        """Return the user's oldest organization (deprecated single-org key)."""
+        organizations = self._serialized_organizations(instance)
+        return organizations[0] if organizations else None
 
     def to_representation(self, instance):
         """Omit the profile keys that hold no data.
 
-        Login responses should report only the profile a user actually has.
+        Login responses should report only the profiles a user actually has.
         """
         data = super().to_representation(instance)
         return {key: value for key, value in data.items() if value is not None}

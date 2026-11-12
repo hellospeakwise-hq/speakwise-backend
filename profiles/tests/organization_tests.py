@@ -2,12 +2,14 @@
 
 import uuid
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core import mail
-from django.db import IntegrityError
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.reverse import reverse
@@ -20,6 +22,12 @@ from profiles.permissions import IsOrganizationOwnerOrSuperUser
 from profiles.serializers.organization_serializers import (
     OrganizationCFPSerializer,
     OrganizationProfileSerializer,
+)
+from profiles.services.organization_services import (
+    get_organization_limit,
+    get_owned_organizations,
+    has_reached_organization_limit,
+    lock_organization_owner,
 )
 
 
@@ -614,8 +622,9 @@ class OrganizationSignalTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
 
-class OrganizationProfileCreateRestrictionTests(APITestCase):
-    """Tests that a user can create one and only one profile."""
+@override_settings(MAX_ORGANIZATIONS_PER_USER=3)
+class OrganizationOwnershipLimitTests(APITestCase):
+    """Tests for who may create organizations and how many they may own."""
 
     def setUp(self):
         """Set up an authenticated client and a user with no profile."""
@@ -627,24 +636,234 @@ class OrganizationProfileCreateRestrictionTests(APITestCase):
             password="testpass123",
             is_email_verified=True,
         )
+        self.other_user = User.objects.create(
+            username="orgrestrictother",
+            email="orgrestrictother@example.com",
+            password="testpass123",
+            is_email_verified=True,
+        )
         self.client.force_authenticate(self.user)
         self.list_url = reverse("organizations:organization-list-create")
 
-    def test_organization_rejected_when_user_has_speaker_profile(self):
-        """A user with a speaker profile cannot create an organization profile."""
-        SpeakerProfile.objects.create(user_account=self.user, organization="Acme")
-        res = self.client.post(self.list_url, {"name": "Bogus Org"}, format="json")
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", res.data)
-        self.assertFalse(OrganizationProfile.objects.filter(name="Bogus Org").exists())
+    def _own(self, count, owner=None):
+        """Create ``count`` organizations owned by ``owner`` (default: self.user)."""
+        owner = owner or self.user
+        for index in range(count):
+            OrganizationProfile.objects.create(
+                name=f"{owner.username} Org {index}", owner=owner
+            )
 
-    def test_second_organization_for_same_owner_is_rejected(self):
-        """A user who already owns an organization cannot create another."""
-        OrganizationProfile.objects.create(name="First Org", owner=self.user)
+    def test_speaker_can_create_organization(self):
+        """A user with a speaker profile can also own an organization."""
+        SpeakerProfile.objects.create(user_account=self.user, organization="Acme")
+        res = self.client.post(self.list_url, {"name": "Speaker Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        organization = OrganizationProfile.objects.get(name="Speaker Org")
+        self.assertEqual(organization.owner, self.user)
+        self.assertEqual(organization.status, OrganizationStatusChoices.PENDING)
+        self.assertTrue(SpeakerProfile.objects.filter(user_account=self.user).exists())
+
+    def test_user_can_create_organizations_up_to_the_limit(self):
+        """A user owning fewer than the limit can create another organization."""
+        self._own(2)
+        res = self.client.post(self.list_url, {"name": "Third Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(OrganizationProfile.objects.filter(owner=self.user).count(), 3)
+
+    def test_organization_beyond_the_limit_is_rejected(self):
+        """Creating an organization past the limit returns 400 and creates nothing."""
+        self._own(3)
+        res = self.client.post(self.list_url, {"name": "Fourth Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            str(res.data["detail"]),
+            "You have reached the maximum number of organizations you can own (3).",
+        )
+        self.assertFalse(OrganizationProfile.objects.filter(name="Fourth Org").exists())
+        self.assertEqual(OrganizationProfile.objects.filter(owner=self.user).count(), 3)
+
+    @override_settings(MAX_ORGANIZATIONS_PER_USER=1)
+    def test_limit_follows_the_configured_setting(self):
+        """The cap comes from MAX_ORGANIZATIONS_PER_USER, not a hardcoded number."""
+        self._own(1)
         res = self.client.post(self.list_url, {"name": "Second Org"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", res.data)
-        self.assertFalse(OrganizationProfile.objects.filter(name="Second Org").exists())
+        self.assertEqual(
+            str(res.data["detail"]),
+            "You have reached the maximum number of organizations you can own (1).",
+        )
+
+    def test_other_users_organizations_do_not_count_toward_the_limit(self):
+        """Only organizations the requester owns count toward their cap."""
+        self._own(3, owner=self.other_user)
+        res = self.client.post(self.list_url, {"name": "My Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+    def test_owner_is_locked_before_the_limit_is_checked(self):
+        """The owner row lock must be taken before counting, or races slip through."""
+        calls = mock.Mock()
+        calls.has_reached.return_value = False
+        with (
+            mock.patch(
+                "profiles.serializers.organization_serializers.lock_organization_owner",
+                calls.lock,
+            ),
+            mock.patch(
+                "profiles.serializers.organization_serializers."
+                "has_reached_organization_limit",
+                calls.has_reached,
+            ),
+        ):
+            res = self.client.post(self.list_url, {"name": "Locked Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            calls.mock_calls,
+            [mock.call.lock(self.user), mock.call.has_reached(self.user)],
+        )
+
+    def test_limit_check_runs_inside_a_transaction(self):
+        """Locking only works inside a transaction, so create must open one."""
+        observed = {}
+
+        def record_atomic_block(user):
+            observed["in_atomic_block"] = connection.in_atomic_block
+
+        with mock.patch(
+            "profiles.serializers.organization_serializers.lock_organization_owner",
+            side_effect=record_atomic_block,
+        ):
+            self.client.post(self.list_url, {"name": "Atomic Org"}, format="json")
+        self.assertTrue(observed["in_atomic_block"])
+
+    def test_user_with_only_rejected_organizations_can_create_another(self):
+        """Rejected organizations never block a user from creating a new one."""
+        for index in range(3):
+            OrganizationProfile.objects.create(
+                name=f"Rejected Org {index}",
+                owner=self.user,
+                status=OrganizationStatusChoices.REJECTED,
+            )
+        res = self.client.post(self.list_url, {"name": "Fresh Org"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["status"], OrganizationStatusChoices.PENDING)
+        self.assertEqual(OrganizationProfile.objects.filter(owner=self.user).count(), 4)
+
+    def test_deleting_an_organization_frees_a_slot(self):
+        """After deleting one of their organizations, a user at the cap can create again."""
+        self._own(3)
+        OrganizationProfile.objects.filter(owner=self.user).first().delete()
+        res = self.client.post(
+            self.list_url, {"name": "Replacement Org"}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+
+@override_settings(MAX_ORGANIZATIONS_PER_USER=3)
+class OrganizationServiceTests(TestCase):
+    """Tests for the organization ownership service functions."""
+
+    def setUp(self):
+        """Create two users."""
+        User = get_user_model()
+        self.user = User.objects.create(
+            username="orgservice", email="orgservice@example.com"
+        )
+        self.other_user = User.objects.create(
+            username="orgserviceother", email="orgserviceother@example.com"
+        )
+
+    def test_get_organization_limit_returns_configured_setting(self):
+        """The limit is read from settings."""
+        self.assertEqual(get_organization_limit(self.user), 3)
+        with self.settings(MAX_ORGANIZATIONS_PER_USER=7):
+            self.assertEqual(get_organization_limit(self.user), 7)
+
+    def test_has_reached_limit_is_false_below_the_cap(self):
+        """A user owning fewer organizations than the cap has not reached it."""
+        OrganizationProfile.objects.create(name="One", owner=self.user)
+        OrganizationProfile.objects.create(name="Two", owner=self.user)
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_has_reached_limit_is_true_at_the_cap(self):
+        """A user owning exactly the cap has reached it."""
+        for name in ("One", "Two", "Three"):
+            OrganizationProfile.objects.create(name=name, owner=self.user)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def _own_with_statuses(self, *statuses):
+        """Create one organization owned by self.user per given status."""
+        for index, org_status in enumerate(statuses):
+            OrganizationProfile.objects.create(
+                name=f"Status Org {index}", owner=self.user, status=org_status
+            )
+
+    def test_rejected_organizations_do_not_count_toward_the_limit(self):
+        """A user whose organizations were all rejected is not at the cap."""
+        rejected = OrganizationStatusChoices.REJECTED
+        self._own_with_statuses(rejected, rejected, rejected)
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_rejected_organization_frees_its_slot_alongside_counted_ones(self):
+        """Two counted organizations plus a rejected one leave room for one more."""
+        self._own_with_statuses(
+            OrganizationStatusChoices.ACTIVE,
+            OrganizationStatusChoices.PENDING,
+            OrganizationStatusChoices.REJECTED,
+        )
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_pending_organizations_count_toward_the_limit(self):
+        """Pending organizations count, so the approval queue cannot be flooded."""
+        pending = OrganizationStatusChoices.PENDING
+        self._own_with_statuses(pending, pending, pending)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_active_organizations_count_toward_the_limit(self):
+        """Approved organizations count."""
+        active = OrganizationStatusChoices.ACTIVE
+        self._own_with_statuses(active, active, active)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_inactive_organizations_count_toward_the_limit(self):
+        """Approved-then-deactivated organizations still count."""
+        inactive = OrganizationStatusChoices.INACTIVE
+        self._own_with_statuses(inactive, inactive, inactive)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_organizations_with_no_status_count_toward_the_limit(self):
+        """A null status (the field allows it) is not treated as rejected."""
+        self._own_with_statuses(None, None, None)
+        self.assertTrue(has_reached_organization_limit(self.user))
+
+    def test_has_reached_limit_is_false_for_user_with_no_organizations(self):
+        """A user with no organizations has not reached the cap."""
+        self.assertFalse(has_reached_organization_limit(self.user))
+
+    def test_get_owned_organizations_returns_only_users_orgs_oldest_first(self):
+        """Owned organizations are scoped to the user and ordered by creation."""
+        newer = OrganizationProfile.objects.create(name="Newer", owner=self.user)
+        older = OrganizationProfile.objects.create(name="Older", owner=self.user)
+        OrganizationProfile.objects.create(name="Not Mine", owner=self.other_user)
+        OrganizationProfile.objects.filter(pk=older.pk).update(
+            created_at=timezone.now() - timedelta(days=2)
+        )
+        OrganizationProfile.objects.filter(pk=newer.pk).update(
+            created_at=timezone.now() - timedelta(days=1)
+        )
+        self.assertEqual(list(get_owned_organizations(self.user)), [older, newer])
+
+    def test_lock_organization_owner_selects_only_the_users_row(self):
+        """The lock query targets exactly the given user's row."""
+        with transaction.atomic(), CaptureQueriesContext(connection) as queries:
+            lock_organization_owner(self.user)
+        self.assertEqual(len(queries), 1)
+        sql = queries[0]["sql"]
+        self.assertIn("users_user", sql)
+        self.assertIn(self.user.pk.hex, sql.replace("-", ""))
+
+    def test_get_owned_organizations_is_empty_for_user_without_orgs(self):
+        """A user who owns nothing gets an empty queryset."""
+        self.assertFalse(get_owned_organizations(self.user).exists())
 
 
 @override_settings(ADMIN_NOTIFICATION_EMAILS=["admin@example.com"])

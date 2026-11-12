@@ -245,6 +245,10 @@ ADMIN_NOTIFICATION_EMAILS = [
     if e.strip()
 ]
 
+# Organizations a single user may own. A flat cap for every user until paid
+# subscription plans exist; read it through get_organization_limit(), not here.
+MAX_ORGANIZATIONS_PER_USER = 3
+
 # OTP verification
 OTP_CODE_LENGTH = 6
 OTP_EXPIRY_MINUTES = 10

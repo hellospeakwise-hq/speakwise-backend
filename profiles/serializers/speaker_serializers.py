@@ -12,7 +12,6 @@ from rest_framework.serializers import (
     SerializerMethodField,
 )
 
-from profiles.models.organization_models import OrganizationProfile
 from profiles.models.speaker_models import (
     Notification,
     SpeakerExperiences,
@@ -237,24 +236,16 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        """Create a speaker profile.
+        """Create the requesting user's speaker profile.
 
-        A user is allowed to have one and only one profile: they cannot create a
-        speaker profile when they already own an organization profile, nor can
-        they hold more than one speaker profile.
+        A user can hold at most one speaker profile. Owning organizations does
+        not prevent a user from also becoming a speaker.
         """
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             if SpeakerProfile.objects.filter(user_account=request.user).exists():
                 raise ValidationError(
                     {"detail": "Speaker profile already exists for this user."}
-                )
-            if OrganizationProfile.objects.filter(owner=request.user).exists():
-                raise ValidationError(
-                    {
-                        "detail": "User already has an organization profile; "
-                        "a user can have only one profile."
-                    }
                 )
             validated_data["user_account"] = request.user
         else:

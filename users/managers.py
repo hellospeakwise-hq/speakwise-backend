@@ -11,9 +11,8 @@ class UserManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
         """Create and save a User with the given email and password.
 
-        The user is created without any profile. A user must later choose to
-        create either a speaker profile or an organization profile — a user is
-        allowed to have one and only one profile.
+        The user is created without any profile. They can later create a
+        speaker profile, organizations, or both.
         """
         if not email:
             raise ValueError("The given email must be set")

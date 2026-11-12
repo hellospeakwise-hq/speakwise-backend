@@ -116,7 +116,7 @@ def stale_unverified_users(older_than_days: int):
         last_login__isnull=True,
         is_staff=False,
         is_superuser=False,
-        organization_owner__isnull=True,
+        owned_organizations__isnull=True,
         submitted_events__isnull=True,
         date_joined__lt=cutoff,
     ).distinct()

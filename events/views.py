@@ -113,20 +113,30 @@ class EventDetailView(APIView):
             return [AllowAny()]
         return [IsAuthenticated(), IsSubmitterOrSuperUser()]
 
+    def _lookup_q(self, slug):
+        lookup = Q(slug=slug)
+        try:
+            import uuid
+            lookup |= Q(id=uuid.UUID(slug))
+        except (ValueError, AttributeError):
+            pass
+        return lookup
+
     @extend_schema(tags=["Events"], responses={200: EventSerializer})
     def get(self, request, slug, *args, **kwargs):
         """Retrieve a published event, or one the requester may see."""
+        lookup = self._lookup_q(slug)
         if request.user.is_authenticated:
             if request.user.is_superuser:
-                event = get_object_or_404(Event, slug=slug)
+                event = get_object_or_404(Event, lookup)
             else:
                 event = get_object_or_404(
                     Event,
-                    Q(slug=slug) & (Q(is_active=True) | Q(submitted_by=request.user)),
+                    lookup & (Q(is_active=True) | Q(submitted_by=request.user)),
                 )
         else:
-            event = get_object_or_404(Event, slug=slug, is_active=True)
-        serializer = EventSerializer(event)
+            event = get_object_or_404(Event, lookup, is_active=True)
+        serializer = EventSerializer(event, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -134,7 +144,7 @@ class EventDetailView(APIView):
     )
     def patch(self, request, slug, *args, **kwargs):
         """Update event detail."""
-        event = get_object_or_404(Event, slug=slug)
+        event = get_object_or_404(Event, self._lookup_q(slug))
         self.check_object_permissions(request, event)
         data = (
             request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
@@ -150,7 +160,7 @@ class EventDetailView(APIView):
     @extend_schema(tags=["Events"], responses={204: None})
     def delete(self, request, slug, *args, **kwargs):
         """Delete event."""
-        event = get_object_or_404(Event, slug=slug)
+        event = get_object_or_404(Event, self._lookup_q(slug))
         self.check_object_permissions(request, event)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -163,7 +173,13 @@ class PrivateEventDetailView(APIView):
 
     def _get_event(self, slug):
         """Return the target event if the requester can manage it."""
-        event = get_object_or_404(Event, slug=slug)
+        lookup = Q(slug=slug)
+        try:
+            import uuid
+            lookup |= Q(id=uuid.UUID(slug))
+        except (ValueError, AttributeError):
+            pass
+        event = get_object_or_404(Event, lookup)
         if (
             not self.request.user.is_superuser
             and event.submitted_by != self.request.user
@@ -175,7 +191,7 @@ class PrivateEventDetailView(APIView):
     def get(self, request, slug, *args, **kwargs):
         """Retrieve a pending or active event that the user manages."""
         event = self._get_event(slug)
-        serializer = EventSerializer(event)
+        serializer = EventSerializer(event, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(

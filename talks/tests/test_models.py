@@ -62,6 +62,9 @@ class TestTalkSerializer(TestCase):
                 "slug",
                 "is_public",
                 "is_reviewable",
+                "event_title",
+                "event_location",
+                "event_image",
             },
         )
 

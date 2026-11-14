@@ -21,6 +21,9 @@ class TalkSerializer(serializers.ModelSerializer):
 
     speaker_name = serializers.SerializerMethodField()
     session = SessionSerializer(required=False, many=False)
+    event_title = serializers.SerializerMethodField()
+    event_image = serializers.SerializerMethodField()
+    event_location = serializers.SerializerMethodField()
 
     # event is optional for standalone / pre-CFP talks
     event = serializers.PrimaryKeyRelatedField(
@@ -35,6 +38,26 @@ class TalkSerializer(serializers.ModelSerializer):
         model = Talks
         exclude = ("created_at", "updated_at")
         read_only_fields = ["slug", "speaker_name", "speaker"]
+
+    def get_event_title(self, obj) -> str:
+        """Get the title of the event."""
+        return obj.event.title if obj.event else ""
+
+    def get_event_image(self, obj) -> str:
+        """Get the image URL of the event."""
+        if obj.event and obj.event.event_image:
+            try:
+                request = self.context.get("request")
+                if request is not None:
+                    return request.build_absolute_uri(obj.event.event_image.url)
+                return obj.event.event_image.url
+            except Exception:
+                return obj.event.event_image.url
+        return ""
+
+    def get_event_location(self, obj) -> str:
+        """Get the location of the event."""
+        return obj.event.location if obj.event else ""
 
     def get_speaker_name(self, obj) -> str:
         """Get speaker name."""

@@ -2,7 +2,8 @@
 
 import uuid
 
-from django.db.models import Count, Q
+from django.db.models import Avg, Case, Count, F, FloatField, Q, Value, When
+from django.db.models.functions import Coalesce, Round
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
@@ -52,7 +53,7 @@ class SpeakerProfileListCreateView(APIView):
 
     @extend_schema(responses=SpeakerProfileSerializer(many=True))
     def get(self, request):
-        """List all speaker profiles (paginated)."""
+        """List all speaker profiles with ranking, aggregation, and ordering options."""
         speaker_profiles = (
             SpeakerProfile.objects.select_related("user_account")
             .prefetch_related("skill_tags", "experiences", "social_links")
@@ -61,9 +62,113 @@ class SpeakerProfileListCreateView(APIView):
                 _prefetched_following_count=Count(
                     "user_account__following_speakers", distinct=True
                 ),
+                _annotated_total_talks=Count("experiences", distinct=True),
+                _annotated_total_reviews=Count("speaker_feedback", distinct=True),
+                _annotated_badges_count=Count(
+                    "badges",
+                    filter=Q(badges__status__in=["eligible", "claimed"]),
+                    distinct=True,
+                ),
+                _annotated_avg_rating=Coalesce(
+                    Avg("speaker_feedback__overall_rating"),
+                    Value(0.0),
+                    output_field=FloatField(),
+                ),
             )
-            .order_by("-created_at")
         )
+
+        # Reputation ranking formula (Bayesian Weighted Rating + Stage Experience + Badges Boost)
+        weighted_rating = (
+            F("_annotated_total_reviews") * F("_annotated_avg_rating") + Value(40.0)
+        ) / (F("_annotated_total_reviews") + Value(5.0))
+
+        exp_bonus = Case(
+            When(_annotated_total_talks__gte=10, then=Value(1.0)),
+            default=F("_annotated_total_talks") * Value(0.1),
+            output_field=FloatField(),
+        )
+
+        badge_bonus = Case(
+            When(_annotated_badges_count__gte=5, then=Value(1.0)),
+            default=F("_annotated_badges_count") * Value(0.2),
+            output_field=FloatField(),
+        )
+
+        reputation_expr = Case(
+            When(
+                _annotated_total_talks=0,
+                _annotated_total_reviews=0,
+                _annotated_badges_count=0,
+                then=Value(0.0),
+            ),
+            When(
+                _annotated_total_reviews=0,
+                then=Case(
+                    When(_annotated_total_talks__gte=10, then=Value(5.0)),
+                    default=F("_annotated_total_talks") * Value(0.5) + badge_bonus,
+                    output_field=FloatField(),
+                ),
+            ),
+            default=Round(weighted_rating * Value(0.85) + exp_bonus + badge_bonus, 2),
+            output_field=FloatField(),
+        )
+
+        speaker_profiles = speaker_profiles.annotate(reputation_score=reputation_expr)
+
+        # Handle ordering query parameter
+        ordering = (request.query_params.get("ordering") or "").strip().lower()
+        is_top = (request.query_params.get("top") or "").strip().lower() in [
+            "true",
+            "1",
+        ]
+
+        if is_top:
+            # Dedicated Top Speakers filter for mobile & web hero carousels
+            speaker_profiles = speaker_profiles.filter(
+                Q(_annotated_total_talks__gt=0) | Q(_annotated_total_reviews__gt=0)
+            ).order_by("-reputation_score", "-_annotated_total_talks", "-created_at")
+        elif ordering in ["-talks_count", "-talks", "-total_talks"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "-_annotated_total_talks", "-reputation_score", "-created_at"
+            )
+        elif ordering in ["talks_count", "talks", "total_talks"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "_annotated_total_talks", "-created_at"
+            )
+        elif ordering in ["-reputation", "-reputation_score", "top"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "-reputation_score", "-_annotated_total_talks", "-created_at"
+            )
+        elif ordering in ["reputation", "reputation_score"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "reputation_score", "-created_at"
+            )
+        elif ordering in ["-rating", "-avg_rating", "-average_rating"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "-_annotated_avg_rating", "-_annotated_total_reviews", "-created_at"
+            )
+        elif ordering in ["rating", "avg_rating", "average_rating"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "_annotated_avg_rating", "-created_at"
+            )
+        elif ordering in ["-followers", "-followers_count"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "-_prefetched_followers_count", "-created_at"
+            )
+        elif ordering in ["followers", "followers_count"]:
+            speaker_profiles = speaker_profiles.order_by(
+                "_prefetched_followers_count", "-created_at"
+            )
+        else:
+            # Default ordering: Highest reputation score, most talks, and most badges first
+            speaker_profiles = speaker_profiles.order_by(
+                "-reputation_score",
+                "-_annotated_total_talks",
+                "-_annotated_badges_count",
+                "-_prefetched_followers_count",
+                "-created_at",
+            )
+
         return paginate_api_view(
             request, speaker_profiles, SpeakerProfileSerializer, {"request": request}
         )

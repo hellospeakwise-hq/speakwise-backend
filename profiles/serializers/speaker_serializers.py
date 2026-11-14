@@ -74,6 +74,25 @@ class SpeakerExperiencesSerializer(ModelSerializer):
 class SpeakerExperiencePublicSerializer(ModelSerializer):
     """Serializer for the SpeakerExperiences model."""
 
+    event_image = SerializerMethodField()
+    event_title = SerializerMethodField()
+
+    def get_event_image(self, obj) -> str:
+        if obj.event and obj.event.event_image:
+            try:
+                request = self.context.get("request")
+                if request is not None:
+                    return request.build_absolute_uri(obj.event.event_image.url)
+                return obj.event.event_image.url
+            except Exception:
+                return obj.event.event_image.url
+        return ""
+
+    def get_event_title(self, obj) -> str:
+        if obj.event and obj.event.title:
+            return obj.event.title
+        return obj.event_name or ""
+
     class Meta:
         """meta options."""
 
@@ -226,6 +245,12 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
     followers_count = SerializerMethodField()
     following_count = SerializerMethodField()
     is_following = SerializerMethodField()
+    total_talks = SerializerMethodField()
+    total_reviews = SerializerMethodField()
+    badges_count = SerializerMethodField()
+    average_rating = SerializerMethodField()
+    reputation_score = SerializerMethodField()
+    rank_tier = SerializerMethodField()
 
     class Meta:
         """meta options."""
@@ -292,6 +317,67 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
             return self._is_following_cache[cache_key]
         return False
 
+    def get_total_talks(self, obj) -> int:
+        """Return total number of speaking experiences."""
+        return getattr(obj, "_annotated_total_talks", obj.experiences.count())
+
+    def get_total_reviews(self, obj) -> int:
+        """Return total number of feedback reviews received."""
+        return getattr(obj, "_annotated_total_reviews", obj.speaker_feedback.count())
+
+    def get_badges_count(self, obj) -> int:
+        """Return count of eligible or claimed digital badges."""
+        return getattr(
+            obj,
+            "_annotated_badges_count",
+            obj.badges.filter(status__in=["eligible", "claimed"]).count(),
+        )
+
+    def get_average_rating(self, obj) -> float | None:
+        """Return average overall rating (1-10) or None if no reviews yet."""
+        val = getattr(obj, "_annotated_avg_rating", None)
+        if val is not None:
+            return round(float(val), 2) if float(val) > 0 else None
+        from django.db.models import Avg
+
+        avg = obj.speaker_feedback.aggregate(Avg("overall_rating"))[
+            "overall_rating__avg"
+        ]
+        return round(float(avg), 2) if avg is not None else None
+
+    def get_reputation_score(self, obj) -> float:
+        """Return the calculated SpeakWise reputation score."""
+        val = getattr(obj, "reputation_score", None)
+        if val is not None:
+            return round(float(val), 2)
+        # Fallback calculation if serializer used without view annotations
+        total_talks = self.get_total_talks(obj)
+        total_reviews = self.get_total_reviews(obj)
+        avg_rating = self.get_average_rating(obj) or 0.0
+
+        if total_talks == 0 and total_reviews == 0:
+            return 0.0
+        if total_reviews == 0:
+            return round(min(total_talks * 0.5, 5.0), 2)
+
+        weighted = (total_reviews * avg_rating + 40.0) / (total_reviews + 5.0)
+        exp_bonus = min(total_talks * 0.1, 1.0)
+        return round(weighted * 0.9 + exp_bonus, 2)
+
+    def get_rank_tier(self, obj) -> str:
+        """Return rank tier based on reputation score and experience."""
+        score = self.get_reputation_score(obj)
+        talks = self.get_total_talks(obj)
+        if score >= 9.2 and talks >= 10:
+            return "Top 1% Keynote Speaker"
+        elif score >= 8.5 and talks >= 5:
+            return "Distinguished Speaker"
+        elif talks >= 3:
+            return "Verified Speaker"
+        elif talks >= 1:
+            return "Rising Speaker"
+        return "New Speaker"
+
     @transaction.atomic
     def update(self, instance, validated_data):
         """Update speaker profile objects."""
@@ -336,12 +422,127 @@ class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
     """
 
     feedback_summary = SerializerMethodField()
+    events_spoken = SerializerMethodField()
+    talks = SerializerMethodField()
 
     def get_feedback_summary(self, obj) -> dict:
         """Return per-criterion averages and distributions for the speaker."""
         from feedbacks.services import build_feedback_summary
 
         return build_feedback_summary(obj)
+
+    def get_events_spoken(self, obj) -> list:
+        """Return list of distinct events/conferences this speaker has spoken at."""
+        results = []
+        seen_names = set()
+
+        # 1. From SpeakerExperiences
+        for exp in obj.experiences.select_related("event").order_by("-event_date"):
+            name = exp.event_name or (exp.event.title if exp.event else "")
+            if name and name.lower() not in seen_names:
+                seen_names.add(name.lower())
+                img_url = ""
+                evt = exp.event
+                if not evt and exp.event_name:
+                    from events.models import Event
+                    evt = Event.objects.filter(title__icontains=exp.event_name.strip()).first()
+                if evt and evt.event_image:
+                    try:
+                        req = self.context.get("request")
+                        img_url = (
+                            req.build_absolute_uri(evt.event_image.url)
+                            if req
+                            else evt.event_image.url
+                        )
+                    except Exception:
+                        img_url = evt.event_image.url
+                results.append(
+                    {
+                        "id": str(evt.id) if evt else str(exp.id),
+                        "name": name,
+                        "topic": exp.topic or "",
+                        "date": exp.event_date.isoformat()
+                        if exp.event_date
+                        else "",
+                        "image": img_url,
+                        "event_id": str(evt.id) if evt else None,
+                    }
+                )
+
+        # 2. From Talks with linked Events
+        from talks.models import Talks
+
+        for talk in (
+            Talks.objects.filter(speaker=obj)
+            .select_related("event")
+            .order_by("-created_at")
+        ):
+            if talk.event:
+                name = talk.event.title
+                if name and name.lower() not in seen_names:
+                    seen_names.add(name.lower())
+                    img_url = ""
+                    if talk.event.event_image:
+                        try:
+                            req = self.context.get("request")
+                            img_url = (
+                                req.build_absolute_uri(
+                                    talk.event.event_image.url
+                                )
+                                if req
+                                else talk.event.event_image.url
+                            )
+                        except Exception:
+                            img_url = talk.event.event_image.url
+                    results.append(
+                        {
+                            "id": str(talk.event.id),
+                            "name": name,
+                            "topic": talk.title,
+                            "date": str(talk.event.date)
+                            if hasattr(talk.event, "date")
+                            else "",
+                            "image": img_url,
+                            "event_id": str(talk.event.id),
+                        }
+                    )
+
+        return results
+
+    def get_talks(self, obj) -> list:
+        """Return list of talks given by this speaker."""
+        from talks.models import Talks
+
+        talks_list = []
+        for talk in (
+            Talks.objects.filter(speaker=obj)
+            .select_related("event")
+            .order_by("-created_at")
+        ):
+            img_url = ""
+            if talk.event and talk.event.event_image:
+                try:
+                    req = self.context.get("request")
+                    img_url = (
+                        req.build_absolute_uri(talk.event.event_image.url)
+                        if req
+                        else talk.event.event_image.url
+                    )
+                except Exception:
+                    img_url = talk.event.event_image.url
+            talks_list.append(
+                {
+                    "id": str(talk.id),
+                    "title": talk.title,
+                    "description": talk.description,
+                    "duration": talk.duration,
+                    "category": talk.category,
+                    "event_title": talk.event.title if talk.event else "",
+                    "event_id": str(talk.event.id) if talk.event else None,
+                    "event_image": img_url,
+                }
+            )
+        return talks_list
 
     class Meta:
         """Meta options."""
@@ -359,11 +560,18 @@ class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
             "long_bio",
             "country",
             "events_spoken",
+            "talks",
             "social_links",
             "skill_tags",
             "followers_count",
             "following_count",
             "is_following",
+            "total_talks",
+            "total_reviews",
+            "badges_count",
+            "average_rating",
+            "reputation_score",
+            "rank_tier",
             "feedback_summary",
         ]
         read_only_fields = ("slug", "user_account")

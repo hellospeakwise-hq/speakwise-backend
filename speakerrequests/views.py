@@ -318,7 +318,35 @@ class SpeakerEmailRequestListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        request.data["request_to"] = speaker_id
+        from profiles.models.speaker_models import SpeakerProfile
+        from users.models import User
+
+        target_user = None
+        try:
+            target_user = User.objects.filter(
+                Q(id=speaker_id) | Q(username=speaker_id)
+            ).first()
+        except Exception:
+            pass
+        if not target_user:
+            try:
+                sp = (
+                    SpeakerProfile.objects.filter(
+                        Q(id=speaker_id) | Q(slug=speaker_id)
+                    )
+                    .select_related("user_account")
+                    .first()
+                )
+                if sp and sp.user_account:
+                    target_user = sp.user_account
+            except Exception:
+                pass
+
+        if target_user:
+            request.data["request_to"] = target_user.id
+        else:
+            request.data["request_to"] = speaker_id
+
         request.data["request_from"] = request.user.id
 
         # validate and save request data

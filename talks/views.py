@@ -74,12 +74,25 @@ class SpeakerPublicTalksView(ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        """Filter talks by public visibility and speaker slug."""
+        """Filter talks for a specific speaker by slug, username, or UUID."""
+        import uuid
+        from django.db.models import Q
+
         speaker_slug = self.kwargs.get("slug")
+        speaker_filter = Q(speaker__slug=speaker_slug) | Q(
+            speaker__user_account__username=speaker_slug
+        )
+        try:
+            val = uuid.UUID(speaker_slug)
+            speaker_filter = speaker_filter | Q(speaker__id=val)
+        except (ValueError, AttributeError):
+            pass
+
         return (
-            Talks.objects.filter(is_public=True, speaker__slug=speaker_slug)
+            Talks.objects.filter(speaker_filter)
             .select_related("speaker", "speaker__user_account", "event")
             .prefetch_related("talk_sessions", "talk_review_comments")
+            .order_by("-created_at")
         )
 
 

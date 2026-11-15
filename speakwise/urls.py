@@ -10,6 +10,7 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from rest_framework_simplejwt.views import TokenRefreshView
 
 
 def api_not_found(request, exception=None):
@@ -33,6 +34,7 @@ handler500 = api_server_error
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

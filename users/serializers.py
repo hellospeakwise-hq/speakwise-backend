@@ -12,7 +12,7 @@ from profiles.serializers.organization_serializers import OrganizationProfileSer
 from profiles.serializers.speaker_serializers import SpeakerProfileSerializer
 from profiles.services.organization_services import get_owned_organizations
 from users.models import User
-from users.services.auth_services import authenticate_user
+from users.services.auth_services import authenticate_user, normalize_email
 
 
 class UserSerializer(WritableNestedModelSerializer):
@@ -57,8 +57,10 @@ class UserLoginSerializer(serializers.Serializer):
 
     def validate(self, attrs) -> dict:
         """Authenticate the credentials and attach the user to the attrs."""
+        email = normalize_email(attrs.get("email", ""))
+        attrs["email"] = email
         user = authenticate_user(
-            attrs["email"],
+            email,
             attrs["password"],
             request=self.context.get("request"),
         )

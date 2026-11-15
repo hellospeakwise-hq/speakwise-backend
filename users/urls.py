@@ -1,12 +1,18 @@
-"""user urls."""
+"""User urls."""
 
 from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from users.views import auth_views, oauth_views
 
 app_name = "users"
 
 urlpatterns = [
+    path(
+        "users/auth/token/refresh/",
+        TokenRefreshView.as_view(),
+        name="users-token-refresh",
+    ),
     path("users/auth/register/", auth_views.UserCreateView.as_view(), name="register"),
     path(
         "users/auth/verify-otp/", auth_views.VerifyOtpView.as_view(), name="verify-otp"

@@ -22,9 +22,23 @@ LOGIN_LOCKOUT_MAX_ATTEMPTS = 3
 LOGIN_LOCKOUT_WINDOW_SECONDS = 300
 
 
+def normalize_email(email: str) -> str:
+    """Normalize email address by stripping surrounding whitespace and lowercasing.
+
+    Args:
+        email: The raw email string.
+
+    Returns:
+        The normalized, lowercase email string.
+    """
+    if not email:
+        return ""
+    return email.strip().lower()
+
+
 def _login_lock_key(email: str) -> str:
     """Return the cache key tracking failed logins for ``email``."""
-    return f"login_failures:{email.lower()}"
+    return f"login_failures:{normalize_email(email)}"
 
 
 def is_login_locked(email: str) -> bool:
@@ -61,15 +75,16 @@ def authenticate_user(email: str, password: str, request=None) -> AbstractBaseUs
     Returns:
         The authenticated, active user.
     """
-    if is_login_locked(email):
+    clean_email = normalize_email(email)
+    if is_login_locked(clean_email):
         raise ValidationError({"detail": "Unable to log in with provided credentials."})
 
-    user = authenticate(request=request, username=email, password=password)
+    user = authenticate(request=request, username=clean_email, password=password)
     if user is None:
-        record_failed_login(email)
+        record_failed_login(clean_email)
         raise ValidationError({"detail": "Unable to log in with provided credentials."})
 
-    clear_failed_logins(email)
+    clear_failed_logins(clean_email)
     return user
 
 

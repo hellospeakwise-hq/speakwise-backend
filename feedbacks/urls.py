@@ -22,4 +22,9 @@ urlpatterns = [
         views.FeedbackQRCodeView.as_view(),
         name="feedback_qrcode",
     ),
+    path(
+        "feedbacks/ai-coach/",
+        views.SpeakBotCoachView.as_view(),
+        name="speakbot_coach",
+    ),
 ]

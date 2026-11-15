@@ -78,6 +78,7 @@ class SpeakerExperiencePublicSerializer(ModelSerializer):
     event_title = SerializerMethodField()
 
     def get_event_image(self, obj) -> str:
+        """Return absolute or relative event image URL if available."""
         if obj.event and obj.event.event_image:
             try:
                 request = self.context.get("request")
@@ -89,6 +90,7 @@ class SpeakerExperiencePublicSerializer(ModelSerializer):
         return ""
 
     def get_event_title(self, obj) -> str:
+        """Return event title from linked event or experience record."""
         if obj.event and obj.event.title:
             return obj.event.title
         return obj.event_name or ""
@@ -445,7 +447,10 @@ class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
                 evt = exp.event
                 if not evt and exp.event_name:
                     from events.models import Event
-                    evt = Event.objects.filter(title__icontains=exp.event_name.strip()).first()
+
+                    evt = Event.objects.filter(
+                        title__icontains=exp.event_name.strip()
+                    ).first()
                 if evt and evt.event_image:
                     try:
                         req = self.context.get("request")
@@ -461,9 +466,7 @@ class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
                         "id": str(evt.id) if evt else str(exp.id),
                         "name": name,
                         "topic": exp.topic or "",
-                        "date": exp.event_date.isoformat()
-                        if exp.event_date
-                        else "",
+                        "date": exp.event_date.isoformat() if exp.event_date else "",
                         "image": img_url,
                         "event_id": str(evt.id) if evt else None,
                     }
@@ -486,9 +489,7 @@ class SpeakerProfileDetailSerializer(SpeakerProfileSerializer):
                         try:
                             req = self.context.get("request")
                             img_url = (
-                                req.build_absolute_uri(
-                                    talk.event.event_image.url
-                                )
+                                req.build_absolute_uri(talk.event.event_image.url)
                                 if req
                                 else talk.event.event_image.url
                             )

@@ -76,6 +76,7 @@ class SpeakerPublicTalksView(ListAPIView):
     def get_queryset(self):
         """Filter talks for a specific speaker by slug, username, or UUID."""
         import uuid
+
         from django.db.models import Q
 
         speaker_slug = self.kwargs.get("slug")

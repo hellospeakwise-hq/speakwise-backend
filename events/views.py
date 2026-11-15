@@ -117,6 +117,7 @@ class EventDetailView(APIView):
         lookup = Q(slug=slug)
         try:
             import uuid
+
             lookup |= Q(id=uuid.UUID(slug))
         except (ValueError, AttributeError):
             pass
@@ -176,6 +177,7 @@ class PrivateEventDetailView(APIView):
         lookup = Q(slug=slug)
         try:
             import uuid
+
             lookup |= Q(id=uuid.UUID(slug))
         except (ValueError, AttributeError):
             pass

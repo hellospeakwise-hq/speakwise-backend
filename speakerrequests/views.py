@@ -1,5 +1,7 @@
 """speaker request views."""
 
+import contextlib
+
 from django.conf import settings
 from django.db.models import Q
 from django.http.response import Http404
@@ -322,25 +324,19 @@ class SpeakerEmailRequestListView(APIView):
         from users.models import User
 
         target_user = None
-        try:
+        with contextlib.suppress(Exception):
             target_user = User.objects.filter(
                 Q(id=speaker_id) | Q(username=speaker_id)
             ).first()
-        except Exception:
-            pass
         if not target_user:
-            try:
+            with contextlib.suppress(Exception):
                 sp = (
-                    SpeakerProfile.objects.filter(
-                        Q(id=speaker_id) | Q(slug=speaker_id)
-                    )
+                    SpeakerProfile.objects.filter(Q(id=speaker_id) | Q(slug=speaker_id))
                     .select_related("user_account")
                     .first()
                 )
                 if sp and sp.user_account:
                     target_user = sp.user_account
-            except Exception:
-                pass
 
         if target_user:
             request.data["request_to"] = target_user.id

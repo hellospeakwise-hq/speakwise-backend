@@ -8,7 +8,6 @@ from users.views import auth_views, oauth_views
 app_name = "users"
 
 urlpatterns = [
-    path("auth/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path(
         "users/auth/token/refresh/",
         TokenRefreshView.as_view(),

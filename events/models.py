@@ -100,6 +100,11 @@ class Event(TimeStampedModel):
     start_date_time = models.DateTimeField(default=timezone.now, null=True)
     end_date_time = models.DateTimeField(default=timezone.now, null=True)
     is_active = models.BooleanField(default=False, db_index=True)
+    is_featured = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Feature this event prominently on mobile and web homepages.",
+    )
     slug = models.SlugField(max_length=255, null=True, db_index=True)
     location = models.CharField(max_length=150, null=True, blank=True)
     country = models.CharField(

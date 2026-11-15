@@ -11,13 +11,15 @@ class EventAdmin(admin.ModelAdmin):
 
     list_display = (
         "title",
-        "website",
+        "is_featured",
         "is_active",
+        "website",
         "submitted_by",
-        "cfp_deadline",
         "start_date_time",
+        "end_date_time",
     )
-    list_filter = ("is_active",)
+    list_editable = ("is_featured", "is_active")
+    list_filter = ("is_featured", "is_active", "country")
     search_fields = (
         "title",
         "website",

@@ -23,8 +23,12 @@ if hasattr(typing, "_eval_type"):
 
     typing._eval_type = _patched_eval_type
 
-from eth_account import Account
-from web3 import Web3
+try:
+    from eth_account import Account
+    from web3 import Web3
+except ImportError:
+    Account = None  # type: ignore
+    Web3 = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +106,7 @@ def award_badge_on_chain(recipient_address: str, token_id: int) -> dict:
         and len(relayer_key.replace("0x", "")) == 64
     )
 
-    if is_configured_key and contract_addr:
+    if is_configured_key and contract_addr and Web3 is not None and Account is not None:
         try:
             logger.info(
                 f"[RELAYER-LIVE] Connecting to {rpc_url} to mint badge #{token_id} for {clean_recipient}..."

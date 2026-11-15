@@ -307,16 +307,15 @@ class SpeakerProfileSerializer(WritableNestedModelSerializer):
 
     def get_is_following(self, obj) -> bool:
         """Return True if the current authenticated user follows this speaker."""
-        request = self.context.get("request")
+        request = self.context.get("request") if self.context else None
         if request and request.user.is_authenticated:
-            cache_key = f"is_following_{request.user.id}_{obj.id}"
-            if not hasattr(self, "_is_following_cache"):
-                self._is_following_cache = {}
-            if cache_key not in self._is_following_cache:
-                self._is_following_cache[cache_key] = SpeakerFollow.objects.filter(
-                    follower=request.user, speaker=obj
-                ).exists()
-            return self._is_following_cache[cache_key]
+            if "_followed_speaker_ids" not in self.context:
+                self.context["_followed_speaker_ids"] = set(
+                    SpeakerFollow.objects.filter(follower=request.user).values_list(
+                        "speaker_id", flat=True
+                    )
+                )
+            return obj.id in self.context["_followed_speaker_ids"]
         return False
 
     def get_total_talks(self, obj) -> int:

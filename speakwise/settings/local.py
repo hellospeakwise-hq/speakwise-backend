@@ -36,6 +36,9 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # REST Framework settings
+# Disable throttling in local development so mobile app testing, hot-reloading,
+# and repeated pull-to-refresh never hit HTTP 429 Too Many Requests.
+REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases

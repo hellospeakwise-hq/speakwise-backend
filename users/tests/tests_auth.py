@@ -566,6 +566,30 @@ class TestRegistrationBotProtection(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+    @override_settings(TURNSTILE_SECRET_KEY="secret")
+    def test_mobile_client_header_bypasses_turnstile(self):
+        """Native mobile app requests bypass Turnstile via client platform header."""
+        response = self.client.post(
+            self.url,
+            self._payload(turnstile_token=None),
+            format="json",
+            headers={"x-client-platform": "mobile-app"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(User.objects.filter(email="bot1@example.com").exists())
+
+    @override_settings(TURNSTILE_SECRET_KEY="secret")
+    def test_mobile_user_agent_bypasses_turnstile(self):
+        """Native mobile app requests bypass Turnstile via User-Agent."""
+        response = self.client.post(
+            self.url,
+            self._payload(n=2, turnstile_token=None),
+            format="json",
+            headers={"user-agent": "SpeakWise-Mobile/1.0.0 (iOS)"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(User.objects.filter(email="bot2@example.com").exists())
+
     def test_registration_is_throttled_per_ip(self):
         """The sixth signup within the hour from one IP is throttled."""
         statuses = [

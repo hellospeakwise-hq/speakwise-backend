@@ -169,9 +169,13 @@ class SpeakerProfileListCreateView(APIView):
                 "-created_at",
             )
 
-        return paginate_api_view(
+        response = paginate_api_view(
             request, speaker_profiles, SpeakerProfileSerializer, {"request": request}
         )
+        response["Cache-Control"] = (
+            "public, max-age=60, s-maxage=120, stale-while-revalidate=300"
+        )
+        return response
 
     @extend_schema(request=SpeakerProfileSerializer, responses=SpeakerProfileSerializer)
     def post(self, request):

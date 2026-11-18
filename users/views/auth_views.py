@@ -51,12 +51,33 @@ class UserCreateView(APIView):
     @extend_schema(request=UserSerializer, responses={201: UserSerializer})
     def post(self, request):
         """Create a new user and issue an email verification OTP."""
-        if not verify_turnstile_token(
-            request.data.get("turnstile_token"), request.META.get("REMOTE_ADDR")
-        ):
-            raise ValidationError(
-                {"detail": "Bot check failed. Please refresh and try again."}
+        # Mobile app bypass: native mobile clients do not execute browser Cloudflare Turnstile
+        client_platform = (
+            request.headers.get("X-Client-Platform", "")
+            or request.headers.get("X-App-Platform", "")
+            or request.headers.get("x-client-platform", "")
+        )
+        user_agent = request.headers.get("User-Agent", "") or request.headers.get(
+            "user-agent", ""
+        )
+        app_name = request.headers.get("X-App-Name", "") or request.headers.get(
+            "x-app-name", ""
+        )
+
+        is_mobile = (
+            client_platform.lower() in ("mobile-app", "mobile", "ios", "android")
+            or "speakwise-mobile" in user_agent.lower()
+            or app_name.lower() == "speakwise-mobile"
+        )
+
+        if not is_mobile:
+            token = request.data.get("turnstile_token") or request.data.get(
+                "cf-turnstile-response"
             )
+            if not verify_turnstile_token(token, request.META.get("REMOTE_ADDR")):
+                raise ValidationError(
+                    {"detail": "Bot check failed. Please refresh and try again."}
+                )
         serializer = UserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save(welcome_email_pending=True)

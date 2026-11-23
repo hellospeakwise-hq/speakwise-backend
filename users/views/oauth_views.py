@@ -33,27 +33,28 @@ logger = logging.getLogger(__name__)
 
 
 def mobile_redirect(url: str) -> HttpResponse:
-    """Return a response that safely redirects mobile browsers to a custom app scheme."""
+    """Return an HTML response that safely redirects mobile browsers to a custom app scheme."""
     html = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Redirecting to SpeakWise...</title>
+    <meta http-equiv="refresh" content="0;url={url}">
     <script>
         window.location.href = "{url}";
     </script>
 </head>
 <body style="background-color: #0d0d0d; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 24px; box-sizing: border-box;">
-    <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">Authentication Successful</h2>
-    <p style="color: #a0a0a0; font-size: 14px; margin-bottom: 24px;">Opening the SpeakWise app...</p>
-    <a href="{url}" style="display: inline-block; padding: 12px 28px; background-color: #C5FF29; color: #000000; text-decoration: none; border-radius: 9999px; font-weight: 700; font-size: 15px;">Open SpeakWise App</a>
+    <div style="background-color: #171717; border: 1px solid #262626; border-radius: 20px; padding: 32px 24px; max-width: 360px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h2 style="font-size: 22px; font-weight: 700; margin: 0 0 8px 0; color: #ffffff;">Authentication Successful</h2>
+        <p style="color: #a0a0a0; font-size: 14px; margin: 0 0 24px 0; line-height: 1.5;">Opening the SpeakWise app...</p>
+        <a href="{url}" style="display: block; padding: 14px 24px; background-color: #C5FF29; color: #000000; text-decoration: none; border-radius: 9999px; font-weight: 700; font-size: 15px; text-align: center;">Open SpeakWise App</a>
+        <p style="color: #737373; font-size: 12px; margin: 16px 0 0 0;">If the app does not open automatically, tap the button above.</p>
+    </div>
 </body>
 </html>"""
-    response = HttpResponse(html, content_type="text/html")
-    response["Location"] = url
-    response.status_code = 302
-    return response
+    return HttpResponse(html, content_type="text/html", status=200)
 
 
 def get_github_session():
@@ -170,16 +171,19 @@ def github_callback(request):
 
         exchange_code = create_exchange_code(user)
         if is_mobile:
-            return redirect(f"speakwise://auth/callback?code={exchange_code}")
             return mobile_redirect(f"speakwise://auth/callback?code={exchange_code}")
         params = urlencode({"code": exchange_code})
         return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
     except ValidationError as exc:
         return Response(exc.detail, status=400)
-    except Exception:
-        logger.exception("GitHub OAuth callback failed")
+    except Exception as exc:
+        logger.exception("GitHub OAuth callback failed: %s", exc)
         return Response(
-            {"error": "GitHub authentication failed. Please try again."},
+            {
+                "error": "GitHub authentication failed. Please try again.",
+                "detail": str(exc),
+                "type": type(exc).__name__,
+            },
             status=400,
         )
 
@@ -249,16 +253,19 @@ def google_callback(request):
 
         exchange_code = create_exchange_code(user)
         if is_mobile:
-            return redirect(f"speakwise://auth/callback?code={exchange_code}")
             return mobile_redirect(f"speakwise://auth/callback?code={exchange_code}")
         params = urlencode({"code": exchange_code})
         return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
     except ValidationError as exc:
         return Response(exc.detail, status=400)
-    except Exception:
-        logger.exception("Google OAuth callback failed")
+    except Exception as exc:
+        logger.exception("Google OAuth callback failed: %s", exc)
         return Response(
-            {"error": "Google authentication failed. Please try again."},
+            {
+                "error": "Google authentication failed. Please try again.",
+                "detail": str(exc),
+                "type": type(exc).__name__,
+            },
             status=400,
         )
 

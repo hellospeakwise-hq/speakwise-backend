@@ -27,6 +27,7 @@ from events.services.event_import.exceptions import (
     EventImportUnavailable,
     UnsafeImportURL,
 )
+from profiles.services.organization_services import user_can_publish_events
 
 
 class EventListView(APIView):
@@ -42,7 +43,7 @@ class EventListView(APIView):
     def _create_serializer(request):
         """Return the serializer used to create an event for this user."""
         context = {"request": request}
-        if request.user.is_superuser:
+        if user_can_publish_events(request.user):
             return EventSerializer(data=request.data.copy(), context=context)
         return EventSubmitSerializer(data=request.data, context=context)
 
@@ -50,7 +51,12 @@ class EventListView(APIView):
     def _create_save_kwargs(request):
         """Return extra fields applied when saving a submitted event."""
         extra = {"submitted_by": request.user}
-        if not request.user.is_superuser:
+        if user_can_publish_events(request.user):
+            is_active = request.data.get("is_active", True)
+            if isinstance(is_active, str):
+                is_active = is_active.lower() in ("true", "1")
+            extra["is_active"] = bool(is_active)
+        else:
             extra["is_active"] = False
         return extra
 
@@ -150,7 +156,7 @@ class EventDetailView(APIView):
         data = (
             request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
         )
-        if not request.user.is_superuser:
+        if not user_can_publish_events(request.user):
             data.pop("is_active", None)
         serializer = EventSerializer(event, data=data, partial=True)
         if serializer.is_valid():
@@ -205,7 +211,7 @@ class PrivateEventDetailView(APIView):
         data = (
             request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
         )
-        if not request.user.is_superuser:
+        if not user_can_publish_events(request.user):
             data.pop("is_active", None)
         serializer = EventSerializer(event, data=data, partial=True)
         if serializer.is_valid():

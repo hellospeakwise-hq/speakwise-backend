@@ -55,3 +55,25 @@ def has_reached_organization_limit(user) -> bool:
         .count()
     )
     return counted_count >= get_organization_limit(user)
+
+
+def user_has_active_organization(user) -> bool:
+    """Return True if the user owns at least one active (approved) organization."""
+    if not user or not user.is_authenticated:
+        return False
+    return user.owned_organizations.filter(
+        status=OrganizationStatusChoices.ACTIVE
+    ).exists()
+
+
+def user_can_publish_events(user) -> bool:
+    """Return True if the user can publish and manage event active status directly.
+
+    Superusers and owners of approved (active) organizations can publish events
+    without manual approval.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user_has_active_organization(user)

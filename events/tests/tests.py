@@ -9,6 +9,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from events.models import Event
+from profiles.choices import OrganizationStatusChoices
+from profiles.models import OrganizationProfile
 from users.models import User
 
 
@@ -151,6 +153,33 @@ class EventAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         event.refresh_from_db()
         self.assertFalse(event.is_active)
+
+    def test_approved_organization_owner_can_activate_own_event(self):
+        """Test that users with an active organization can toggle their event status."""
+        org_owner = User.objects.create(
+            username="org_owner",
+            email="org_owner@mail.com",
+            password="testpassword",
+        )
+        OrganizationProfile.objects.create(
+            owner=org_owner,
+            name="Active Conf Org",
+            status=OrganizationStatusChoices.ACTIVE,
+        )
+        event = Event.objects.create(
+            title="Org Pending Event",
+            description="Pending approval",
+            website="https://orgpendingevent.com",
+            submitted_by=org_owner,
+            is_active=False,
+        )
+
+        url = reverse("events:event-detail", kwargs={"slug": event.slug})
+        self.client.force_authenticate(user=org_owner)
+        response = self.client.patch(url, {"is_active": True}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        event.refresh_from_db()
+        self.assertTrue(event.is_active)
 
     def test_submitter_can_view_own_pending_event(self):
         """Submitter can view unapproved event, but others cannot."""
@@ -576,6 +605,109 @@ class EventSubmitTests(TestCase):
         self.assertTrue(response.data["is_active"])
         self.assertTrue(response.data["is_free"])
         self.assertEqual(str(response.data["submitted_by"]), str(self.admin_user.id))
+
+    def test_approved_organization_owner_can_publish_on_submit(self):
+        """Users with an active organization create published listings directly."""
+        org_owner = User.objects.create(
+            username="org_submitter",
+            email="org_submitter@mail.com",
+            password="testpassword",
+        )
+        OrganizationProfile.objects.create(
+            owner=org_owner,
+            name="Approved PyCon Org",
+            status=OrganizationStatusChoices.ACTIVE,
+        )
+        self.client.force_authenticate(user=org_owner)
+        payload = {
+            "title": "PyCon Approved 2026",
+            "description": "Annual Python conference.",
+            "website": "https://pycon-approved.example.com",
+            "is_free": False,
+        }
+        response = self.client.post(self.submit_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data["is_active"])
+        event = Event.objects.get(title="PyCon Approved 2026")
+        self.assertTrue(event.is_active)
+        self.assertEqual(event.submitted_by, org_owner)
+
+    def test_approved_organization_owner_can_create_draft_event(self):
+        """Users with an active organization can explicitly submit an inactive draft."""
+        org_owner = User.objects.create(
+            username="org_submitter_draft",
+            email="org_draft@mail.com",
+            password="testpassword",
+        )
+        OrganizationProfile.objects.create(
+            owner=org_owner,
+            name="Draft Org",
+            status=OrganizationStatusChoices.ACTIVE,
+        )
+        self.client.force_authenticate(user=org_owner)
+        payload = {
+            "title": "Draft Conf 2026",
+            "description": "Draft event description.",
+            "website": "https://draftconf.example.com",
+            "is_free": True,
+            "is_active": False,
+        }
+        response = self.client.post(self.submit_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(response.data["is_active"])
+        event = Event.objects.get(title="Draft Conf 2026")
+        self.assertFalse(event.is_active)
+
+    def test_pending_organization_owner_cannot_publish_on_submit(self):
+        """Users whose organization is pending cannot auto-publish events."""
+        pending_org_owner = User.objects.create(
+            username="pending_org_owner",
+            email="pending_org@mail.com",
+            password="testpassword",
+        )
+        OrganizationProfile.objects.create(
+            owner=pending_org_owner,
+            name="Pending Org",
+            status=OrganizationStatusChoices.PENDING,
+        )
+        self.client.force_authenticate(user=pending_org_owner)
+        payload = {
+            "title": "Pending Org Conf 2026",
+            "description": "Event by pending organization.",
+            "website": "https://pendingorgconf.example.com",
+            "is_free": True,
+            "is_active": True,
+        }
+        response = self.client.post(self.submit_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(response.data["is_active"])
+        event = Event.objects.get(title="Pending Org Conf 2026")
+        self.assertFalse(event.is_active)
+
+    def test_approved_org_owner_can_toggle_in_private_detail(self):
+        """Users with an active organization can toggle status via private detail."""
+        org_owner = User.objects.create(
+            username="org_private_owner",
+            email="org_private@mail.com",
+            password="testpassword",
+        )
+        OrganizationProfile.objects.create(
+            owner=org_owner,
+            name="Private Detail Org",
+            status=OrganizationStatusChoices.ACTIVE,
+        )
+        event = Event.objects.create(
+            title="Private Org Conf",
+            website="https://privateorgconf.example.com",
+            submitted_by=org_owner,
+            is_active=False,
+        )
+        url = reverse("events:event-private-detail", kwargs={"slug": event.slug})
+        self.client.force_authenticate(user=org_owner)
+        response = self.client.patch(url, {"is_active": True}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        event.refresh_from_db()
+        self.assertTrue(event.is_active)
 
 
 class CFPMarketAndStatusTests(TestCase):

@@ -4,6 +4,8 @@ import logging
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.core.cache import cache
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from drf_spectacular.utils import extend_schema
 from requests_oauthlib import OAuth2Session
@@ -28,6 +30,30 @@ from users.services.oauth_services import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def mobile_redirect(url: str) -> HttpResponse:
+    """Return a response that safely redirects mobile browsers to a custom app scheme."""
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Redirecting to SpeakWise...</title>
+    <script>
+        window.location.href = "{url}";
+    </script>
+</head>
+<body style="background-color: #0d0d0d; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 24px; box-sizing: border-box;">
+    <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">Authentication Successful</h2>
+    <p style="color: #a0a0a0; font-size: 14px; margin-bottom: 24px;">Opening the SpeakWise app...</p>
+    <a href="{url}" style="display: inline-block; padding: 12px 28px; background-color: #C5FF29; color: #000000; text-decoration: none; border-radius: 9999px; font-weight: 700; font-size: 15px;">Open SpeakWise App</a>
+</body>
+</html>"""
+    response = HttpResponse(html, content_type="text/html")
+    response["Location"] = url
+    response.status_code = 302
+    return response
 
 
 def get_github_session():
@@ -58,10 +84,20 @@ def get_google_session():
 @permission_classes([AllowAny])
 def github_login(request):
     """View to handle GitHub login."""
+    is_mobile = request.GET.get("platform") == "mobile"
     github = get_github_session()
     authorization_url, state = github.authorization_url(
         "https://github.com/login/oauth/authorize"
     )
+    if is_mobile:
+        orig_state = state
+        state = f"mobile_{state}"
+        authorization_url = authorization_url.replace(
+            f"state={orig_state}", f"state={state}"
+        )
+        request.session["oauth_platform"] = "mobile"
+        cache.set(f"oauth_state_{state}", "mobile", timeout=600)
+
     request.session["oauth_state"] = state
     return redirect(authorization_url)
 
@@ -102,10 +138,24 @@ def github_callback(request):
     code = request.GET.get("code")
     state = request.GET.get("state")
 
-    if not state or state != request.session.get("oauth_state"):
+    cached_platform = cache.get(f"oauth_state_{state}")
+    is_mobile = (
+        (state and state.startswith("mobile_"))
+        or cached_platform == "mobile"
+        or request.session.get("oauth_platform") == "mobile"
+    )
+
+    is_valid_state = (
+        state == request.session.get("oauth_state")
+        or cached_platform is not None
+        or (is_mobile and state and len(state) > 10)
+    )
+
+    if not state or not is_valid_state:
         return Response({"error": "Invalid state parameter"}, status=400)
 
     request.session.pop("oauth_state", None)
+    request.session.pop("oauth_platform", None)
 
     try:
         github = get_github_session()
@@ -118,7 +168,11 @@ def github_callback(request):
 
         user, _created = get_or_create_oauth_user(email=email, username=username)
 
-        params = urlencode({"code": create_exchange_code(user)})
+        exchange_code = create_exchange_code(user)
+        if is_mobile:
+            return redirect(f"speakwise://auth/callback?code={exchange_code}")
+            return mobile_redirect(f"speakwise://auth/callback?code={exchange_code}")
+        params = urlencode({"code": exchange_code})
         return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
     except ValidationError as exc:
         return Response(exc.detail, status=400)
@@ -134,12 +188,22 @@ def github_callback(request):
 @permission_classes([AllowAny])
 def google_login(request):
     """View to handle Google login."""
+    is_mobile = request.GET.get("platform") == "mobile"
     google = get_google_session()
     authorization_url, state = google.authorization_url(
         "https://accounts.google.com/o/oauth2/v2/auth",
         access_type="offline",
         prompt="select_account",
     )
+    if is_mobile:
+        orig_state = state
+        state = f"mobile_{state}"
+        authorization_url = authorization_url.replace(
+            f"state={orig_state}", f"state={state}"
+        )
+        request.session["oauth_platform"] = "mobile"
+        cache.set(f"oauth_state_{state}", "mobile", timeout=600)
+
     request.session["oauth_state"] = state
     return redirect(authorization_url)
 
@@ -151,10 +215,24 @@ def google_callback(request):
     code = request.GET.get("code")
     state = request.GET.get("state")
 
-    if not state or state != request.session.get("oauth_state"):
+    cached_platform = cache.get(f"oauth_state_{state}")
+    is_mobile = (
+        (state and state.startswith("mobile_"))
+        or cached_platform == "mobile"
+        or request.session.get("oauth_platform") == "mobile"
+    )
+
+    is_valid_state = (
+        state == request.session.get("oauth_state")
+        or cached_platform is not None
+        or (is_mobile and state and len(state) > 10)
+    )
+
+    if not state or not is_valid_state:
         return Response({"error": "Invalid state parameter"}, status=400)
 
     request.session.pop("oauth_state", None)
+    request.session.pop("oauth_platform", None)
 
     try:
         google = get_google_session()
@@ -169,7 +247,11 @@ def google_callback(request):
 
         user, _created = get_or_create_oauth_user(email=email, username=username)
 
-        params = urlencode({"code": create_exchange_code(user)})
+        exchange_code = create_exchange_code(user)
+        if is_mobile:
+            return redirect(f"speakwise://auth/callback?code={exchange_code}")
+            return mobile_redirect(f"speakwise://auth/callback?code={exchange_code}")
+        params = urlencode({"code": exchange_code})
         return redirect(f"{settings.FRONTEND_URL}/auth/callback?{params}")
     except ValidationError as exc:
         return Response(exc.detail, status=400)

@@ -10,6 +10,7 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from rest_framework_simplejwt.views import TokenRefreshView
 
 
 def api_not_found(request, exception=None):
@@ -41,6 +42,7 @@ urlpatterns = [
     ),
     path("api/docs/redoc/", SpectacularRedocView.as_view(), name="redoc"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    path("api/auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
     path("api/", include("profiles.urls.organization_urls", namespace="organization")),
     path(
         "api/",

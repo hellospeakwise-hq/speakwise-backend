@@ -147,6 +147,26 @@ class UserLoginProfileDataTests(TestCase):
         profiles = response.data["profile"]
         self.assertEqual(profiles, {})
 
+    def test_token_refresh_via_standard_and_alias_urls(self):
+        """Token refresh works on /api/users/auth/token/refresh/ and /api/auth/refresh/."""
+        login_data = self._login()
+        refresh_token = login_data["refresh"]
+
+        # Standard URL: /api/users/auth/token/refresh/
+        refresh_url = reverse("users:token-refresh")
+        response = self.client.post(
+            refresh_url, {"refresh": refresh_token}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+
+        # Main project URL: /api/auth/refresh/
+        new_refresh = response.data.get("refresh", refresh_token)
+        main_url = reverse("auth-refresh")
+        response = self.client.post(main_url, {"refresh": new_refresh}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+
 
 class LoginProfilesSerializerTests(TestCase):
     """Direct tests for LoginProfilesSerializer's organization handling."""
